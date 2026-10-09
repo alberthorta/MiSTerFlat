@@ -37,6 +37,15 @@ Then:
 2. Delete the pictures you do not like from `out/art/`. To replace one, put your own
    `<CORE>.png` there (`../MISTerLily/tools/convert_asset.py` makes it 320x170).
    The next run keeps files that are already there.
+   Or review them on the board itself, connected to this computer by USB:
+
+   ```sh
+   python3 show.py --review               # Enter next, b back, d reject, m tty2oled picture, q quit
+   python3 show.py --shuffle --loop       # slideshow
+   python3 show.py 'sf2*' SNES --interval 5
+   ```
+
+   Rejected pictures go to `out/rejected/`, and `fetch.py` does not make them again.
 3. `out/missing.txt` lists the cores without a picture and why.
 4. Copy to the MiSTer:
 

@@ -330,6 +330,9 @@ def main():
         if done and not opts.force:
             rows.append((core, done[0], "kept", mono))
             continue
+        if any(os.path.exists(os.path.join(OUT, "rejected", core + e)) for e in (".png", ".jpg")):
+            rows.append((core, None, "rejected in show.py --review", mono))
+            continue
         try:
             if core in arcade:
                 src, source = arcade_source(core, info)
