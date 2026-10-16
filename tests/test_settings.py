@@ -67,7 +67,10 @@ class SettingsTest(unittest.TestCase):
         self.s.set_ini('MiSTer', 'preset_default', 'General Hardware/Arcade 90s')
         self.assertEqual(self.s.ini()['preset_default']['MiSTer'], 'General Hardware/Arcade 90s')
         self.assertEqual(len(os.listdir(os.path.join(self.fat, 'state', 'backups'))), 1)
-        for args in (('MiSTer', 'video_mode', '0'), ('MiSTer', 'vscale_mode', '9'),
+        self.s.set_ini('MiSTer', 'dvi_mode', '1')
+        self.s.set_ini('MiSTer', 'video_mode', '1920,1080,60')
+        self.assertEqual((self.s.ini()['dvi_mode'], self.s.ini()['video_mode']), ('1', '1920,1080,60'))
+        for args in (('MiSTer', 'video_mode', '0'), ('MiSTer', 'vscale_mode', '9'), ('arcade', 'dvi_mode', '1'),
                      ('arcade', 'preset_default', 'Nope'), ('evil', 'vscale_mode', '1')):
             with self.assertRaises(SettingsError):
                 self.s.set_ini(*args)

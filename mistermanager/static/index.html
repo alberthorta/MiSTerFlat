@@ -115,6 +115,13 @@ select { font: inherit; width: 100%; padding: 7px 8px; border-radius: 8px; borde
     <div class="field"><label for="p-arcade_vertical">Preset: vertical arcade</label><select id="p-arcade_vertical" data-section="arcade_vertical" data-empty="(same as all cores)"></select></div>
     <p class="note">Saved in MiSTer.ini (a backup is kept). It applies when the next core loads. Games with their own saved video settings keep them.</p>
   </div>
+  <div class="panel">
+    <h3>HDMI</h3>
+    <div class="field"><label for="vmode">Output</label><select id="vmode"></select></div>
+    <div class="field"><label for="dvi">Signal</label><select id="dvi"></select></div>
+    <p class="note">Try these if the screen goes off and on when a core loads. Both keep 1920x1080 at 60 Hz.
+      If the screen stays black after a change, set it back here from the phone, then reload a core.</p>
+  </div>
   <div class="panel" id="custombox" hidden>
     <h3>Edit custom preset</h3>
     <div class="field"><label for="cp-name">Preset</label><select id="cp-name"></select></div>
@@ -259,6 +266,11 @@ async function settings() {
   $('mute').dataset.muted = s.volume.muted ? '1' : '';
   const vs = $('vscale'); vs.replaceChildren(...Object.entries(options.vscale_modes).map(([k, v]) => new Option(k + ' – ' + v, k)));
   vs.value = s.ini.vscale_mode;
+  for (const [id, list, cur] of [['vmode', options.video_modes, s.ini.video_mode], ['dvi', options.dvi_modes, s.ini.dvi_mode]]) {
+    const sel = $(id); sel.replaceChildren(...Object.entries(list).map(([k, v]) => new Option(v, k)));
+    if (cur && !(cur in list)) sel.append(new Option(cur + ' (set by hand)', cur));
+    sel.value = cur;
+  }
   for (const sec of ['MiSTer', 'arcade', 'arcade_vertical'])
     fill($('p-' + sec), options.presets, s.ini.preset_default[sec], ['']);
   const names = Object.keys(custom);
@@ -300,6 +312,8 @@ $('mute').onclick = async () => {
   try { await api('/api/settings/volume', {mute}); setTimeout(settings, 1500); } catch (e) { toast('Error: ' + e.message); }
 };
 $('vscale').onchange = () => setIni('MiSTer', 'vscale_mode', $('vscale').value);
+$('vmode').onchange = () => setIni('MiSTer', 'video_mode', $('vmode').value);
+$('dvi').onchange = () => setIni('MiSTer', 'dvi_mode', $('dvi').value);
 for (const sec of ['MiSTer', 'arcade', 'arcade_vertical'])
   $('p-' + sec).onchange = ev => setIni(sec, 'preset_default', ev.target.value);
 $('cp-name').onchange = showPreset;

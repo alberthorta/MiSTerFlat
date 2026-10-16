@@ -13,13 +13,18 @@ from typing import Dict, List, Optional
 
 from .control import send_command
 
-# MiSTer.ini keys the page may change, with their allowed values. Video modes and sync
-# options are left out on purpose: a wrong value there can leave the screen black.
+# MiSTer.ini keys the page may change, with their allowed values. Only 1080p60 video modes
+# are offered and sync options are left out: a wrong value there can leave the screen black.
 INI_KEYS = {
     'vscale_mode': {'0': 'Fit to screen height', '1': 'Integer scale', '2': 'Steps of 0.5',
                     '3': 'Steps of 0.25', '4': 'Integer, core aspect', '5': 'Integer, display aspect'},
     'preset_default': None,  # any preset under Presets/, checked against the list
+    # Same picture; CVT-RB timing has smaller blanking, which some PC monitors lock onto better.
+    'video_mode': {'8': '1920x1080 60 Hz, TV timing (CEA)', '1920,1080,60': '1920x1080 60 Hz, PC timing (CVT-RB)'},
+    # DVI drops audio and the HDMI info frames; some monitors resync less often with it.
+    'dvi_mode': {'0': 'HDMI (with audio)', '1': 'DVI (no audio over HDMI)'},
 }
+GLOBAL_ONLY = ('vscale_mode', 'video_mode', 'dvi_mode')
 INI_SECTIONS = ('MiSTer', 'arcade', 'arcade_vertical')
 PRESET_FIELDS = ('hfilter', 'vfilter', 'sfilter', 'gamma', 'mask', 'maskmode')
 MASK_MODES = ('off', '1x', '2x', '1x rotated', '2x rotated')
@@ -155,6 +160,8 @@ class Settings:
     def ini(self) -> dict:
         text = self._read_ini()
         return {'vscale_mode': ini_get(text, 'MiSTer', 'vscale_mode') or '0',
+                'video_mode': ini_get(text, 'MiSTer', 'video_mode') or '',
+                'dvi_mode': ini_get(text, 'MiSTer', 'dvi_mode') or '0',
                 'preset_default': {s: ini_get(text, s, 'preset_default') or '' for s in INI_SECTIONS}}
 
     def set_ini(self, section: str, key: str, value: str) -> None:
@@ -165,8 +172,8 @@ class Settings:
             raise SettingsError('value not allowed')
         if key == 'preset_default' and value and value not in self.presets():
             raise SettingsError('unknown preset')
-        if key == 'vscale_mode' and section != 'MiSTer':
-            raise SettingsError('vscale_mode is set in [MiSTer] only')
+        if key in GLOBAL_ONLY and section != 'MiSTer':
+            raise SettingsError(f'{key} is set in [MiSTer] only')
         text = self._read_ini()
         if not text:
             raise SettingsError('MiSTer.ini not found')
@@ -191,6 +198,8 @@ class Settings:
                 'masks': _list_files(os.path.join(self.fat, 'Shadow_Masks')),
                 'maskmodes': list(MASK_MODES),
                 'vscale_modes': INI_KEYS['vscale_mode'],
+                'video_modes': INI_KEYS['video_mode'],
+                'dvi_modes': INI_KEYS['dvi_mode'],
                 'presets': self.presets()}
 
     def _preset_path(self, name: str) -> str:
