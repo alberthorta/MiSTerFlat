@@ -226,13 +226,14 @@ async function systems() {
 
 async function games() {
   const q = $('q').value.trim();
-  $('altwrap').hidden = system !== 'Arcade';
+  $('altwrap').hidden = false;
   if (!system && !q) { $('games').replaceChildren(); $('listtitle').textContent = 'Games';
                        $('hint').textContent = 'Pick a system or type a name.'; $('hint').hidden = false; return; }
   const params = new URLSearchParams({system, q, alt: $('alt').checked ? '1' : '0'});
   const list = await api('/api/games?' + params);
   $('listtitle').textContent = (system ? names[system] : 'All systems') + (q ? ' · “' + q + '”' : '');
-  $('games').replaceChildren(...list.map(g => card(g, system ? (g.alt ? 'other version' : '') : names[g.system])));
+  $('games').replaceChildren(...list.map(g => card(g, [system ? '' : names[g.system], g.alt ? 'other version' : '',
+                                                      g.discs ? g.discs + ' discs' : ''].filter(Boolean).join(' · '))));
   $('hint').hidden = list.length > 0 && list.length < 500;
   $('hint').textContent = list.length ? 'Showing the first 500. Type to narrow.' : 'No match.';
 }

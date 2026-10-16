@@ -35,7 +35,8 @@ def regions(name: str) -> List[str]:
         for part in re.split(r'[,\s]+', tag.lower()):
             if part in REGION_CODES:
                 words.append(REGION_CODES[part])
-            elif part in ('usa', 'europe', 'japan', 'world', 'brazil', 'korea', 'australia'):
+            elif part in ('usa', 'europe', 'japan', 'world', 'brazil', 'korea', 'australia',
+                          'spain', 'france', 'germany', 'italy'):
                 words.append(part)
     return words
 

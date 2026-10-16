@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 from .artwork import ArtIndex
 from .systems import ARCADE_DOCS, ARCADE_ID, NEOGEO, NEOGEO_ID, SYSTEMS, System
 
-INDEX_VERSION = 2
+INDEX_VERSION = 3
 SETNAME = re.compile(r'<setname>\s*([^<\s]+)\s*</setname>', re.I)
 
 
@@ -31,6 +31,30 @@ def _title(filename: str) -> str:
     return os.path.splitext(filename)[0]
 
 
+DISC = re.compile(r'\s*\(Dis[ck] (\d+)(?: of \d+)?\)', re.I)
+
+
+def group_discs(games: List[dict]) -> List[dict]:
+    """One entry per multi-disc game: disc 1, launched first; the core swaps the rest from the OSD."""
+    discs: Dict[tuple, List[dict]] = {}
+    out = []
+    for game in games:
+        m = DISC.search(game['name'])
+        if not m:
+            out.append(game)
+            continue
+        key = (os.path.dirname(game['path']), DISC.sub('', game['name']))
+        discs.setdefault(key, []).append(dict(game, disc=int(m.group(1))))
+    for (_, title), group in discs.items():
+        group.sort(key=lambda g: g['disc'])
+        first = group[0]
+        # The exact file name still finds the artwork, which is named per disc.
+        entry = {k: v for k, v in first.items() if k != 'disc'}
+        entry.update(name=title, set=first['name'], discs=len(group))
+        out.append(entry)
+    return out
+
+
 def scan_system(fat: str, system: System) -> List[dict]:
     root = os.path.join(fat, 'games', system.folder)
     if system.subfolder:
@@ -43,8 +67,11 @@ def scan_system(fat: str, system: System) -> List[dict]:
         if system.exclude and rel.startswith(os.path.join('games', system.folder, system.exclude) + os.sep):
             continue
         if os.path.splitext(fn)[1].lower() in system.extensions and not BOOT_ROM.match(fn):
-            games.append({'name': _title(fn), 'path': rel})
-    return games
+            game = {'name': _title(fn), 'path': rel}
+            if '_alternatives' in rel.split(os.sep):
+                game['alt'] = True
+            games.append(game)
+    return group_discs(games)
 
 
 def scan_arcade(fat: str) -> List[dict]:

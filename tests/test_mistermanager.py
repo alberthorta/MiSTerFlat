@@ -40,6 +40,10 @@ class Card(unittest.TestCase):
               b'<romset name="2020bb" altname="2020 Super Baseball"/></romsets>')
         touch(self.fat, '_Arcade/Golden Axe (set 6, US).mra', b'<misterromdescription><setname>goldnaxe</setname></misterromdescription>')
         touch(self.fat, 'games/MegaDrive/Addams Family (U) [!].bin')
+        for n in (1, 2, 3):
+            touch(self.fat, f'games/PSX/Final Fantasy VII (Spanish v3.2)/Final Fantasy VII (Spanish v3.2) (Disc {n}).chd')
+            touch(self.fat, f'games/PSX/_alternatives/Final Fantasy VII (USA)/Final Fantasy VII (USA) (Disc {n}).chd')
+        touch(self.fat, 'docs/PSX/Artwork/Final Fantasy VII (USA) (Disc 1).jpg')
         touch(self.fat, 'docs/Arcade/Artwork/goldnaxe.jpg')
         touch(self.fat, 'docs/NEOGEO/Titles/2020bb.png')
         touch(self.fat, 'docs/NES/Artwork/Super Mario Bros. (World).jpg')
@@ -85,6 +89,13 @@ class IndexTest(Card):
         self.assertEqual([g['name'] for g in systems['SG1000']['games']], ['Bank Panic (Japan)'])
         self.assertEqual([(g['name'], g['path']) for g in systems['NeoGeo']['games']],
                          [('2020 Super Baseball', 'games/NEOGEO/2020bb')])
+
+    def test_multi_disc_games_show_once_and_console_alternatives(self):
+        games = build_index(self.fat)['systems']['PSX']['games']
+        self.assertEqual([(g['name'], g.get('alt', False), g['discs']) for g in games],
+                         [('Final Fantasy VII (Spanish v3.2)', False, 3), ('Final Fantasy VII (USA)', True, 3)])
+        self.assertTrue(games[0]['path'].endswith('(Disc 1).chd'))
+        self.assertEqual(games[1]['art'], 'PSX/Artwork/Final Fantasy VII (USA) (Disc 1).jpg')
 
     def test_arcade_skips_cores_and_marks_alternatives(self):
         games = build_index(self.fat)['systems']['Arcade']['games']
