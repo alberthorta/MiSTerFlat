@@ -9,7 +9,10 @@ same network to:
   a button;
 - see the box art of each game, if update_all's Game Artwork DBs are installed (it falls back to
   the title screen, then to a screenshot);
-- go back to the MiSTer menu.
+- change general settings: the main volume, the scaling mode, the default video preset for all
+  cores, arcade and vertical arcade, and the filters of the presets in `Presets/Custom`
+  (scanlines, sharpness, gamma, shadow mask);
+- go back to the MiSTer menu or reboot it.
 
 It is one Python program with no extra packages. The MiSTer already has Python 3.9.
 
@@ -28,6 +31,15 @@ The core paths and MGL slot numbers per system are in `mistermanager/systems.py`
 The server only starts games that are in its own index of the SD card, and it checks that each
 path stays inside the folder of its system. There is no password: use it only on your home
 network.
+
+## Settings
+
+Volume goes through the same fifo (`volume 0`-`volume 7`, `volume mute|unmute`) and MiSTer saves
+it in `config/Volume.dat`. The page only changes `vscale_mode` and `preset_default` in
+`MiSTer.ini` (sections `[MiSTer]`, `[arcade]`, `[arcade_vertical]`); video modes and sync options
+are left out because a wrong value can leave the screen black. Every change keeps a copy of the
+previous file in `/media/fat/MiSTerManager/backups` (last 10). MiSTer reads these files when a core
+loads, so changes apply from the next core load.
 
 ## Artwork
 

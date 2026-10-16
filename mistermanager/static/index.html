@@ -52,6 +52,19 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: v
 .card .sub { color: var(--muted); font-size: 11px; }
 .card button { width: 100%; }
 .hint { color: var(--muted); font-size: 13px; padding: 12px 0; }
+.tabs { display: flex; gap: 4px; }
+.tabs button.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 14px; }
+.panel h3 { margin: 0 0 10px; font-size: 15px; }
+.field { display: grid; grid-template-columns: minmax(110px, 160px) 1fr; gap: 6px 10px; align-items: center; margin-bottom: 8px; }
+@media (max-width: 520px) { .field { grid-template-columns: 1fr; } }
+.field label { color: var(--muted); font-size: 13px; }
+select { font: inherit; width: 100%; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line);
+         background: var(--bg); color: var(--text); min-width: 0; }
+.vol { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.vol input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+.note { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
 #toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--text); color: var(--bg);
          padding: 8px 14px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
 #toast.show { opacity: 1; }
@@ -62,14 +75,14 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: v
   <div class="top">
     <h1>MiSTer</h1>
     <div class="now" id="now">…</div>
-    <button id="menu" title="Back to the MiSTer menu">Menu</button>
+    <div class="tabs"><button id="tab-games" class="on">Games</button><button id="tab-settings">Settings</button></div>
   </div>
-  <div class="search">
+  <div class="search" id="searchbar">
     <input type="search" id="q" placeholder="Search all games" autocomplete="off">
     <label id="altwrap" hidden><input type="checkbox" id="alt"> other versions</label>
   </div>
 </header>
-<main>
+<main id="view-games">
   <details class="info">
     <summary>System</summary>
     <div class="stats" id="stats"></div>
@@ -83,6 +96,44 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: v
   <h2 id="listtitle">Games</h2>
   <div class="grid" id="games"></div>
   <div class="hint" id="hint">Pick a system or type a name.</div>
+</main>
+<main id="view-settings" hidden>
+  <div class="panel">
+    <h3>Volume</h3>
+    <div class="vol">
+      <input type="range" id="vol" min="0" max="7" step="1">
+      <strong id="volval">–</strong>
+      <button id="mute">Mute</button>
+    </div>
+    <p class="note">Main output (HDMI and analog). Changes at once.</p>
+  </div>
+  <div class="panel">
+    <h3>Video</h3>
+    <div class="field"><label for="vscale">Scaling</label><select id="vscale"></select></div>
+    <div class="field"><label for="p-MiSTer">Preset: all cores</label><select id="p-MiSTer" data-section="MiSTer"></select></div>
+    <div class="field"><label for="p-arcade">Preset: arcade</label><select id="p-arcade" data-section="arcade" data-empty="(same as all cores)"></select></div>
+    <div class="field"><label for="p-arcade_vertical">Preset: vertical arcade</label><select id="p-arcade_vertical" data-section="arcade_vertical" data-empty="(same as all cores)"></select></div>
+    <p class="note">Saved in MiSTer.ini (a backup is kept). It applies when the next core loads. Games with their own saved video settings keep them.</p>
+  </div>
+  <div class="panel" id="custombox" hidden>
+    <h3>Edit custom preset</h3>
+    <div class="field"><label for="cp-name">Preset</label><select id="cp-name"></select></div>
+    <div class="field"><label for="cp-hfilter">Sharpness (horizontal)</label><select id="cp-hfilter"></select></div>
+    <div class="field"><label for="cp-vfilter">Scanlines (vertical)</label><select id="cp-vfilter"></select></div>
+    <div class="field"><label for="cp-gamma">Gamma</label><select id="cp-gamma"></select></div>
+    <div class="field"><label for="cp-mask">Shadow mask</label><select id="cp-mask"></select></div>
+    <div class="field"><label for="cp-maskmode">Mask mode</label><select id="cp-maskmode"></select></div>
+    <div class="row"><button class="primary" id="cp-save">Save preset</button></div>
+    <p class="note">Presets/Custom. The " - Vertical" copy is updated too, with the filters swapped and the mask rotated.
+      Scanlines "SLA_Dk_XXX_Br_YYY": Dk = how dark the lines are, Br = how much bright parts fill them.</p>
+  </div>
+  <div class="panel">
+    <h3>MiSTer</h3>
+    <div class="row">
+      <button id="menu">Back to menu</button>
+      <button id="reboot">Reboot MiSTer</button>
+    </div>
+  </div>
 </main>
 <div id="toast"></div>
 <script>
@@ -178,6 +229,90 @@ async function games() {
   $('hint').hidden = list.length > 0 && list.length < 500;
   $('hint').textContent = list.length ? 'Showing the first 500. Type to narrow.' : 'No match.';
 }
+
+let options = null, custom = {};
+
+function fill(sel, values, current, extra) {
+  sel.replaceChildren();
+  const groups = {};
+  for (const v of (extra || []).concat(values)) {
+    const slash = v.lastIndexOf('/');
+    const g = slash < 0 ? '' : v.slice(0, slash);
+    (groups[g] = groups[g] || []).push(v);
+  }
+  for (const [g, list] of Object.entries(groups)) {
+    const parent = g ? Object.assign(document.createElement('optgroup'), {label: g}) : sel;
+    for (const v of list) parent.append(new Option(v === '' ? (sel.dataset.empty || '(none)') : g ? v.slice(g.length + 1).replace(/\.txt$/, '') : v, v));
+    if (g) sel.append(parent);
+  }
+  if (current && ![...sel.options].some(o => o.value === current)) sel.append(new Option(current + ' (missing)', current));
+  sel.value = current || '';
+}
+
+async function settings() {
+  if (!options) options = await api('/api/settings/options');
+  const s = await api('/api/settings');
+  custom = s.custom;
+  $('vol').value = s.volume.level;
+  $('volval').textContent = s.volume.muted ? 'muted' : s.volume.level + ' / 7';
+  $('mute').textContent = s.volume.muted ? 'Unmute' : 'Mute';
+  $('mute').dataset.muted = s.volume.muted ? '1' : '';
+  const vs = $('vscale'); vs.replaceChildren(...Object.entries(options.vscale_modes).map(([k, v]) => new Option(k + ' – ' + v, k)));
+  vs.value = s.ini.vscale_mode;
+  for (const sec of ['MiSTer', 'arcade', 'arcade_vertical'])
+    fill($('p-' + sec), options.presets, s.ini.preset_default[sec], ['']);
+  const names = Object.keys(custom);
+  $('custombox').hidden = !names.length;
+  if (names.length) {
+    const keep = $('cp-name').value;
+    fill($('cp-name'), names, names.includes(keep) ? keep : names[0]);
+    showPreset();
+  }
+}
+
+function showPreset() {
+  const p = custom[$('cp-name').value] || {};
+  fill($('cp-hfilter'), options.filters, p.hfilter);
+  fill($('cp-vfilter'), options.filters, p.vfilter, ['same']);
+  fill($('cp-gamma'), options.gamma, p.gamma, ['off']);
+  fill($('cp-mask'), options.masks, p.mask, ['']);
+  fill($('cp-maskmode'), options.maskmodes, p.maskmode || 'off');
+}
+
+async function setIni(section, key, value) {
+  try { await api('/api/settings/ini', {section, key, value}); toast('Saved. Applies on the next core load.'); }
+  catch (e) { toast('Error: ' + e.message); settings(); }
+}
+
+function showTab(name) {
+  $('view-games').hidden = name !== 'games'; $('searchbar').hidden = name !== 'games';
+  $('view-settings').hidden = name !== 'settings';
+  $('tab-games').classList.toggle('on', name === 'games'); $('tab-settings').classList.toggle('on', name === 'settings');
+  if (name === 'settings') settings().catch(e => toast('Error: ' + e.message));
+}
+
+$('tab-games').onclick = () => showTab('games');
+$('tab-settings').onclick = () => showTab('settings');
+$('vol').oninput = () => { $('volval').textContent = $('vol').value + ' / 7'; };
+$('vol').onchange = async () => { try { await api('/api/settings/volume', {level: +$('vol').value}); } catch (e) { toast('Error: ' + e.message); } };
+$('mute').onclick = async () => {
+  const mute = !$('mute').dataset.muted;
+  try { await api('/api/settings/volume', {mute}); setTimeout(settings, 1500); } catch (e) { toast('Error: ' + e.message); }
+};
+$('vscale').onchange = () => setIni('MiSTer', 'vscale_mode', $('vscale').value);
+for (const sec of ['MiSTer', 'arcade', 'arcade_vertical'])
+  $('p-' + sec).onchange = ev => setIni(sec, 'preset_default', ev.target.value);
+$('cp-name').onchange = showPreset;
+$('cp-save').onclick = async () => {
+  const fields = Object.fromEntries(['hfilter', 'vfilter', 'gamma', 'mask', 'maskmode'].map(k => [k, $('cp-' + k).value]));
+  fields.sfilter = (custom[$('cp-name').value] || {}).sfilter || 'same';
+  try { await api('/api/settings/preset', {name: $('cp-name').value, fields}); toast('Preset saved. Applies on the next core load.'); settings(); }
+  catch (e) { toast('Error: ' + e.message); }
+};
+$('reboot').onclick = async () => {
+  if (!confirm('Reboot the MiSTer now? A running game will stop.')) return;
+  try { await api('/api/reboot', {}); toast('Rebooting…'); } catch (e) { toast('Error: ' + e.message); }
+};
 
 $('q').oninput = () => { clearTimeout(timer); timer = setTimeout(games, 250); };
 $('alt').onchange = games;
