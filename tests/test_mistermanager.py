@@ -127,6 +127,10 @@ class LaunchTest(Card):
         self.assertEqual((f.get('type'), f.get('index'), f.get('path')),
                          ('f', '1', '/media/fat/games/SMS/SG-1000/A & B "x".sg'))
 
+    def test_cd_systems_mount_the_image(self):
+        f = ET.fromstring(make_mgl('CDI', '/media/fat/games/CD-i/Link/Link.cue')).find('file')
+        self.assertEqual((f.get('type'), f.get('index')), ('s', '1'))
+
     def test_console_launch_writes_mgl_and_command(self):
         ctl = Controller(self.fat, self.fat, fifo=self.fifo, mgl_path=os.path.join(self.fat, 'x.mgl'))
         game = {'name': 'Super Mario Bros. (World)', 'path': 'games/NES/Super Mario Bros. (World).nes'}

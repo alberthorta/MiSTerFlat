@@ -30,7 +30,7 @@ def make_mgl(system_id: str, game_path: str) -> str:
     system = BY_ID[system_id]
     return ('<mistergamedescription>\n'
             f'    <rbf>{system.rbf}</rbf>\n'
-            f'    <file delay="{system.delay}" type="f" index="{system.index}" path={quoteattr(game_path)}/>\n'
+            f'    <file delay="{system.delay}" type="{system.method}" index="{system.index}" path={quoteattr(game_path)}/>\n'
             '</mistergamedescription>\n')
 
 

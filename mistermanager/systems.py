@@ -23,6 +23,7 @@ class System:
     subfolder: str = ''        # only this subfolder of `folder`, if set
     exclude: str = ''          # skip this subfolder of `folder`
     docs: str = ''             # folder under /media/fat/docs with update_all's game artwork
+    method: str = 'f'          # MGL <file type>: f loads a file, s mounts a disc image
 
 
 SYSTEMS = (
@@ -40,6 +41,9 @@ SYSTEMS = (
     System('Atari7800', 'Atari 7800', '_Console/Atari7800', 'ATARI7800', ('.a78',), index=1, docs='ATARI7800'),
     System('N64', 'Nintendo 64', '_Console/N64', 'N64', ('.n64', '.z64', '.v64'), index=1, docs='N64'),
     System('TurboGrafx16', 'PC Engine', '_Console/TurboGrafx16', 'TGFX16', ('.pce', '.bin'), docs='TGFX16'),
+    System('CDI', 'CD-i', '_Console/CDi', 'CD-i', ('.cue', '.chd'), index=1, method='s', docs='CD-i'),
+    System('PSX', 'PlayStation', '_Console/PSX', 'PSX', ('.cue', '.chd'), index=1, method='s', docs='PSX'),
+    System('MegaCD', 'Mega CD', '_Console/MegaCD', 'MegaCD', ('.cue', '.chd'), method='s', docs='MegaCD'),
 )
 
 # Not in SYSTEMS: arcade games are .mra files the fifo loads directly, and Neo Geo
