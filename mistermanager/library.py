@@ -8,9 +8,11 @@ import threading
 import time
 from typing import Dict, List, Optional
 
-from .systems import ARCADE_ID, NEOGEO, NEOGEO_ID, SYSTEMS, System
+from .artwork import ArtIndex
+from .systems import ARCADE_DOCS, ARCADE_ID, NEOGEO, NEOGEO_ID, SYSTEMS, System
 
-INDEX_VERSION = 1
+INDEX_VERSION = 2
+SETNAME = re.compile(r'<setname>\s*([^<\s]+)\s*</setname>', re.I)
 
 
 def _walk(root: str):
@@ -59,7 +61,15 @@ def scan_arcade(fat: str) -> List[dict]:
         if 'cores' in parts[1:2]:
             continue
         alt = '_alternatives' in parts
-        games.append({'name': _title(fn), 'path': rel, 'alt': alt})
+        game = {'name': _title(fn), 'path': rel, 'alt': alt}
+        try:
+            with open(os.path.join(dirpath, fn), encoding='utf-8', errors='replace') as f:
+                m = SETNAME.search(f.read())
+            if m:
+                game['set'] = m.group(1)
+        except OSError:
+            pass
+        games.append(game)
     return games
 
 
@@ -92,23 +102,34 @@ def scan_neogeo(fat: str) -> List[dict]:
         full = os.path.join(root, entry)
         rel = os.path.relpath(full, fat)
         if os.path.isdir(full) and entry in names:
-            games.append({'name': names[entry], 'path': rel})
+            games.append({'name': names[entry], 'path': rel, 'set': entry})
         elif os.path.isfile(full) and entry.lower().endswith('.neo'):
-            games.append({'name': _title(entry), 'path': rel})
+            games.append({'name': _title(entry), 'path': rel, 'set': _title(entry)})
     return games
 
 
+def add_artwork(games: List[dict], art: ArtIndex, folder: str) -> None:
+    for game in games:
+        found = art.find(folder, game['name'], game.get('set'))
+        if found:
+            game['art'] = found
+
+
 def build_index(fat: str) -> dict:
+    art = ArtIndex(fat)
     systems = {}
     for system in SYSTEMS:
         games = scan_system(fat, system)
         if games:
+            add_artwork(games, art, system.docs)
             systems[system.id] = {'name': system.name, 'games': games}
     neo = scan_neogeo(fat)
     if neo:
+        add_artwork(neo, art, NEOGEO.docs)
         systems[NEOGEO_ID] = {'name': NEOGEO.name, 'games': neo}
     arcade = scan_arcade(fat)
     if arcade:
+        add_artwork(arcade, art, ARCADE_DOCS)
         systems[ARCADE_ID] = {'name': 'Arcade', 'games': arcade}
     for entry in systems.values():
         entry['games'].sort(key=lambda g: (g.get('alt', False), g['name'].lower()))
@@ -164,19 +185,22 @@ class Library:
 
     def games(self, system_id: str, query: str = '', alternatives: bool = False,
               limit: int = 500) -> List[dict]:
-        system = self.index['systems'].get(system_id)
-        if not system:
-            return []
+        """Games of one system, or of every system when system_id is empty."""
+        if system_id:
+            ids = [system_id] if system_id in self.index['systems'] else []
+        else:
+            ids = [s['id'] for s in self.summary()]
         words = query.lower().split()
         out = []
-        for game in system['games']:
-            if game.get('alt') and not alternatives:
-                continue
-            name = game['name'].lower()
-            if all(w in name for w in words):
-                out.append(game)
-                if len(out) >= limit:
-                    break
+        for sid in ids:
+            for game in self.index['systems'][sid]['games']:
+                if game.get('alt') and not alternatives:
+                    continue
+                name = game['name'].lower()
+                if all(w in name for w in words):
+                    out.append(dict(game, system=sid))
+                    if len(out) >= limit:
+                        return out
         return out
 
     def find(self, system_id: str, path: str) -> Optional[dict]:

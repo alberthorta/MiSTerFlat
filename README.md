@@ -5,7 +5,10 @@ same network to:
 
 - see what is running (core and game) and the state of the Linux side: CPU, memory, free
   space on the SD card, uptime, IP and Wi-Fi;
-- browse the games on the SD card by system, search them and start one with a button;
+- browse the games on the SD card by system, or search all systems at once, and start one with
+  a button;
+- see the box art of each game, if update_all's Game Artwork DBs are installed (it falls back to
+  the title screen, then to a screenshot);
 - go back to the MiSTer menu.
 
 It is one Python program with no extra packages. The MiSTer already has Python 3.9.
@@ -21,6 +24,13 @@ an `.mra` or an `.mgl` file.
 - Neo Geo: the Darksoft folders listed in `games/NEOGEO/romsets.xml`, and `.neo` files.
 
 The core paths and MGL slot numbers per system are in `mistermanager/systems.py`.
+
+## Artwork
+
+update_all's "Game Artwork DBs" put images in `/media/fat/docs/<system>/Artwork`, `Titles` and
+`Screenshots`. Console images use No-Intro names; arcade and Neo Geo images use the MAME set name
+(read from the `.mra` file or the Darksoft folder name). Games with older GoodTools names are
+matched on the bare title, preferring the region of the game. See `mistermanager/artwork.py`.
 
 The server only starts games that are in its own index of the SD card, and it checks that each
 path stays inside the folder of its system. There is no password: use it only on your home

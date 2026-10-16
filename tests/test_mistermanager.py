@@ -7,6 +7,7 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from xml.etree import ElementTree as ET
 
+from mistermanager.artwork import normalize
 from mistermanager.control import Controller, LaunchError, inside, make_mgl
 from mistermanager.library import Library, build_index
 from mistermanager.server import App, make_handler
@@ -37,7 +38,15 @@ class Card(unittest.TestCase):
         touch(self.fat, 'games/NEOGEO/romsets.xml',
               b'<romsets><!-- <romset name="hidden"/> -->'
               b'<romset name="2020bb" altname="2020 Super Baseball"/></romsets>')
-        touch(self.fat, '_Arcade/Golden Axe (set 6, US).mra')
+        touch(self.fat, '_Arcade/Golden Axe (set 6, US).mra', b'<misterromdescription><setname>goldnaxe</setname></misterromdescription>')
+        touch(self.fat, 'games/MegaDrive/Addams Family (U) [!].bin')
+        touch(self.fat, 'docs/Arcade/Artwork/goldnaxe.jpg')
+        touch(self.fat, 'docs/NEOGEO/Titles/2020bb.png')
+        touch(self.fat, 'docs/NES/Artwork/Super Mario Bros. (World).jpg')
+        touch(self.fat, 'docs/NES/Titles/Super Mario Bros. (World).png')
+        touch(self.fat, 'docs/NES/README.md')
+        touch(self.fat, 'docs/Genesis/Artwork/Addams Family, The (Europe).jpg')
+        touch(self.fat, 'docs/Genesis/Artwork/Addams Family, The (USA).jpg')
         touch(self.fat, '_Arcade/_alternatives/_Golden Axe/Golden Axe (set 1, World).mra')
         touch(self.fat, '_Arcade/cores/jts16b_20260101.rbf')
         self.fifo = os.path.join(self.fat, 'cmd')
@@ -74,7 +83,8 @@ class IndexTest(Card):
         self.assertEqual(systems['SNES']['games'][0]['path'], 'games/SNES/Otros/BM3.SMC')
         self.assertEqual([g['name'] for g in systems['SMS']['games']], ['Alex Kidd (UE) [!]'])
         self.assertEqual([g['name'] for g in systems['SG1000']['games']], ['Bank Panic (Japan)'])
-        self.assertEqual(systems['NeoGeo']['games'], [{'name': '2020 Super Baseball', 'path': 'games/NEOGEO/2020bb'}])
+        self.assertEqual([(g['name'], g['path']) for g in systems['NeoGeo']['games']],
+                         [('2020 Super Baseball', 'games/NEOGEO/2020bb')])
 
     def test_arcade_skips_cores_and_marks_alternatives(self):
         games = build_index(self.fat)['systems']['Arcade']['games']
@@ -91,6 +101,22 @@ class IndexTest(Card):
         again = Library(self.fat, cache)
         self.assertTrue(again.load_cache())
         self.assertEqual(again.summary(), lib.summary())
+
+
+class ArtworkTest(Card):
+    def test_exact_set_name_and_loose_title_with_region(self):
+        systems = build_index(self.fat)['systems']
+        art = {g['name']: g.get('art') for s in systems.values() for g in s['games']}
+        self.assertEqual(art['Super Mario Bros. (World)'], 'NES/Artwork/Super Mario Bros. (World).jpg')
+        self.assertEqual(art['Golden Axe (set 6, US)'], 'Arcade/Artwork/goldnaxe.jpg')
+        self.assertEqual(art['2020 Super Baseball'], 'NEOGEO/Titles/2020bb.png')
+        self.assertEqual(art['Addams Family (U) [!]'], 'Genesis/Artwork/Addams Family, The (USA).jpg')
+        self.assertIsNone(art['Alex Kidd (UE) [!]'])
+
+    def test_normalize(self):
+        self.assertEqual(normalize("Knuckles' Chaotix (Europe, USA)"), normalize('Knuckles Chaotix 32X (5) [!]'))
+        self.assertEqual(normalize('Addams Family, The (USA)'), normalize('Addams Family (U) [!]'))
+        self.assertEqual(normalize('Act Raiser (U)'), normalize('ActRaiser (USA)'))
 
 
 class LaunchTest(Card):
@@ -166,6 +192,19 @@ class HttpTest(Card):
         self.assertEqual(len(json.loads(games)), 1)
         _, status_json = self.get('/api/status')
         self.assertIn('system', json.loads(status_json))
+
+    def test_artwork_route_serves_only_images(self):
+        status, _ = self.get('/art/Arcade/Artwork/goldnaxe.jpg')
+        self.assertEqual(status, 200)
+        for bad in ('/art/NES/README.md', '/art/../games/NES/readme.txt'):
+            with self.assertRaises(urllib.error.HTTPError):
+                self.get(bad)
+
+    def test_search_all_systems(self):
+        _, body = self.get('/api/games?q=a')
+        found = {(g['system'], g['name']) for g in json.loads(body)}
+        self.assertIn(('MegaDrive', 'Addams Family (U) [!]'), found)
+        self.assertIn(('SMS', 'Alex Kidd (UE) [!]'), found)
 
     def test_unknown_game_and_static_escape(self):
         code, body = self.post('/api/launch', {'system': 'NES', 'path': '../../etc/passwd'})

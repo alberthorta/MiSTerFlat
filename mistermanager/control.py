@@ -77,7 +77,7 @@ class Controller:
             target = self.mgl_path
         send_command(f'load_core {target}', self.fifo)
         self.last_launch = {'system': system_id, 'name': game['name'], 'path': game['path'],
-                            'time': int(time.time())}
+                            'art': game.get('art'), 'time': int(time.time())}
         self._remember(self.last_launch)
 
     def menu(self) -> None:

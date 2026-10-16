@@ -7,8 +7,9 @@ import mimetypes
 import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
+from .artwork import IMAGE_EXTS
 from .control import Controller, LaunchError, Stats, current
 from .library import Library
 
@@ -58,8 +59,14 @@ def make_handler(app: App):
                                              alternatives=q.get('alt') == '1'))
             elif url.path == '/api/recent':
                 self._json(app.controller.recent())
+            elif url.path.startswith('/art/'):
+                name = unquote(url.path[len('/art/'):])
+                if os.path.splitext(name)[1].lower() not in IMAGE_EXTS:
+                    return self._send(404, b'not found', 'text/plain')
+                self._file(os.path.join(app.fat, 'docs'), name, cache=True)
             else:
-                self._static(url.path)
+                name = 'index.html' if url.path in ('', '/') else url.path.lstrip('/')
+                self._file(STATIC, name)
 
         def do_POST(self):
             url = urlparse(self.path)
@@ -88,14 +95,19 @@ def make_handler(app: App):
             except LaunchError as e:
                 self._json({'error': str(e)}, 409)
 
-        def _static(self, path: str):
-            name = 'index.html' if path in ('', '/') else path.lstrip('/')
-            full = os.path.realpath(os.path.join(STATIC, name))
-            if not full.startswith(os.path.realpath(STATIC) + os.sep) or not os.path.isfile(full):
+        def _file(self, root: str, name: str, cache: bool = False):
+            full = os.path.realpath(os.path.join(root, name))
+            if not full.startswith(os.path.realpath(root) + os.sep) or not os.path.isfile(full):
                 return self._send(404, b'not found', 'text/plain')
             with open(full, 'rb') as f:
                 data = f.read()
-            self._send(200, data, mimetypes.guess_type(full)[0] or 'application/octet-stream')
+            self.send_response(200)
+            self.send_header('Content-Type', mimetypes.guess_type(full)[0] or 'application/octet-stream')
+            self.send_header('Content-Length', str(len(data)))
+            # Artwork only changes with update_all; the page itself must not be cached.
+            self.send_header('Cache-Control', 'max-age=86400' if cache else 'no-store')
+            self.end_headers()
+            self.wfile.write(data)
 
     return Handler
 
