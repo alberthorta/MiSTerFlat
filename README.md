@@ -25,16 +25,16 @@ an `.mra` or an `.mgl` file.
 
 The core paths and MGL slot numbers per system are in `mistermanager/systems.py`.
 
+The server only starts games that are in its own index of the SD card, and it checks that each
+path stays inside the folder of its system. There is no password: use it only on your home
+network.
+
 ## Artwork
 
 update_all's "Game Artwork DBs" put images in `/media/fat/docs/<system>/Artwork`, `Titles` and
 `Screenshots`. Console images use No-Intro names; arcade and Neo Geo images use the MAME set name
 (read from the `.mra` file or the Darksoft folder name). Games with older GoodTools names are
 matched on the bare title, preferring the region of the game. See `mistermanager/artwork.py`.
-
-The server only starts games that are in its own index of the SD card, and it checks that each
-path stays inside the folder of its system. There is no password: use it only on your home
-network.
 
 ## Install
 
