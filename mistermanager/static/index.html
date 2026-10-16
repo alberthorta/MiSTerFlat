@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiSTer Manager</title>
+<style>
+:root {
+  --bg: #f4f2ee; --panel: #ffffff; --text: #1d1b19; --muted: #6b665f; --line: #e2ddd5;
+  --accent: #c2410c; --accent-text: #ffffff; --ok: #15803d; --err: #b91c1c;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #151413; --panel: #1f1d1b; --text: #eeeae4; --muted: #a29b91; --line: #34312d;
+          --accent: #fb923c; --accent-text: #1a1009; --ok: #4ade80; --err: #f87171; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+       font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+header { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--line);
+         padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+header h1 { font-size: 16px; margin: 0; letter-spacing: .02em; }
+.now { flex: 1; min-width: 0; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.now b { color: var(--text); font-weight: 600; }
+button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+         border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+main { max-width: 900px; margin: 0 auto; padding: 16px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.stat span { display: block; color: var(--muted); font-size: 12px; }
+.stat strong { font-size: 15px; font-variant-numeric: tabular-nums; }
+.systems { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.systems button { font-size: 13px; padding: 5px 10px; }
+.systems button.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.systems small { opacity: .7; margin-left: 4px; }
+.bar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.bar input[type=search] { flex: 1; min-width: 180px; font: inherit; padding: 8px 10px; border-radius: 8px;
+                          border: 1px solid var(--line); background: var(--panel); color: var(--text); }
+.bar label { color: var(--muted); font-size: 13px; display: flex; gap: 4px; align-items: center; }
+ul.games { list-style: none; margin: 0; padding: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+ul.games li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line); }
+ul.games li:first-child { border-top: 0; }
+ul.games .name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+ul.games .sub { color: var(--muted); font-size: 12px; }
+.hint { color: var(--muted); font-size: 13px; padding: 12px; }
+#toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--text); color: var(--bg);
+         padding: 8px 14px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+#toast.show { opacity: 1; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>MiSTer</h1>
+  <div class="now" id="now">…</div>
+  <button id="menu" title="Back to the MiSTer menu">Menu</button>
+</header>
+<main>
+  <div class="stats" id="stats"></div>
+  <h2>Recent</h2>
+  <ul class="games" id="recent"><li class="hint">Nothing launched from here yet.</li></ul>
+  <h2>Games</h2>
+  <div class="systems" id="systems"></div>
+  <div class="bar">
+    <input type="search" id="q" placeholder="Search" autocomplete="off">
+    <label id="altwrap" hidden><input type="checkbox" id="alt"> other versions</label>
+    <button id="rescan" title="Read the SD card again">Rescan</button>
+  </div>
+  <ul class="games" id="games"><li class="hint">Pick a system.</li></ul>
+</main>
+<div id="toast"></div>
+<script>
+const $ = id => document.getElementById(id);
+let system = null, timer = null, wasScanning = false;
+
+const fmtBytes = b => b == null ? '–' : b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : (b / 1e6).toFixed(0) + ' MB';
+const fmtUptime = s => { if (s == null) return '–'; s = Math.floor(s); const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  return (d ? d + 'd ' : '') + (h ? h + 'h ' : '') + m + 'm'; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2500); }
+
+async function api(path, body) {
+  const r = await fetch(path, body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+async function status() {
+  try {
+    const s = await api('/api/status'), sys = s.system, now = s.now;
+    $('now').innerHTML = !now.core || now.core.toUpperCase() === 'MENU' ? 'In the menu'
+      : '<b>' + esc(now.game || now.core) + '</b>' + (now.game ? ' · ' + esc(now.core) : '');
+    const used = sys.mem.total - sys.mem.available;
+    const items = [
+      ['CPU', sys.cpu == null ? '–' : sys.cpu + ' %'],
+      ['Memory', fmtBytes(used) + ' / ' + fmtBytes(sys.mem.total)],
+      ['SD free', sys.disk ? fmtBytes(sys.disk.free) : '–'],
+      ['Uptime', fmtUptime(sys.uptime)],
+      ['IP', sys.ip || '–'],
+      ['Wi-Fi', sys.wifi ? (sys.wifi.ssid || sys.wifi.iface) + ' · ' + sys.wifi.level + ' dBm' : 'cable / off'],
+    ];
+    $('stats').innerHTML = items.map(([k, v]) => '<div class="stat"><span>' + k + '</span><strong>' + esc(v) + '</strong></div>').join('');
+    if (wasScanning && !s.scanning) { systems(); games(); }
+    wasScanning = s.scanning;
+    $('rescan').disabled = s.scanning;
+    $('rescan').textContent = s.scanning ? 'Scanning…' : 'Rescan';
+  } catch (e) { $('now').textContent = 'MiSTer not answering'; }
+}
+
+function row(g, sys, sub) {
+  const li = document.createElement('li');
+  li.innerHTML = '<div class="name">' + esc(g.name) + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div><button class="primary">Play</button>';
+  li.querySelector('button').onclick = async ev => {
+    ev.target.disabled = true;
+    try { await api('/api/launch', {system: sys, path: g.path}); toast('Loading ' + g.name); setTimeout(() => { status(); recent(); }, 1500); }
+    catch (e) { toast('Error: ' + e.message); }
+    ev.target.disabled = false;
+  };
+  return li;
+}
+
+async function recent() {
+  const list = await api('/api/recent').catch(() => []);
+  const ul = $('recent');
+  if (!list.length) return;
+  ul.replaceChildren(...list.slice(0, 8).map(g => row(g, g.system, g.system)));
+}
+
+async function systems() {
+  const list = await api('/api/systems');
+  const box = $('systems');
+  box.replaceChildren(...list.map(s => {
+    const b = document.createElement('button');
+    b.innerHTML = esc(s.name) + '<small>' + s.count + '</small>';
+    b.onclick = () => { system = s.id; [...box.children].forEach(c => c.classList.toggle('on', c === b));
+                        $('altwrap').hidden = s.id !== 'Arcade'; games(); };
+    if (s.id === system) b.classList.add('on');
+    return b;
+  }));
+  if (!list.length) $('games').innerHTML = '<li class="hint">No games found yet. The first scan can take a minute.</li>';
+}
+
+async function games() {
+  if (!system) return;
+  const params = new URLSearchParams({system, q: $('q').value, alt: $('alt').checked ? '1' : '0'});
+  const list = await api('/api/games?' + params);
+  const ul = $('games');
+  if (!list.length) { ul.innerHTML = '<li class="hint">No match.</li>'; return; }
+  ul.replaceChildren(...list.map(g => row(g, system, g.alt ? 'other version' : '')));
+  if (list.length >= 500) ul.insertAdjacentHTML('beforeend', '<li class="hint">Showing the first 500. Type to narrow.</li>');
+}
+
+$('q').oninput = () => { clearTimeout(timer); timer = setTimeout(games, 200); };
+$('alt').onchange = games;
+$('menu').onclick = async () => { try { await api('/api/menu', {}); toast('Back to the menu'); setTimeout(status, 1500); } catch (e) { toast('Error: ' + e.message); } };
+$('rescan').onclick = async () => { await api('/api/rescan', {}); status(); setTimeout(function wait() {
+  api('/api/status').then(s => s.scanning ? setTimeout(wait, 2000) : (systems(), games(), status())); }, 2000); };
+
+status(); systems(); recent();
+setInterval(status, 5000);
+</script>
+</body>
+</html>
