@@ -23,8 +23,8 @@ def _walk(root: str):
                 yield dirpath, fn
 
 
-# Boot animations installed by update_all's "Uberyoji Boot ROMs" option, not games.
-BOOT_ROM = re.compile(r'^mister-boot\.', re.I)
+# Boot animations and demos installed by update_all's "Uberyoji Boot ROMs" option, not games.
+BOOT_ROM = re.compile(r'^mister-(boot|demo)\.', re.I)
 
 
 def _title(filename: str) -> str:
