@@ -28,6 +28,7 @@ class Card(unittest.TestCase):
         self.fat = self.tmp.name
         touch(self.fat, 'games/NES/Super Mario Bros. (World).nes')
         touch(self.fat, 'games/NES/readme.txt')
+        touch(self.fat, 'games/NES/mister-boot.nes')
         touch(self.fat, 'games/SNES/Otros/BM3.SMC')
         touch(self.fat, 'games/SMS/Alex Kidd (UE) [!].sms')
         touch(self.fat, 'games/SMS/SG-1000/Bank Panic (Japan).sg')

@@ -21,6 +21,10 @@ def _walk(root: str):
                 yield dirpath, fn
 
 
+# Boot animations installed by update_all's "Uberyoji Boot ROMs" option, not games.
+BOOT_ROM = re.compile(r'^mister-boot\.', re.I)
+
+
 def _title(filename: str) -> str:
     return os.path.splitext(filename)[0]
 
@@ -36,7 +40,7 @@ def scan_system(fat: str, system: System) -> List[dict]:
         rel = os.path.relpath(os.path.join(dirpath, fn), fat)
         if system.exclude and rel.startswith(os.path.join('games', system.folder, system.exclude) + os.sep):
             continue
-        if os.path.splitext(fn)[1].lower() in system.extensions:
+        if os.path.splitext(fn)[1].lower() in system.extensions and not BOOT_ROM.match(fn):
             games.append({'name': _title(fn), 'path': rel})
     return games
 

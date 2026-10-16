@@ -13,7 +13,9 @@ start() {
     return 0
   fi
   echo "Starting mistermanager..."
-  cd "$DIR" && nohup python3 -m mistermanager >"$LOG" 2>&1 &
+  # </dev/null: a start from an SSH session must not keep that session open.
+  cd "$DIR" || return 1
+  nohup python3 -m mistermanager </dev/null >"$LOG" 2>&1 &
   echo $! >"$PIDFILE"
 }
 
