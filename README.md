@@ -12,7 +12,9 @@ same network to:
 - change general settings: the main volume, the scaling mode, the default video preset for all
   cores, arcade and vertical arcade, and the filters of the presets in `Presets/Custom`
   (scanlines, sharpness, gamma, shadow mask);
-- go back to the MiSTer menu or reboot it.
+- go back to the MiSTer menu or reboot it;
+- stop DualShock 4 / DualSense motion sensors from moving the character by themselves (see
+  `mistermanager/motion.py`).
 
 It is one Python program with no extra packages. The MiSTer already has Python 3.9.
 

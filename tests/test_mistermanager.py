@@ -10,6 +10,7 @@ from xml.etree import ElementTree as ET
 from mistermanager.artwork import normalize
 from mistermanager.control import Controller, LaunchError, inside, make_mgl
 from mistermanager.library import Library, build_index
+from mistermanager.motion import sensor_nodes
 from mistermanager.server import App, make_handler
 
 
@@ -226,6 +227,18 @@ class HttpTest(Card):
         self.assertEqual(code, 404)
         with self.assertRaises(urllib.error.HTTPError):
             self.get('/../server.py')
+
+
+
+class MotionTest(unittest.TestCase):
+    def test_only_motion_sensor_devices(self):
+        text = ('I: Bus=0005 Vendor=054c Product=0ce6\nN: Name="DualSense Wireless Controller"\n'
+                'H: Handlers=js0 event1 \n\n'
+                'I: Bus=0005 Vendor=054c Product=0ce6\nN: Name="DualSense Wireless Controller Motion Sensors"\n'
+                'H: Handlers=js1 event2 \n\n'
+                'I: Bus=0005 Vendor=054c Product=0ce6\nN: Name="DualSense Wireless Controller Touchpad"\n'
+                'H: Handlers=mouse1 event3 \n')
+        self.assertEqual(sensor_nodes(text), ['/dev/input/event2'])
 
 
 if __name__ == '__main__':

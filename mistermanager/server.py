@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from .artwork import IMAGE_EXTS
 from .control import Controller, LaunchError, Stats, current
 from .library import Library
+from .motion import MotionBlocker
 from .settings import Settings, SettingsError
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
@@ -28,6 +29,7 @@ class App:
         self.controller = Controller(fat, state_dir, fifo=fifo)
         self.stats = Stats()
         self.settings = Settings(fat, state_dir, fifo)
+        self.motion = MotionBlocker()
 
 
 def make_handler(app: App):
@@ -55,6 +57,7 @@ def make_handler(app: App):
                 self._json({'now': current(app.fat, app.controller.last_launch),
                             'system': app.stats.snapshot(app.fat),
                             'scanning': app.library.scanning,
+                            'motion_blocked': app.motion.status(),
                             'indexed': app.library.index['built']})
             elif url.path == '/api/systems':
                 self._json(app.library.summary())
@@ -148,6 +151,7 @@ def main(argv=None):
     # The cached index answers at once; the rescan picks up games copied since the last run.
     app.library.load_cache()
     app.library.rescan_async()
+    app.motion.start()
     server = ThreadingHTTPServer((args.bind, args.port), make_handler(app))
     print(f'MiSTerManager on http://{args.bind}:{args.port}/', flush=True)
     try:
