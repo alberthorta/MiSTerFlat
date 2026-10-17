@@ -13,6 +13,8 @@ same network to:
   cores, arcade and vertical arcade, and the filters of the presets in `Presets/Custom`
   (scanlines, sharpness, gamma, shadow mask);
 - go back to the MiSTer menu or reboot it;
+- change the OSD options of 136 console and computer cores, saved like the core's own
+  "Save settings" in `config/<core>.CFG`;
 - see the connected controllers (with battery level for PlayStation pads) and stop
   DualShock 4 / DualSense motion sensors from moving the character by themselves (a switch in
   Settings, on by default; see `mistermanager/motion.py`).
@@ -43,6 +45,21 @@ it in `config/Volume.dat`. The page only changes `vscale_mode` and `preset_defau
 are left out because a wrong value can leave the screen black. Every change keeps a copy of the
 previous file in `/media/fat/MiSTerManager/backups` (last 10). MiSTer reads these files when a core
 loads, so changes apply from the next core load.
+
+## Core options
+
+A core's option list (`CONF_STR`) is compiled into its `.rbf`, so it cannot be read on the
+MiSTer. `tools/build_core_catalog.py` reads it from each core's source in the MiSTer-devel
+GitHub organisation and writes `mistermanager/cores.json` (needs the `gh` CLI):
+
+```sh
+python3 tools/build_core_catalog.py NES SNES MegaDrive PSX NeoGeo
+```
+
+The server reads and writes the 128-bit status in `config/<name>.CFG` (little-endian, as
+MiSTer Main saves it) and keeps the last copies in `/media/fat/MiSTerManager/backups/cores`.
+Changes apply the next time the core loads. Arcade cores and Minimig/AtariST are not covered:
+they keep their settings in other files.
 
 ## Artwork
 

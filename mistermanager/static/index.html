@@ -80,7 +80,7 @@ label.check { display: flex; gap: 6px; align-items: center; font-size: 14px; }
   <div class="top">
     <h1>MiSTer</h1>
     <div class="now" id="now">…</div>
-    <div class="tabs"><button id="tab-games" class="on">Games</button><button id="tab-settings">Settings</button></div>
+    <div class="tabs"><button id="tab-games" class="on">Games</button><button id="tab-cores">Cores</button><button id="tab-settings">Settings</button></div>
   </div>
   <div class="search" id="searchbar">
     <input type="search" id="q" placeholder="Search all games" autocomplete="off">
@@ -101,6 +101,14 @@ label.check { display: flex; gap: 6px; align-items: center; font-size: 14px; }
   <h2 id="listtitle">Games</h2>
   <div class="grid" id="games"></div>
   <div class="hint" id="hint">Pick a system or type a name.</div>
+</main>
+<main id="view-cores" hidden>
+  <div class="panel">
+    <div class="field"><label for="core">Core</label><select id="core"></select></div>
+    <p class="note" id="corenote"></p>
+  </div>
+  <div id="coreopts"></div>
+  <div class="row" id="coresave" hidden><button class="primary" id="core-save">Save options</button></div>
 </main>
 <main id="view-settings" hidden>
   <div class="panel">
@@ -319,15 +327,65 @@ async function setIni(section, key, value) {
   catch (e) { toast('Error: ' + e.message); settings(); }
 }
 
+let coreData = null;
+
+async function coreList() {
+  const list = await api('/api/cores');
+  const sel = $('core'), keep = sel.value;
+  sel.replaceChildren(new Option('Pick a core…', ''), ...list.map(c => new Option(c.id, c.id)));
+  sel.value = list.some(c => c.id === keep) ? keep : '';
+  if (sel.value) coreShow(); else { $('coreopts').replaceChildren(); $('coresave').hidden = true;
+    $('corenote').textContent = list.length + ' cores. The options are the ones of the core\'s OSD menu.'; }
+}
+
+async function coreShow() {
+  const id = $('core').value;
+  if (!id) { $('coreopts').replaceChildren(); $('coresave').hidden = true; return; }
+  coreData = await api('/api/cores/options?' + new URLSearchParams({core: id}));
+  $('corenote').textContent = 'Saved in config/' + coreData.cfg + (coreData.saved ? '' : ' (not saved yet: defaults)')
+    + '. Applies the next time the core loads.'
+    + (coreData.running ? ' This core is running now: do not use "Save settings" in its OSD, or it will overwrite these.' : '');
+  const pages = {};
+  for (const o of coreData.options) (pages[o.page || 'Main'] = pages[o.page || 'Main'] || []).push(o);
+  $('coreopts').replaceChildren(...Object.entries(pages).map(([title, opts]) => {
+    const panel = document.createElement('div'); panel.className = 'panel';
+    panel.innerHTML = '<h3>' + esc(title) + '</h3>';
+    for (const o of opts) {
+      const f = document.createElement('div'); f.className = 'field';
+      const sel = document.createElement('select'); sel.dataset.opt = o.id;
+      o.values.forEach((v, i) => sel.append(new Option(v, i)));
+      if (o.value >= o.values.length) sel.append(new Option('(value ' + o.value + ')', o.value));
+      sel.value = o.value;
+      const label = document.createElement('label'); label.textContent = o.label;
+      f.append(label, sel); panel.append(f);
+    }
+    return panel;
+  }));
+  $('coresave').hidden = false;
+}
+
 function showTab(name) {
   $('view-games').hidden = name !== 'games'; $('searchbar').hidden = name !== 'games';
-  $('view-settings').hidden = name !== 'settings';
-  $('tab-games').classList.toggle('on', name === 'games'); $('tab-settings').classList.toggle('on', name === 'settings');
+  $('view-settings').hidden = name !== 'settings'; $('view-cores').hidden = name !== 'cores';
+  for (const t of ['games', 'cores', 'settings']) $('tab-' + t).classList.toggle('on', name === t);
+  if (name === 'cores') coreList().catch(e => toast('Error: ' + e.message));
   if (name === 'settings') { settings().catch(e => toast('Error: ' + e.message)); pads().catch(() => {}); }
 }
 
 $('tab-games').onclick = () => showTab('games');
 $('tab-settings').onclick = () => showTab('settings');
+$('tab-cores').onclick = () => showTab('cores');
+$('core').onchange = () => coreShow().catch(e => toast('Error: ' + e.message));
+$('core-save').onclick = async () => {
+  const values = {};
+  for (const sel of $('coreopts').querySelectorAll('select')) {
+    const o = coreData.options[+sel.dataset.opt];
+    if (+sel.value !== o.value) values[o.id] = +sel.value;
+  }
+  if (!Object.keys(values).length) { toast('Nothing changed'); return; }
+  try { await api('/api/cores/options', {core: coreData.id, values}); toast('Saved. Applies the next time the core loads.'); coreShow(); }
+  catch (e) { toast('Error: ' + e.message); }
+};
 $('vol').oninput = () => { $('volval').textContent = $('vol').value + ' / 7'; };
 $('vol').onchange = async () => { try { await api('/api/settings/volume', {level: +$('vol').value}); } catch (e) { toast('Error: ' + e.message); } };
 $('mute').onclick = async () => {

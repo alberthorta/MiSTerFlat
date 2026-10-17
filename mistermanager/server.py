@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
 from .artwork import IMAGE_EXTS
+from .coreopts import CoreOptions, CoreOptionsError
 from .control import Controller, LaunchError, Stats, current
 from .library import Library
 from .motion import DEVICES, MotionBlocker, controllers
@@ -29,6 +30,7 @@ class App:
         self.controller = Controller(fat, state_dir, fifo=fifo)
         self.stats = Stats()
         self.settings = Settings(fat, state_dir, fifo)
+        self.cores = CoreOptions(fat, state_dir)
         self.motion = MotionBlocker(os.path.join(state_dir, 'controllers.json'))
 
 
@@ -80,6 +82,13 @@ def make_handler(app: App):
                     for part in d['parts']:
                         part['blocked'] = part['node'] in blocked
                 self._json({'devices': devices, 'block_motion_sensors': app.motion.enabled})
+            elif url.path == '/api/cores':
+                self._json(app.cores.installed())
+            elif url.path == '/api/cores/options':
+                try:
+                    self._json(app.cores.get(q.get('core', '')))
+                except CoreOptionsError as e:
+                    self._json({'error': str(e)}, 404)
             elif url.path == '/api/settings/options':
                 self._json(app.settings.options())
             elif url.path.startswith('/art/'):
@@ -123,6 +132,9 @@ def make_handler(app: App):
                 elif url.path == '/api/settings/preset':
                     app.settings.write_preset(str(body.get('name', '')), body.get('fields') or {})
                     self._json({'ok': True})
+                elif url.path == '/api/cores/options':
+                    app.cores.set(str(body.get('core', '')), body.get('values') or {})
+                    self._json({'ok': True})
                 elif url.path == '/api/controllers/motion':
                     app.motion.set_enabled(bool(body.get('enabled')))
                     self._json({'ok': True})
@@ -132,7 +144,7 @@ def make_handler(app: App):
                     threading.Timer(1.0, lambda: subprocess.run(['reboot'])).start()
                 else:
                     self._json({'error': 'not found'}, 404)
-            except (LaunchError, SettingsError, OSError, ValueError) as e:
+            except (LaunchError, SettingsError, CoreOptionsError, OSError, ValueError) as e:
                 self._json({'error': str(e)}, 409)
 
         def _file(self, root: str, name: str, cache: bool = False):
