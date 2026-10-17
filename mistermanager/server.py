@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from .artwork import IMAGE_EXTS
 from .control import Controller, LaunchError, Stats, current
 from .library import Library
-from .motion import MotionBlocker
+from .motion import DEVICES, MotionBlocker, controllers
 from .settings import Settings, SettingsError
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
@@ -29,7 +29,7 @@ class App:
         self.controller = Controller(fat, state_dir, fifo=fifo)
         self.stats = Stats()
         self.settings = Settings(fat, state_dir, fifo)
-        self.motion = MotionBlocker()
+        self.motion = MotionBlocker(os.path.join(state_dir, 'controllers.json'))
 
 
 def make_handler(app: App):
@@ -69,6 +69,17 @@ def make_handler(app: App):
             elif url.path == '/api/settings':
                 self._json({'volume': app.settings.volume(), 'ini': app.settings.ini(),
                             'custom': app.settings.custom_presets()})
+            elif url.path == '/api/controllers':
+                try:
+                    with open(DEVICES, encoding='utf-8', errors='replace') as f:
+                        devices = controllers(f.read())
+                except OSError:
+                    devices = []
+                blocked = set(app.motion.status())
+                for d in devices:
+                    for part in d['parts']:
+                        part['blocked'] = part['node'] in blocked
+                self._json({'devices': devices, 'block_motion_sensors': app.motion.enabled})
             elif url.path == '/api/settings/options':
                 self._json(app.settings.options())
             elif url.path.startswith('/art/'):
@@ -111,6 +122,9 @@ def make_handler(app: App):
                     self._json({'ok': True})
                 elif url.path == '/api/settings/preset':
                     app.settings.write_preset(str(body.get('name', '')), body.get('fields') or {})
+                    self._json({'ok': True})
+                elif url.path == '/api/controllers/motion':
+                    app.motion.set_enabled(bool(body.get('enabled')))
                     self._json({'ok': True})
                 elif url.path == '/api/reboot':
                     self._json({'ok': True})

@@ -65,6 +65,11 @@ select { font: inherit; width: 100%; padding: 7px 8px; border-radius: 8px; borde
 .vol input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
 .note { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.pads { display: grid; gap: 8px; margin-bottom: 10px; }
+.pad { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.pad b { font-weight: 600; }
+.pad .meta { color: var(--muted); font-size: 12px; }
+label.check { display: flex; gap: 6px; align-items: center; font-size: 14px; }
 #toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--text); color: var(--bg);
          padding: 8px 14px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
 #toast.show { opacity: 1; }
@@ -133,6 +138,13 @@ select { font: inherit; width: 100%; padding: 7px 8px; border-radius: 8px; borde
     <div class="row"><button class="primary" id="cp-save">Save preset</button></div>
     <p class="note">Presets/Custom. The " - Vertical" copy is updated too, with the filters swapped and the mask rotated.
       Scanlines "SLA_Dk_XXX_Br_YYY": Dk = how dark the lines are, Br = how much bright parts fill them.</p>
+  </div>
+  <div class="panel">
+    <h3>Controllers</h3>
+    <div id="pads" class="pads"></div>
+    <label class="check"><input type="checkbox" id="motion"> Ignore motion sensors of PlayStation pads</label>
+    <p class="note">DualShock 4 and DualSense pads also report their tilt like a stick, so the character can move by itself.
+      With this on, MiSTerManager keeps those sensors from MiSTer. Buttons, sticks and touchpad are not affected.</p>
   </div>
   <div class="panel">
     <h3>MiSTer</h3>
@@ -283,6 +295,16 @@ async function settings() {
   }
 }
 
+async function pads() {
+  const c = await api('/api/controllers');
+  $('motion').checked = c.block_motion_sensors;
+  $('pads').innerHTML = c.devices.length ? c.devices.map(d => '<div class="pad"><b>' + esc(d.name) + '</b>'
+    + (d.battery != null ? ' · ' + d.battery + ' %' + (d.charging ? ' (charging)' : '') : '')
+    + '<div class="meta">' + esc(d.bus) + ' · ' + esc(d.id) + (d.address ? ' · ' + esc(d.address) : '') + '</div>'
+    + '<div class="meta">' + d.parts.map(p => esc(p.kind) + (p.blocked ? ' (ignored)' : '')).join(', ') + '</div></div>').join('')
+    : '<p class="note">No controllers connected.</p>';
+}
+
 function showPreset() {
   const p = custom[$('cp-name').value] || {};
   fill($('cp-hfilter'), options.filters, p.hfilter);
@@ -301,7 +323,7 @@ function showTab(name) {
   $('view-games').hidden = name !== 'games'; $('searchbar').hidden = name !== 'games';
   $('view-settings').hidden = name !== 'settings';
   $('tab-games').classList.toggle('on', name === 'games'); $('tab-settings').classList.toggle('on', name === 'settings');
-  if (name === 'settings') settings().catch(e => toast('Error: ' + e.message));
+  if (name === 'settings') { settings().catch(e => toast('Error: ' + e.message)); pads().catch(() => {}); }
 }
 
 $('tab-games').onclick = () => showTab('games');
@@ -318,6 +340,10 @@ $('dvi').onchange = () => setIni('MiSTer', 'dvi_mode', $('dvi').value);
 for (const sec of ['MiSTer', 'arcade', 'arcade_vertical'])
   $('p-' + sec).onchange = ev => setIni(sec, 'preset_default', ev.target.value);
 $('cp-name').onchange = showPreset;
+$('motion').onchange = async () => {
+  try { await api('/api/controllers/motion', {enabled: $('motion').checked}); setTimeout(pads, 3500); }
+  catch (e) { toast('Error: ' + e.message); }
+};
 $('cp-save').onclick = async () => {
   const fields = Object.fromEntries(['hfilter', 'vfilter', 'gamma', 'mask', 'maskmode'].map(k => [k, $('cp-' + k).value]));
   fields.sfilter = (custom[$('cp-name').value] || {}).sfilter || 'same';

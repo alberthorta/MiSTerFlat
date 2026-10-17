@@ -13,8 +13,9 @@ same network to:
   cores, arcade and vertical arcade, and the filters of the presets in `Presets/Custom`
   (scanlines, sharpness, gamma, shadow mask);
 - go back to the MiSTer menu or reboot it;
-- stop DualShock 4 / DualSense motion sensors from moving the character by themselves (see
-  `mistermanager/motion.py`).
+- see the connected controllers (with battery level for PlayStation pads) and stop
+  DualShock 4 / DualSense motion sensors from moving the character by themselves (a switch in
+  Settings, on by default; see `mistermanager/motion.py`).
 
 It is one Python program with no extra packages. The MiSTer already has Python 3.9.
 

@@ -10,7 +10,7 @@ from xml.etree import ElementTree as ET
 from mistermanager.artwork import normalize
 from mistermanager.control import Controller, LaunchError, inside, make_mgl
 from mistermanager.library import Library, build_index
-from mistermanager.motion import sensor_nodes
+from mistermanager.motion import MotionBlocker, controllers, sensor_nodes
 from mistermanager.server import App, make_handler
 
 
@@ -239,6 +239,31 @@ class MotionTest(unittest.TestCase):
                 'I: Bus=0005 Vendor=054c Product=0ce6\nN: Name="DualSense Wireless Controller Touchpad"\n'
                 'H: Handlers=mouse1 event3 \n')
         self.assertEqual(sensor_nodes(text), ['/dev/input/event2'])
+
+    def test_controllers_grouped_with_battery(self):
+        text = ('I: Bus=0005 Vendor=054c Product=0ce6 Version=8100\nN: Name="DualSense Wireless Controller"\n'
+                'U: Uniq=a0:ab:51:93:b8:20\nH: Handlers=js0 event1 \n\n'
+                'I: Bus=0005 Vendor=054c Product=0ce6 Version=8100\nN: Name="DualSense Wireless Controller Motion Sensors"\n'
+                'U: Uniq=a0:ab:51:93:b8:20\nH: Handlers=js1 event2 \n\n'
+                'I: Bus=0003 Vendor=0000 Product=0000 Version=0004\nN: Name="MiSTer virtual input"\n'
+                'U: Uniq=\nH: Handlers=sysrq kbd event4 \n')
+        with tempfile.TemporaryDirectory() as power:
+            bat = os.path.join(power, 'ps-controller-battery-a0:ab:51:93:b8:20')
+            os.makedirs(bat)
+            for name, value in (('capacity', '75\n'), ('status', 'Discharging\n')):
+                with open(os.path.join(bat, name), 'w') as f:
+                    f.write(value)
+            pads = controllers(text, power)
+        self.assertEqual(len(pads), 1)
+        self.assertEqual((pads[0]['name'], pads[0]['bus'], pads[0]['battery']),
+                         ('DualSense Wireless Controller', 'Bluetooth', 75))
+        self.assertEqual([p['kind'] for p in pads[0]['parts']], ['gamepad', 'motion sensors'])
+
+    def test_switch_is_remembered(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'controllers.json')
+            MotionBlocker(path).set_enabled(False)
+            self.assertFalse(MotionBlocker(path).enabled)
 
 
 if __name__ == '__main__':
