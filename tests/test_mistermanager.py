@@ -10,7 +10,7 @@ from xml.etree import ElementTree as ET
 from mistermanager.artwork import normalize
 from mistermanager.control import Controller, LaunchError, inside, make_mgl
 from mistermanager.library import Library, build_index
-from mistermanager.motion import MotionBlocker, controllers, sensor_nodes
+from mistermanager.motion import MotionBlocker, controllers, sensor_nodes, wanted_nodes
 from mistermanager.server import App, make_handler
 
 
@@ -258,6 +258,23 @@ class MotionTest(unittest.TestCase):
         self.assertEqual((pads[0]['name'], pads[0]['bus'], pads[0]['battery']),
                          ('DualSense Wireless Controller', 'Bluetooth', 75))
         self.assertEqual([p['kind'] for p in pads[0]['parts']], ['gamepad', 'motion sensors'])
+
+    def test_ignored_device_nodes(self):
+        text = ('I: Bus=0005 Vendor=16c0 Product=05df\nN: Name="WorldTime Jitter"\nU: Uniq=48:27:e2:8e:af:c1\n'
+                'H: Handlers=mouse0 event0 \n\n'
+                'I: Bus=0005 Vendor=054c Product=0ce6\nN: Name="DualSense Wireless Controller Motion Sensors"\n'
+                'U: Uniq=a0:ab:51:93:b8:20\nH: Handlers=js1 event2 \n')
+        self.assertEqual(wanted_nodes(text, True, set()), {'/dev/input/event2'})
+        self.assertEqual(wanted_nodes(text, False, {'48:27:e2:8e:af:c1'}), {'/dev/input/event0'})
+
+    def test_ignore_list_is_remembered(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'controllers.json')
+            m = MotionBlocker(path)
+            m.set_ignored('48:27:E2:8E:AF:C1', 'WorldTime Jitter', True)
+            self.assertEqual(MotionBlocker(path).ignored, {'48:27:e2:8e:af:c1': 'WorldTime Jitter'})
+            with self.assertRaises(ValueError):
+                m.set_ignored('../x', '', True)
 
     def test_switch_is_remembered(self):
         with tempfile.TemporaryDirectory() as d:

@@ -79,8 +79,14 @@ def make_handler(app: App):
                     devices = []
                 blocked = set(app.motion.status())
                 for d in devices:
+                    d['ignored'] = d['address'].lower() in app.motion.ignored
                     for part in d['parts']:
                         part['blocked'] = part['node'] in blocked
+                seen = {d['address'].lower() for d in devices}
+                for address, name in sorted(app.motion.ignored.items()):
+                    if address not in seen:
+                        devices.append({'name': name or address, 'bus': '', 'id': '', 'address': address,
+                                        'parts': [], 'ignored': True, 'offline': True})
                 self._json({'devices': devices, 'block_motion_sensors': app.motion.enabled})
             elif url.path == '/api/cores':
                 self._json(app.cores.installed())
@@ -134,6 +140,10 @@ def make_handler(app: App):
                     self._json({'ok': True})
                 elif url.path == '/api/cores/options':
                     app.cores.set(str(body.get('core', '')), body.get('values') or {})
+                    self._json({'ok': True})
+                elif url.path == '/api/controllers/ignore':
+                    app.motion.set_ignored(str(body.get('address', '')), str(body.get('name', '')),
+                                           bool(body.get('ignore')))
                     self._json({'ok': True})
                 elif url.path == '/api/controllers/motion':
                     app.motion.set_enabled(bool(body.get('enabled')))

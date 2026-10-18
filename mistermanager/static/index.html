@@ -306,11 +306,27 @@ async function settings() {
 async function pads() {
   const c = await api('/api/controllers');
   $('motion').checked = c.block_motion_sensors;
-  $('pads').innerHTML = c.devices.length ? c.devices.map(d => '<div class="pad"><b>' + esc(d.name) + '</b>'
-    + (d.battery != null ? ' · ' + d.battery + ' %' + (d.charging ? ' (charging)' : '') : '')
-    + '<div class="meta">' + esc(d.bus) + ' · ' + esc(d.id) + (d.address ? ' · ' + esc(d.address) : '') + '</div>'
-    + '<div class="meta">' + d.parts.map(p => esc(p.kind) + (p.blocked ? ' (ignored)' : '')).join(', ') + '</div></div>').join('')
-    : '<p class="note">No controllers connected.</p>';
+  const box = $('pads');
+  box.replaceChildren(...c.devices.map(d => {
+    const div = document.createElement('div'); div.className = 'pad';
+    div.innerHTML = '<b>' + esc(d.name) + '</b>'
+      + (d.battery != null ? ' · ' + d.battery + ' %' + (d.charging ? ' (charging)' : '') : '')
+      + (d.ignored ? ' · <span class="meta">IGNORED' + (d.offline ? ', not connected' : '') + '</span>' : '')
+      + '<div class="meta">' + [d.bus, d.id, d.address].filter(Boolean).map(esc).join(' · ') + '</div>'
+      + (d.parts.length ? '<div class="meta">' + d.parts.map(p => esc(p.kind) + (p.blocked ? ' (held)' : '')).join(', ') + '</div>' : '');
+    if (d.address) {
+      const b = document.createElement('button');
+      b.textContent = d.ignored ? 'Stop ignoring' : 'Ignore'; b.style.marginTop = '6px';
+      b.onclick = async () => {
+        if (!d.ignored && !confirm('Ignore ' + d.name + '? MiSTer will not get its input, and Bluetooth devices are blocked.')) return;
+        try { await api('/api/controllers/ignore', {address: d.address, name: d.name, ignore: !d.ignored}); setTimeout(pads, 3500); }
+        catch (e) { toast('Error: ' + e.message); }
+      };
+      div.append(b);
+    }
+    return div;
+  }));
+  if (!c.devices.length) box.innerHTML = '<p class="note">No controllers connected.</p>';
 }
 
 function showPreset() {
