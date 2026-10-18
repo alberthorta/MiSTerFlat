@@ -139,6 +139,11 @@ class LaunchTest(Card):
         self.assertEqual((f.get('type'), f.get('index'), f.get('path')),
                          ('f', '1', '/media/fat/games/SMS/SG-1000/A & B "x".sg'))
 
+    def test_spectrum_tape_and_snapshot_slots(self):
+        tape = ET.fromstring(make_mgl('ZXSpectrum', '/media/fat/games/Spectrum/V/Vikings.tap')).find('file')
+        snap = ET.fromstring(make_mgl('ZXSpectrum', '/media/fat/games/Spectrum/A/Atic.z80')).find('file')
+        self.assertEqual((tape.get('index'), snap.get('index')), ('2', '4'))
+
     def test_cd_systems_mount_the_image(self):
         f = ET.fromstring(make_mgl('CDI', '/media/fat/games/CD-i/Link/Link.cue')).find('file')
         self.assertEqual((f.get('type'), f.get('index')), ('s', '1'))

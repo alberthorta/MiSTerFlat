@@ -28,9 +28,14 @@ def make_mgl(system_id: str, game_path: str) -> str:
     which is wrong for files outside it (SG-1000 games live in games/SMS/SG-1000).
     """
     system = BY_ID[system_id]
+    method, index = system.method, system.index
+    ext = os.path.splitext(game_path)[1].lower()
+    for slot_ext, slot_method, slot_index in system.slots:
+        if slot_ext == ext:
+            method, index = slot_method, slot_index
     return ('<mistergamedescription>\n'
             f'    <rbf>{system.rbf}</rbf>\n'
-            f'    <file delay="{system.delay}" type="{system.method}" index="{system.index}" path={quoteattr(game_path)}/>\n'
+            f'    <file delay="{system.delay}" type="{method}" index="{index}" path={quoteattr(game_path)}/>\n'
             '</mistergamedescription>\n')
 
 

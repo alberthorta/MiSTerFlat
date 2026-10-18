@@ -24,6 +24,8 @@ class System:
     exclude: str = ''          # skip this subfolder of `folder`
     docs: str = ''             # folder under /media/fat/docs with update_all's game artwork
     method: str = 'f'          # MGL <file type>: f loads a file, s mounts a disc image
+    # (extension, method, index) for cores that take each file type in a different OSD slot
+    slots: Tuple[Tuple[str, str, int], ...] = ()
 
 
 SYSTEMS = (
@@ -44,6 +46,8 @@ SYSTEMS = (
     System('CDI', 'CD-i', '_Console/CDi', 'CD-i', ('.cue', '.chd'), index=1, method='s', docs='CD-i'),
     System('PSX', 'PlayStation', '_Console/PSX', 'PSX', ('.cue', '.chd'), index=1, method='s', docs='PSX'),
     System('MegaCD', 'Mega CD', '_Console/MegaCD', 'MegaCD', ('.cue', '.chd'), method='s', docs='MegaCD'),
+    System('ZXSpectrum', 'ZX Spectrum', '_Computer/ZX-Spectrum', 'Spectrum', ('.tap', '.tzx', '.csw', '.z80', '.sna'),
+           slots=(('.tap', 'f', 2), ('.tzx', 'f', 2), ('.csw', 'f', 2), ('.z80', 'f', 4), ('.sna', 'f', 4))),
 )
 
 # Not in SYSTEMS: arcade games are .mra files the fifo loads directly, and Neo Geo
