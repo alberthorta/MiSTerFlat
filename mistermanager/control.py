@@ -85,6 +85,30 @@ class Controller:
                             'art': game.get('art'), 'time': int(time.time())}
         self._remember(self.last_launch)
 
+    def relaunch_psx(self) -> str:
+        """Load the running PlayStation disc again, so the core reads its memory card from the SD.
+
+        The PSX core mounts the card when a disc loads; a reset keeps the card it has in memory.
+        """
+        try:
+            with open('/tmp/FULLPATH', encoding='utf-8') as f:
+                full = f.read().strip()
+        except OSError:
+            full = ''
+        # After a server restart last_launch is gone; recent.json still has it.
+        last = self.last_launch or next(iter(self.recent()), None)
+        if last and last.get('system') == 'PSX':
+            mtime = os.stat('/tmp/FULLPATH').st_mtime if full else 0
+            if not full or last.get('time', 0) >= mtime - 15:
+                full = os.path.join(self.fat, last['path'])
+        root = os.path.join(self.fat, 'games', 'PSX')
+        if not full or not inside(full, root) or not os.path.isfile(full):
+            raise LaunchError('cannot tell which PlayStation game is running')
+        with open(self.mgl_path, 'w', encoding='utf-8') as f:
+            f.write(make_mgl('PSX', full))
+        send_command(f'load_core {self.mgl_path}', self.fifo)
+        return os.path.splitext(os.path.basename(full))[0]
+
     def menu(self) -> None:
         send_command(f'load_core {os.path.join(self.fat, "menu.rbf")}', self.fifo)
         self.last_launch = None

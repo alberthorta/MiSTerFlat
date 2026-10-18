@@ -147,6 +147,8 @@ def make_handler(app: App):
                         return self._json({'error': 'unknown game'}, 404)
                     app.controller.launch(body['system'], game)
                     self._json({'ok': True})
+                elif url.path == '/api/psx/reload':
+                    self._json({'ok': True, 'game': app.controller.relaunch_psx()})
                 elif url.path == '/api/menu':
                     app.controller.menu()
                     self._json({'ok': True})
@@ -191,7 +193,12 @@ def make_handler(app: App):
                 card_saves = app.cards.write(name, data)
             except (CardError, OSError) as e:
                 return self._json({'error': str(e)}, 409)
-            self._json({'ok': True, 'saves': card_saves})
+            try:
+                with open('/tmp/CORENAME', encoding='utf-8') as f:
+                    running = f.read().strip() == 'PSX'
+            except OSError:
+                running = False
+            self._json({'ok': True, 'saves': card_saves, 'psx_running': running})
 
         def _file(self, root: str, name: str, cache: bool = False):
             full = os.path.realpath(os.path.join(root, name))

@@ -108,7 +108,8 @@ label.check { display: flex; gap: 6px; align-items: center; font-size: 14px; }
     <p class="note">One card per game folder (saves/PSX). Download gives a .mcd file that PC tools and emulators read.
       Upload takes .mcd, .mcr, .sav, .gme or .vmp; the old card is backed up first.
       In the game, save to the card in slot 1. MiSTer writes the card to the SD when you use "Save Memory Card" in the OSD, or on its own with Autosave.</p>
-    <p class="note" id="cardwarn" hidden><b>The PSX core is running.</b> Close the game before uploading: the core keeps the card in memory and would write its own copy over yours.</p>
+    <p class="note" id="cardwarn" hidden><b>The PSX core is running.</b> It reads the card only when a disc loads (a reset is not enough),
+      and with "Save to SDCard: On Open OSD" it writes its own copy when you open the OSD. After uploading, let the page reload the game, and do not open the OSD before that.</p>
   </div>
   <div id="cards"></div>
   <input type="file" id="cardfile" accept=".mcd,.mcr,.sav,.gme,.vmp,.srm" hidden>
@@ -395,6 +396,10 @@ $('cardfile').onchange = async () => {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || r.statusText);
     toast('Card saved: ' + data.saves.length + ' save(s)');
+    if (data.psx_running && confirm('The PlayStation core is running. Reload the game now so it reads the new card?')) {
+      const r2 = await api('/api/psx/reload', {});
+      toast('Reloading ' + r2.game);
+    }
     cards();
   } catch (e) { toast('Error: ' + e.message); }
 };
