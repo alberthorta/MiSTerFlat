@@ -80,7 +80,7 @@ label.check { display: flex; gap: 6px; align-items: center; font-size: 14px; }
   <div class="top">
     <h1>MiSTer</h1>
     <div class="now" id="now">…</div>
-    <div class="tabs"><button id="tab-games" class="on">Games</button><button id="tab-cores">Cores</button><button id="tab-settings">Settings</button></div>
+    <div class="tabs"><button id="tab-games" class="on">Games</button><button id="tab-saves">Saves</button><button id="tab-cores">Cores</button><button id="tab-settings">Settings</button></div>
   </div>
   <div class="search" id="searchbar">
     <input type="search" id="q" placeholder="Search all games" autocomplete="off">
@@ -101,6 +101,17 @@ label.check { display: flex; gap: 6px; align-items: center; font-size: 14px; }
   <h2 id="listtitle">Games</h2>
   <div class="grid" id="games"></div>
   <div class="hint" id="hint">Pick a system or type a name.</div>
+</main>
+<main id="view-saves" hidden>
+  <div class="panel">
+    <h3>PlayStation memory cards</h3>
+    <p class="note">One card per game folder (saves/PSX). Download gives a .mcd file that PC tools and emulators read.
+      Upload takes .mcd, .mcr, .sav, .gme or .vmp; the old card is backed up first.
+      In the game, save to the card in slot 1. MiSTer writes the card to the SD when you use "Save Memory Card" in the OSD, or on its own with Autosave.</p>
+    <p class="note" id="cardwarn" hidden><b>The PSX core is running.</b> Close the game before uploading: the core keeps the card in memory and would write its own copy over yours.</p>
+  </div>
+  <div id="cards"></div>
+  <input type="file" id="cardfile" accept=".mcd,.mcr,.sav,.gme,.vmp,.srm" hidden>
 </main>
 <main id="view-cores" hidden>
   <div class="panel">
@@ -343,7 +354,50 @@ async function setIni(section, key, value) {
   catch (e) { toast('Error: ' + e.message); settings(); }
 }
 
-let coreData = null;
+let coreData = null, uploadTarget = null;
+
+function fmtDate(t) { return new Date(t * 1000).toLocaleString(); }
+
+async function cards() {
+  const c = await api('/api/psx/cards');
+  $('cardwarn').hidden = !c.psx_running;
+  $('cards').replaceChildren(...c.cards.map(card => {
+    const div = document.createElement('div'); div.className = 'panel';
+    const list = card.saves.length
+      ? '<ul style="margin:6px 0 0;padding-left:18px">' + card.saves.map(s => '<li>' + esc(s.title || s.code)
+          + ' <span class="meta">(' + esc(s.code) + ', ' + s.blocks + ' block' + (s.blocks > 1 ? 's' : '') + ')</span></li>').join('') + '</ul>'
+      : '<p class="note">' + (card.exists ? (card.error ? esc(card.error) : 'Card is empty.') : 'No card yet. Upload one, or the core makes it the first time you save.') + '</p>';
+    div.innerHTML = '<h3>' + esc(card.game) + '</h3>'
+      + (card.exists ? '<div class="meta">' + esc(card.file) + ' · ' + fmtDate(card.modified) + '</div>' : '')
+      + list + '<div class="row" style="margin-top:8px"></div>';
+    const row = div.querySelector('.row');
+    if (card.exists) {
+      const a = document.createElement('a');
+      a.href = '/api/psx/cards/download?' + new URLSearchParams({file: card.file});
+      a.innerHTML = '<button>Download</button>';
+      row.append(a);
+    }
+    const up = document.createElement('button');
+    up.textContent = card.exists ? 'Replace…' : 'Upload…';
+    up.onclick = () => { uploadTarget = card; $('cardfile').value = ''; $('cardfile').click(); };
+    row.append(up);
+    return div;
+  }));
+}
+
+$('cardfile').onchange = async () => {
+  const file = $('cardfile').files[0];
+  if (!file || !uploadTarget) return;
+  if (uploadTarget.exists && !confirm('Replace the card of ' + uploadTarget.game + ' with ' + file.name + '? The current card is backed up.')) return;
+  try {
+    const r = await fetch('/api/psx/cards/upload?' + new URLSearchParams({file: uploadTarget.file}),
+                          {method: 'POST', headers: {'Content-Type': 'application/octet-stream'}, body: file});
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || r.statusText);
+    toast('Card saved: ' + data.saves.length + ' save(s)');
+    cards();
+  } catch (e) { toast('Error: ' + e.message); }
+};
 
 async function coreList() {
   const list = await api('/api/cores');
@@ -383,7 +437,9 @@ async function coreShow() {
 function showTab(name) {
   $('view-games').hidden = name !== 'games'; $('searchbar').hidden = name !== 'games';
   $('view-settings').hidden = name !== 'settings'; $('view-cores').hidden = name !== 'cores';
-  for (const t of ['games', 'cores', 'settings']) $('tab-' + t).classList.toggle('on', name === t);
+  $('view-saves').hidden = name !== 'saves';
+  for (const t of ['games', 'saves', 'cores', 'settings']) $('tab-' + t).classList.toggle('on', name === t);
+  if (name === 'saves') cards().catch(e => toast('Error: ' + e.message));
   if (name === 'cores') coreList().catch(e => toast('Error: ' + e.message));
   if (name === 'settings') { settings().catch(e => toast('Error: ' + e.message)); pads().catch(() => {}); }
 }
@@ -391,6 +447,7 @@ function showTab(name) {
 $('tab-games').onclick = () => showTab('games');
 $('tab-settings').onclick = () => showTab('settings');
 $('tab-cores').onclick = () => showTab('cores');
+$('tab-saves').onclick = () => showTab('saves');
 $('core').onchange = () => coreShow().catch(e => toast('Error: ' + e.message));
 $('core-save').onclick = async () => {
   const values = {};

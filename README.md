@@ -15,6 +15,8 @@ same network to:
 - go back to the MiSTer menu or reboot it;
 - change the OSD options of 136 console and computer cores, saved like the core's own
   "Save settings" in `config/<core>.CFG`;
+- download and upload PlayStation memory cards (one per game, `saves/PSX/<folder>.sav`; takes
+  .mcd/.mcr/.sav, .gme and .vmp);
 - see the connected controllers (with battery level for PlayStation pads) and stop
   DualShock 4 / DualSense motion sensors from moving the character by themselves (a switch in
   Settings, on by default; see `mistermanager/motion.py`).

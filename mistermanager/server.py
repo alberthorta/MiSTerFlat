@@ -9,12 +9,13 @@ import subprocess
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from .artwork import IMAGE_EXTS
 from .coreopts import CoreOptions, CoreOptionsError
 from .control import Controller, LaunchError, Stats, current
 from .library import Library
+from .memcards import CARD_SIZE, CardError, MemoryCards, psx_game_folders
 from .motion import DEVICES, MotionBlocker, controllers
 from .settings import Settings, SettingsError
 
@@ -31,6 +32,7 @@ class App:
         self.stats = Stats()
         self.settings = Settings(fat, state_dir, fifo)
         self.cores = CoreOptions(fat, state_dir)
+        self.cards = MemoryCards(fat, state_dir)
         self.motion = MotionBlocker(os.path.join(state_dir, 'controllers.json'))
 
 
@@ -88,6 +90,27 @@ def make_handler(app: App):
                         devices.append({'name': name or address, 'bus': '', 'id': '', 'address': address,
                                         'parts': [], 'ignored': True, 'offline': True})
                 self._json({'devices': devices, 'block_motion_sensors': app.motion.enabled})
+            elif url.path == '/api/psx/cards':
+                try:
+                    with open('/tmp/CORENAME', encoding='utf-8') as f:
+                        running = f.read().strip() == 'PSX'
+                except OSError:
+                    running = False
+                self._json({'cards': app.cards.list(psx_game_folders(app.library.index)), 'psx_running': running})
+            elif url.path == '/api/psx/cards/download':
+                try:
+                    name = q.get('file', '')
+                    data = app.cards.read(name)
+                except CardError as e:
+                    return self._json({'error': str(e)}, 404)
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/octet-stream')
+                self.send_header('Content-Length', str(len(data)))
+                # .mcd is the name most PC tools (MemcardRex, emulators) expect for this format.
+                quoted = quote(name[:-4] + '.mcd')
+                self.send_header('Content-Disposition', f"attachment; filename*=UTF-8''{quoted}")
+                self.end_headers()
+                self.wfile.write(data)
             elif url.path == '/api/cores':
                 self._json(app.cores.installed())
             elif url.path == '/api/cores/options':
@@ -109,6 +132,8 @@ def make_handler(app: App):
         def do_POST(self):
             url = urlparse(self.path)
             length = int(self.headers.get('Content-Length') or 0)
+            if url.path == '/api/psx/cards/upload':
+                return self._upload_card(url, length)
             if length > MAX_BODY:
                 return self._json({'error': 'body too large'}, 413)
             try:
@@ -156,6 +181,17 @@ def make_handler(app: App):
                     self._json({'error': 'not found'}, 404)
             except (LaunchError, SettingsError, CoreOptionsError, OSError, ValueError) as e:
                 self._json({'error': str(e)}, 409)
+
+        def _upload_card(self, url, length: int):
+            if not 0 < length <= CARD_SIZE + 4096:
+                return self._json({'error': 'file too large or empty'}, 413)
+            name = {k: v[-1] for k, v in parse_qs(url.query).items()}.get('file', '')
+            data = self.rfile.read(length)
+            try:
+                card_saves = app.cards.write(name, data)
+            except (CardError, OSError) as e:
+                return self._json({'error': str(e)}, 409)
+            self._json({'ok': True, 'saves': card_saves})
 
         def _file(self, root: str, name: str, cache: bool = False):
             full = os.path.realpath(os.path.join(root, name))
