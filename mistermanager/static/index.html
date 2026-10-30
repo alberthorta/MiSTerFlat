@@ -65,6 +65,7 @@ select { font: inherit; width: 100%; padding: 7px 8px; border-radius: 8px; borde
 .vol input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
 .note { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
+progress { width: 100%; margin-top: 10px; accent-color: var(--accent); }
 .pads { display: grid; gap: 8px; margin-bottom: 10px; }
 .pad { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .pad b { font-weight: 600; }
@@ -165,6 +166,22 @@ label.check { display: flex; gap: 6px; align-items: center; font-size: 14px; }
     <label class="check"><input type="checkbox" id="motion"> Ignore motion sensors of PlayStation pads</label>
     <p class="note">DualShock 4 and DualSense pads also report their tilt like a stick, so the character can move by itself.
       With this on, MiSTerManager keeps those sensors from MiSTer. Buttons, sticks and touchpad are not affected.</p>
+  </div>
+  <div class="panel" id="lily-panel" hidden>
+    <h3>MiSTerLily display</h3>
+    <p id="lily-state" class="note"></p>
+    <div class="row" style="margin-top: 10px">
+      <button id="lily-latest" class="primary">Update firmware</button>
+      <button id="lily-file">Flash a file…</button>
+      <button id="lily-check">Check again</button>
+    </div>
+    <input type="file" id="lily-input" accept=".bin" hidden>
+    <div id="lily-job" hidden>
+      <progress id="lily-progress" max="100" value="0"></progress>
+      <p id="lily-step" class="note"></p>
+    </div>
+    <p class="note">Only the program is written: the display keeps its settings and start-up picture.
+      It takes about 15 s. Do not unplug the display while it runs.</p>
   </div>
   <div class="panel">
     <h3>MiSTer</h3>
@@ -439,6 +456,27 @@ async function coreShow() {
   $('coresave').hidden = false;
 }
 
+let lilyTimer = null;
+async function lily(refresh) {
+  const l = await api('/api/lily' + (refresh ? '?refresh=1' : ''));
+  $('lily-panel').hidden = !l.installed;
+  if (!l.installed) return;
+  const job = l.job, running = !!(job && job.running);
+  $('lily-state').textContent = 'Display firmware: ' + (l.board ? 'v' + l.board : 'display not connected') + '. '
+    + (l.latest ? 'Latest release: v' + l.latest + (l.latest === l.board ? ' (up to date).' : '.') : (l.error || ''));
+  $('lily-latest').textContent = !l.latest ? 'Update firmware' : l.latest === l.board ? 'Reinstall v' + l.latest : 'Update to v' + l.latest;
+  $('lily-latest').disabled = running || !l.latest || !l.board;
+  $('lily-file').disabled = running || !l.board;
+  $('lily-job').hidden = !job;
+  if (job) {
+    $('lily-progress').value = job.progress;
+    $('lily-step').textContent = job.error ? 'Error: ' + job.error
+      : job.done ? 'Done: the display runs v' + job.done + '.' : job.step;
+  }
+  clearTimeout(lilyTimer);
+  if (running) lilyTimer = setTimeout(() => lily().catch(() => {}), 1000);
+}
+
 function showTab(name) {
   $('view-games').hidden = name !== 'games'; $('searchbar').hidden = name !== 'games';
   $('view-settings').hidden = name !== 'settings'; $('view-cores').hidden = name !== 'cores';
@@ -446,7 +484,7 @@ function showTab(name) {
   for (const t of ['games', 'saves', 'cores', 'settings']) $('tab-' + t).classList.toggle('on', name === t);
   if (name === 'saves') cards().catch(e => toast('Error: ' + e.message));
   if (name === 'cores') coreList().catch(e => toast('Error: ' + e.message));
-  if (name === 'settings') { settings().catch(e => toast('Error: ' + e.message)); pads().catch(() => {}); }
+  if (name === 'settings') { settings().catch(e => toast('Error: ' + e.message)); pads().catch(() => {}); lily().catch(() => {}); }
 }
 
 $('tab-games').onclick = () => showTab('games');
@@ -486,6 +524,22 @@ $('cp-save').onclick = async () => {
   try { await api('/api/settings/preset', {name: $('cp-name').value, fields}); toast('Preset saved. Applies on the next core load.'); settings(); }
   catch (e) { toast('Error: ' + e.message); }
 };
+$('lily-latest').onclick = async () => {
+  if (!confirm($('lily-latest').textContent + ' on the MiSTerLily display? Do not unplug it while it runs.')) return;
+  try { await api('/api/lily/flash', {}); lily(); } catch (e) { toast('Error: ' + e.message); }
+};
+$('lily-file').onclick = () => { $('lily-input').value = ''; $('lily-input').click(); };
+$('lily-input').onchange = async () => {
+  const file = $('lily-input').files[0];
+  if (!file || !confirm('Flash ' + file.name + ' on the MiSTerLily display? The file is checked before the display is touched.')) return;
+  try {
+    const r = await fetch('/api/lily/upload', {method: 'POST', headers: {'Content-Type': 'application/octet-stream'}, body: file});
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || r.statusText);
+    lily();
+  } catch (e) { toast('Error: ' + e.message); }
+};
+$('lily-check').onclick = () => lily(true).catch(e => toast('Error: ' + e.message));
 $('reboot').onclick = async () => {
   if (!confirm('Reboot the MiSTer now? A running game will stop.')) return;
   try { await api('/api/reboot', {}); toast('Rebooting…'); } catch (e) { toast('Error: ' + e.message); }

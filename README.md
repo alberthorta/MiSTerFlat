@@ -19,7 +19,9 @@ same network to:
   .mcd/.mcr/.sav, .gme and .vmp);
 - see the connected controllers (with battery level for PlayStation pads) and stop
   DualShock 4 / DualSense motion sensors from moving the character by themselves (a switch in
-  Settings, on by default; see `mistermanager/motion.py`).
+  Settings, on by default; see `mistermanager/motion.py`);
+- update the firmware of a [MiSTerLily](https://github.com/alberthorta/MiSTerLily) display, to the
+  latest release or from a `.bin` file (Settings; see `mistermanager/lily.py`).
 
 It is one Python program with no extra packages. The MiSTer already has Python 3.9.
 

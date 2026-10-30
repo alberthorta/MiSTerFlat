@@ -15,6 +15,7 @@ from .artwork import IMAGE_EXTS
 from .coreopts import CoreOptions, CoreOptionsError
 from .control import Controller, LaunchError, Stats, current
 from .library import Library
+from .lily import MAX_FIRMWARE, Lily, LilyError
 from .memcards import CARD_SIZE, CardError, MemoryCards, psx_game_folders
 from .motion import DEVICES, MotionBlocker, controllers
 from .settings import Settings, SettingsError
@@ -34,6 +35,7 @@ class App:
         self.cores = CoreOptions(fat, state_dir)
         self.cards = MemoryCards(fat, state_dir)
         self.motion = MotionBlocker(os.path.join(state_dir, 'controllers.json'))
+        self.lily = Lily(fat, state_dir)
 
 
 def make_handler(app: App):
@@ -111,6 +113,8 @@ def make_handler(app: App):
                 self.send_header('Content-Disposition', f"attachment; filename*=UTF-8''{quoted}")
                 self.end_headers()
                 self.wfile.write(data)
+            elif url.path == '/api/lily':
+                self._json(app.lily.info(refresh=q.get('refresh') == '1'))
             elif url.path == '/api/cores':
                 self._json(app.cores.installed())
             elif url.path == '/api/cores/options':
@@ -134,6 +138,8 @@ def make_handler(app: App):
             length = int(self.headers.get('Content-Length') or 0)
             if url.path == '/api/psx/cards/upload':
                 return self._upload_card(url, length)
+            if url.path == '/api/lily/upload':
+                return self._upload_firmware(length)
             if length > MAX_BODY:
                 return self._json({'error': 'body too large'}, 413)
             try:
@@ -175,13 +181,16 @@ def make_handler(app: App):
                 elif url.path == '/api/controllers/motion':
                     app.motion.set_enabled(bool(body.get('enabled')))
                     self._json({'ok': True})
+                elif url.path == '/api/lily/flash':
+                    app.lily.flash_latest()
+                    self._json({'ok': True})
                 elif url.path == '/api/reboot':
                     self._json({'ok': True})
                     # Answer first; the reboot takes the server down with it.
                     threading.Timer(1.0, lambda: subprocess.run(['reboot'])).start()
                 else:
                     self._json({'error': 'not found'}, 404)
-            except (LaunchError, SettingsError, CoreOptionsError, OSError, ValueError) as e:
+            except (LaunchError, SettingsError, CoreOptionsError, LilyError, OSError, ValueError) as e:
                 self._json({'error': str(e)}, 409)
 
         def _upload_card(self, url, length: int):
@@ -199,6 +208,16 @@ def make_handler(app: App):
             except OSError:
                 running = False
             self._json({'ok': True, 'saves': card_saves, 'psx_running': running})
+
+        def _upload_firmware(self, length: int):
+            if not 0 < length <= MAX_FIRMWARE:
+                return self._json({'error': 'file is empty or too large for the display'}, 413)
+            data = self.rfile.read(length)
+            try:
+                app.lily.flash_file(data)
+            except (LilyError, OSError) as e:
+                return self._json({'error': str(e)}, 409)
+            self._json({'ok': True})
 
         def _file(self, root: str, name: str, cache: bool = False):
             full = os.path.realpath(os.path.join(root, name))
