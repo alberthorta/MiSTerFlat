@@ -50,6 +50,9 @@ DEFAULTS = {
     "MENU_SCREEN": "clock",  # MiSTer menu: "clock" (built-in clock screen) or "picture" (tty2oled MENU logo)
 }
 SLEEP_FILE = "/tmp/tty2oled_sleep"
+# Firmware version of the connected display, for misterlily_flash.py and MiSTerManager, which
+# cannot ask the board themselves while the daemon holds the port. Removed when the display goes.
+FW_FILE = "/tmp/misterlily_fw"
 POLL_SECONDS = 0.1
 RETRY_SECONDS = 2.0
 PING_SECONDS = 5.0
@@ -122,6 +125,19 @@ def local_ip():
         s.close()
 
 
+def write_fw_version(version):
+    """None removes the file. Written through a temporary file so readers never see half of it."""
+    try:
+        if version is None:
+            os.remove(FW_FILE)
+        else:
+            with open(FW_FILE + ".tmp", "w") as f:
+                f.write(version + "\n")
+            os.replace(FW_FILE + ".tmp", FW_FILE)
+    except OSError:
+        pass
+
+
 def wall_offset():
     """Local wall clock minus the monotonic clock: constant until someone sets the time."""
     return time.time() + time.localtime().tm_gmtoff - time.monotonic()
@@ -186,6 +202,8 @@ class Display:
         self.ip = None
         self.next_ip_check = 0.0
         self.sync_logo()
+        # After sync_logo: its read_until() would swallow the reply. drain() picks it up.
+        self.port.write("CMDHWINF\n")
         self.last_pong = time.monotonic()
         self.next_ping = 0.0
         self.uptime = None
@@ -209,6 +227,7 @@ class Display:
             self.port.fd = None
             self.port = None
             log("display lost ({})".format(why))
+        write_fw_version(None)
 
     def still_there(self):
         return self.port is not None and os.path.exists(self.path)
@@ -281,6 +300,10 @@ class Display:
                     self.uptime = int(up)
             elif line.startswith(b"MDSIMG;err"):
                 log("display: " + line.decode(errors="replace"))
+            elif line.startswith(b"HWTDISPS3;MDS-"):
+                version = line[len(b"HWTDISPS3;MDS-"):].split(b";", 1)[0].decode(errors="replace")
+                write_fw_version(version)
+                debug("display firmware {}".format(version))
             elif line.strip():
                 debug("display: {!r}".format(line))
 

@@ -1,0 +1,59 @@
+# Builds the firmware for a version tag and publishes it as a GitHub release.
+# misterlily_flash.py (and MiSTerManager through it) flashes the .bin of the latest release.
+#
+#   1. set MDS_FW_VERSION in firmware/include/config.h, commit
+#   2. git tag v0.2.0 && git push origin v0.2.0
+name: Release firmware
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: platformio-${{ hashFiles('firmware/platformio.ini') }}
+
+      - name: Tag matches the firmware version
+        run: |
+          version="$(sed -n 's/^#define MDS_FW_VERSION "\(.*\)"$/\1/p' firmware/include/config.h)"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME but MDS_FW_VERSION is $version" >&2
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: |
+          pip install platformio
+          cd firmware && pio run -e tdisplay_s3
+
+      - name: Check the image as the MiSTer will
+        run: |
+          cp firmware/.pio/build/tdisplay_s3/firmware.bin "misterlily-$VERSION.bin"
+          python3 -c "
+          import sys; sys.path.insert(0, 'mister')
+          import misterlily_flash as mf
+          v = mf.image_version(open('misterlily-$VERSION.bin', 'rb').read())
+          assert v == '$VERSION', v
+          print('image ok:', v)"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "misterlily-$VERSION.bin" \
+            --title "MiSTerLily $VERSION" --generate-notes

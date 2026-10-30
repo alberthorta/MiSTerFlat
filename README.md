@@ -37,6 +37,19 @@ release **BOOT**, upload again.
 `tdisplay_s3_debug` is the same firmware with a debug log on UART0 (GPIO43 TX, 115200 baud). The USB
 port never carries debug output, because the MiSTer scripts read replies from it.
 
+### Releases
+
+A version tag builds the firmware on GitHub Actions and publishes it as a release
+(`.github/workflows/release.yml`). The MiSTer can then flash it without a computer (see
+[docs/mister-install.md](docs/mister-install.md#firmware-updates-from-the-mister)).
+
+```sh
+# set MDS_FW_VERSION in firmware/include/config.h, commit, then:
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The workflow stops if the tag and `MDS_FW_VERSION` differ.
+
 ## USB connection
 
 The board uses the ESP32-S3 built-in USB Serial/JTAG controller: USB ID `303a:1001`,
@@ -74,6 +87,7 @@ bash tests/mister/test_find_display.sh                     # find-display.sh aga
 bash tests/mister/run_e2e.sh                               # Docker: real tty2oled.sh, and our daemon
 bash tests/mister/run_updater_test.sh                      # Docker: tty2oled updater after our installer
 bash tests/mister/run_update_test.sh                       # Docker: misterlily_update against GitHub
+python3 tests/mister/test_flash_image.py                   # firmware file check of misterlily_flash.py
 python3 tools/fake_mister.py --selftest <Pictures folder>  # picture decoding vs tail | xxd
 python3 tests/fixtures/make_fixtures.py                    # rebuild the parser test fixtures
 python3 tests/fixtures/make_art.py                         # rebuild the colour test pictures

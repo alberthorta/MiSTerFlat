@@ -51,6 +51,8 @@ class FakeDisplay:
             for _ in range(chunk.count(b"MDSPING\n")):
                 self.uptime += 5000
                 os.write(self.master, "MDSPONG;up={}\n".format(self.uptime).encode())
+            for _ in range(chunk.count(b"CMDHWINF\n")):
+                os.write(self.master, b"HWTDISPS3;MDS-9.8.7;\n")
 
     def unplug(self):
         os.remove("/dev/ttyACM0")
@@ -103,6 +105,8 @@ def main():
           is not None, repr(data[:80]))
     check("heartbeat pings sent", data.count(b"MDSPING\n") >= 1)
     check("MENU sent at start", b"MDSCORE,MENU\n" in data)
+    check("firmware version asked", b"CMDHWINF\n" in data)
+    check("firmware version file written", open("/tmp/misterlily_fw").read() == "9.8.7\n")
     png = open("/src/tests/fixtures/art/MDSTEST.png", "rb").read()
     m = re.search(rb"MDSIMG,(\d+),([0-9a-f]{8}),png,MDSTEST\n", data)
     check("colour picture wins, sent as MDSIMG", m is not None and int(m.group(1)) == len(png)
@@ -114,6 +118,7 @@ def main():
     # Unplug, plug in again: the daemon must notice, find it again and resend the current core.
     disp.unplug()
     time.sleep(1.0)
+    check("firmware version file removed when the display goes", not os.path.exists("/tmp/misterlily_fw"))
     disp2 = FakeDisplay()
     time.sleep(4.0)
     data2 = bytes(disp2.data)

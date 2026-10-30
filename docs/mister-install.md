@@ -56,6 +56,28 @@ If a menu titled "Flash tool for ESP devices" ever appears, choose **Exit**.
    on tty2tft.de changed since the last download; nothing else from tty2oled is installed;
 3. restarts the daemon.
 
+## Firmware updates from the MiSTer
+
+`/media/fat/MiSTerLily/misterlily_flash.py` flashes the display over its USB cable, so the board can
+stay inside the case. MiSTerManager has the same thing as buttons in Settings.
+
+```sh
+python3 /media/fat/MiSTerLily/misterlily_flash.py check            # board version and latest release
+python3 /media/fat/MiSTerLily/misterlily_flash.py flash --latest   # flash the latest GitHub release
+python3 /media/fat/MiSTerLily/misterlily_flash.py flash FILE.bin   # flash a file (pio run output)
+```
+
+- Only the program is written (`0x10000`, plus a blank `otadata`). Settings and the start-up picture
+  are in the spiffs partition and stay.
+- The file is checked first: ESP32-S3 image, a MiSTerLily version inside, small enough for `app0`.
+  Anything else is refused before the board is touched.
+- esptool 3.3.3 and pyserial 3.5 are downloaded on first use into `MiSTerLily/tools/`, pinned by
+  SHA-256. Nothing is installed in the MiSTer system folders.
+- The daemon is stopped during the flash and started again, also when the flash fails. It writes the
+  board's version to `/tmp/misterlily_fw`, and the script waits until the new version shows there.
+- A flash takes about 15 s. If it is cut in the middle, the program is broken but the bootloader is
+  not touched: flash again. If the board does not answer, hold **BOOT** while you plug it in.
+
 ## 2. Alternative: install tty2oled (for its picture library)
 
 Not needed when you use `misterlily_update`. If you prefer tty2oled's own updater:
