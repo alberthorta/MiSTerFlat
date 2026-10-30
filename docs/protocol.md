@@ -57,7 +57,7 @@ The host should set the port raw (`stty ... raw -echo -hupcl`), like tty2oled do
 | `CMDTEST` | Colour bars, 16 greys, 1 px red frame |
 | `CMDHWINF` | `HWTDISPS3;MDS-<version>;\n` |
 | `CMDRESET` | Restart after 100 ms (the USB port stays; no re-enumeration) |
-| `CMDSETTIME,<epoch>` | Sets the clock (tty2oled sends local time as an epoch). Used by the menu and idle clock screens |
+| `CMDSETTIME,<epoch>` | Sets the clock (tty2oled sends local time as an epoch). Used by the menu and idle clock screens. Our daemon sends it at setup, every 10 min, and at once when the MiSTer clock jumps (NTP sync after boot, `hwclock`, DST) |
 | `QWERTZ` (also with leading noise), `CMDNULL`, `CMDSAVER`, `CMDSWSAVER`, `CMDSECD`, `CMDSHCD`, `CMDSHTIME`, `CMDSSCP`, `CMDBYE`, `bye` | Accepted, nothing visible yet |
 | any other `CMD...` | Ignored (the sketch would draw it as a core name) |
 

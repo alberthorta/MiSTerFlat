@@ -57,6 +57,11 @@ PING_SECONDS = 5.0
 PONG_TIMEOUT_SECONDS = 15.0
 # The board's clock drifts with its crystal; refresh it now and then. Also how often the IP is checked.
 TIME_RESEND_SECONDS = 600.0
+# The daemon starts about 15 s after boot. Without a working RTC the system time is still wrong
+# then, and NTP fixes it a few seconds later: the display showed the wrong time until the next
+# resend. A jump of the local wall clock against the monotonic clock (NTP, hwclock, date, DST)
+# larger than this sends the time at once.
+CLOCK_JUMP_SECONDS = 2.0
 IP_CHECK_SECONDS = 30.0
 # A device node must exist this long before we open it: the kernel creates /dev/ttyACMn a moment
 # before the port is usable.
@@ -117,6 +122,11 @@ def local_ip():
         s.close()
 
 
+def wall_offset():
+    """Local wall clock minus the monotonic clock: constant until someone sets the time."""
+    return time.time() + time.localtime().tm_gmtoff - time.monotonic()
+
+
 def read_core(path):
     try:
         with open(path, "rb") as f:
@@ -146,6 +156,7 @@ class Display:
         self.restarted = False  # set when a pong shows a lower uptime than before
         self.pending = b""  # a reply line split across reads
         self.next_time = 0.0
+        self.sent_offset = 0.0
         self.next_ip_check = 0.0
         self.ip = None
 
@@ -233,10 +244,11 @@ class Display:
     def send_time(self):
         # Local wall time as epoch seconds, the tty2oled convention (CMDSETTIME).
         self.port.write("CMDSETTIME,{}\n".format(int(time.time() + time.localtime().tm_gmtoff)))
+        self.sent_offset = wall_offset()
         self.next_time = time.monotonic() + TIME_RESEND_SECONDS
 
     def housekeeping(self, now):
-        if now >= self.next_time:
+        if now >= self.next_time or abs(wall_offset() - self.sent_offset) > CLOCK_JUMP_SECONDS:
             self.send_time()
         if now >= self.next_ip_check:
             self.next_ip_check = now + IP_CHECK_SECONDS
