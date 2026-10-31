@@ -7,7 +7,11 @@ The display reports a tap as MDSBTN,<reset|osd|user|bt>; the daemon calls press(
   to the core (user_io_check_reset / user_io_send_buttons). MiSTer.ini reset_combo picks the combo.
   While the OSD is open the combo does not reach the core (checked on a real MiSTer), so an open
   OSD is closed first. Main writes /tmp/OSD_VISIBLE when log_file_entry is on.
-- RESET: the physical button is an HPS cold reset (sys_top.v reset_hps_cold_req), so: reboot.
+- RESET: the physical button is an HPS cold reset (sys_top.v reset_hps_cold_req): instant. A plain
+  reboot runs every init.d stop script first and takes several seconds more, and reboot -f hung the
+  MiSTer (tried on a real one). The reset combo with Left Shift, held over a second, makes Main do its
+  own cold reset (user_io_check_reset -> fpga_io.cpp reboot(): sync, then the reset register), as
+  fast as the button. If the MiSTer is still up a few seconds later (Main not running), plain reboot.
 - BT: the Bluetooth pairing menu, which the OSD button opens when held for 3 s. From a keyboard
   Main opens it with F11 while the OSD is open (menu.cpp), so the OSD is opened first if needed.
 
@@ -27,7 +31,7 @@ UI_DEV_CREATE = 0x5501  # _IO('U', 1)
 EV_SYN, EV_KEY = 0, 1
 BUS_VIRTUAL = 0x06
 
-KEY_LEFTCTRL, KEY_LEFTALT, KEY_RIGHTALT = 29, 56, 100
+KEY_LEFTCTRL, KEY_LEFTSHIFT, KEY_LEFTALT, KEY_RIGHTALT = 29, 42, 56, 100
 KEY_LEFTMETA, KEY_RIGHTMETA, KEY_DELETE, KEY_F11, KEY_F12 = 125, 126, 111, 87, 88
 # MiSTer.ini reset_combo, as user_io_check_reset() lists them (0 is the default).
 RESET_COMBOS = {
@@ -41,6 +45,10 @@ TAP_SECONDS = 0.05
 # The core sees BUTTON2 only while the combo is held.
 HOLD_SECONDS = 0.3
 OSD_VISIBLE = "/tmp/OSD_VISIBLE"
+# Main reboots once the cold reset combo has been held for 1 s.
+COLD_RESET_HOLD_SECONDS = 1.5
+# Still running this long after that: Main did not do it, reboot the plain way.
+COLD_RESET_FALLBACK_SECONDS = 4.0
 # Time for Main to draw the OSD after F12 before the next key.
 OSD_SETTLE_SECONDS = 0.5
 
@@ -49,12 +57,18 @@ class VirtualKeyboard:
     def __init__(self, path=UINPUT):
         self.path = path
         self.fd = None
+        self.ready_at = 0.0
+
+    def open(self):
+        """Creates the device now, so the first key does not wait for Main to find it."""
+        if self.fd is None:
+            self._open()
 
     def _open(self):
         fd = os.open(self.path, os.O_WRONLY | os.O_NONBLOCK)
         try:
             fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
-            for key in {KEY_F11, KEY_F12} | {k for combo in RESET_COMBOS.values() for k in combo}:
+            for key in {KEY_F11, KEY_F12, KEY_LEFTSHIFT} | {k for combo in RESET_COMBOS.values() for k in combo}:
                 fcntl.ioctl(fd, UI_SET_KEYBIT, key)
             # struct uinput_user_dev: name[80], input_id, ff_effects_max, abs{max,min,fuzz,flat}[64]
             os.write(fd, struct.pack("=80sHHHHi256i", b"MiSTerLily buttons", BUS_VIRTUAL, 0, 0, 1, 0,
@@ -64,7 +78,7 @@ class VirtualKeyboard:
             os.close(fd)
             raise
         self.fd = fd
-        time.sleep(NEW_DEVICE_SECONDS)
+        self.ready_at = time.monotonic() + NEW_DEVICE_SECONDS
 
     def _send(self, keys, value):
         for key in keys:
@@ -73,8 +87,10 @@ class VirtualKeyboard:
         os.write(self.fd, struct.pack("llHHi", 0, 0, EV_SYN, 0, 0))
 
     def press(self, keys, hold):
-        if self.fd is None:
-            self._open()
+        self.open()
+        wait = self.ready_at - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
         self._send(keys, 1)
         time.sleep(hold)
         self._send(reversed(keys), 0)
@@ -100,11 +116,18 @@ def reset_combo(ini_path):
 
 
 class Buttons:
-    def __init__(self, ini_path="/media/fat/MiSTer.ini", keyboard=None, reboot=("reboot",), osd_file=OSD_VISIBLE):
+    def __init__(self, ini_path="/media/fat/MiSTer.ini", keyboard=None, reboot=("reboot",),
+                 osd_file=OSD_VISIBLE, sleep=time.sleep):
         self.ini_path = ini_path
         self.keyboard = keyboard or VirtualKeyboard()
         self.reboot = list(reboot)
         self.osd_file = osd_file
+        self.sleep = sleep
+
+    def prepare(self):
+        """For a display with touch buttons: create the virtual keyboard ahead of the first tap.
+        Raises OSError when there is no uinput."""
+        self.keyboard.open()
 
     def osd_open(self):
         try:
@@ -128,6 +151,9 @@ class Buttons:
                 time.sleep(OSD_SETTLE_SECONDS)
             self.keyboard.press((KEY_F11,), TAP_SECONDS)
         elif name == "reset":
+            combo = RESET_COMBOS[reset_combo(self.ini_path)]
+            self.keyboard.press((KEY_LEFTSHIFT,) + combo, COLD_RESET_HOLD_SECONDS)
+            self.sleep(COLD_RESET_FALLBACK_SECONDS)
             subprocess.Popen(self.reboot)
         else:
             raise ValueError("unknown button {!r}".format(name))

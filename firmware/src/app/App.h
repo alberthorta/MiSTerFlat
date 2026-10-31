@@ -96,6 +96,16 @@ class App : public proto::ParserListener {
   size_t shotLeft_ = 0;
   uint32_t shotProgressMs_ = 0;
 
+  // RESET was tapped on the touch buttons. The board stays powered and keeps its clock while the
+  // MiSTer reboots, and a rebooted MiSTer starts in the menu. So: dark at once, then after 2 s
+  // the menu clock, as if the MiSTer were back already; the daemon sends the same screen when it
+  // starts (about 19 s after the reset). "Waiting for MiSTer" is held back for a while meanwhile.
+  bool restartDark_ = false;
+  bool restartGrace_ = false;
+  uint32_t resetTapMs_ = 0;
+  void endRestartDark();
+  void pollRestart();
+
   bool sendTtyAck_ = true;
   bool restartPending_ = false;
   uint32_t restartAtMs_ = 0;

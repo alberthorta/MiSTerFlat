@@ -25,6 +25,10 @@ constexpr uint32_t kShotStallMs = 1000;
 constexpr uint32_t kRestartDelayMs = 100;
 constexpr uint32_t kMsPerMinute = 60000;
 constexpr const char* kWaitingText = "Waiting for MiSTer";
+// After a RESET tap: dark this long, then the menu clock.
+constexpr uint32_t kRestartDarkMs = 2000;
+// The daemon is back about 19 s after the reset; "Waiting for MiSTer" only after this long.
+constexpr uint32_t kRestartGraceMs = 60000;
 
 }  // namespace
 
@@ -60,7 +64,10 @@ void App::loop() {
     showMenu(screen_ == Screen::IdleClock);
   }
   pumpScreenshot(millis());
-  if (MDS_HAS_TOUCH) pollTouch();
+  if (MDS_HAS_TOUCH) {
+    pollTouch();
+    pollRestart();
+  }
   transport_.poll(millis());
 
   if (restartPending_ && static_cast<int32_t>(millis() - restartAtMs_) >= 0) {
@@ -450,7 +457,32 @@ bool App::changesScreen(proto::CommandId id) {
   }
 }
 
+void App::endRestartDark() {
+  if (!restartDark_) return;
+  restartDark_ = false;
+  display_.setBacklightOn(true);
+}
+
+void App::pollRestart() {
+  if (restartDark_ && millis() - resetTapMs_ >= kRestartDarkMs) {
+    setCore("MENU");
+    pictureFormat_ = proto::ImageFormat::None;
+    assetValid_ = false;
+    showCore();
+    endRestartDark();
+  }
+  if (restartGrace_ && millis() - resetTapMs_ >= kRestartGraceMs) {
+    restartGrace_ = false;
+    if (presence_.hostLost()) {
+      screen_ = Screen::Waiting;
+      drawSplash(kWaitingText);
+    }
+  }
+}
+
 void App::noteActivity() {
+  endRestartDark();
+  restartGrace_ = false;
   if (presence_.onActivity(millis()) == presence::Event::Wake) {
     LOGF("idle sleep: wake");
     display_.setBacklightOn(true);
@@ -464,6 +496,7 @@ void App::pollTouch() {
   const TouchButtons::Result t = touchButtons_.poll(millis());
   // A tap counts as activity for idle sleep, but unlike a host command it leaves the start and
   // "Waiting for MiSTer" screens as they are.
+  if (t.activity) endRestartDark();
   if (t.activity && presence_.onActivity(millis()) == presence::Event::Wake) {
     LOGF("idle sleep: wake (touch)");
     display_.setBacklightOn(true);
@@ -474,6 +507,12 @@ void App::pollTouch() {
     snprintf(line, sizeof(line), "MDSBTN,%s\n", t.pressed);
     transport_.write(line);
     LOGF("button %s", t.pressed);
+    if (strcmp(t.pressed, "reset") == 0) {
+      restartDark_ = restartGrace_ = true;
+      resetTapMs_ = millis();
+      ip_[0] = '\0';  // the daemon sends the addresses again when it starts
+      display_.setBacklightOn(false);
+    }
   }
 }
 
@@ -481,6 +520,7 @@ void App::handlePresence(presence::Event event) {
   switch (event) {
     case presence::Event::HostLost:
       LOGF("host lost");
+      if (restartGrace_) break;  // expected while the MiSTer reboots; pollRestart() handles it
       screen_ = Screen::Waiting;
       drawSplash(kWaitingText);
       break;

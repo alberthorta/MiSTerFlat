@@ -125,6 +125,12 @@ MDSBTN,<reset|osd|user|bt>\n
 `reset` needs two taps on the display (the first one arms it for 3 s). The native daemon acts like
 the MiSTer's own buttons (`mister/buttons.py`); the stock tty2oled daemon ignores the line.
 
+After sending `reset` the display goes dark at once and forgets the addresses. The board stays
+powered and keeps its clock while the MiSTer reboots, and a rebooted MiSTer starts in the menu, so
+2 s later it shows the menu clock by itself, as if the MiSTer were back already. The daemon sends
+the same screen and the addresses when it starts (about 19 s after the reset). "Waiting for MiSTer"
+is held back for 60 s meanwhile. A tap lights a dark screen again.
+
 ## Device behaviour
 
 - **Settings**: `CMDCON` (brightness) and `CMDROT` (rotation) are stored in flash, written only when

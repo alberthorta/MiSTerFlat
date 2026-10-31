@@ -154,8 +154,9 @@ The panel shows 16-bit colour; `--dither` avoids bands in smooth gradients.
 - Touch board only: a tap fades in four round buttons over the dimmed screen: RESET (reboots the
   MiSTer; needs a second tap), OSD, USER (resets the core) and Bluetooth (the pairing menu). The
   native daemon does what the MiSTer's own buttons do (see
-  [docs/mister-install.md](docs/mister-install.md#touch-buttons)). A tap on a dark idle screen
-  only wakes it.
+  [docs/mister-install.md](docs/mister-install.md#touch-buttons)). After RESET the screen goes
+  dark and, 2 s later, shows the menu clock from its own clock while the MiSTer boots. A tap on a
+  dark idle screen only wakes it.
 
 ## tty2oled compatibility
 

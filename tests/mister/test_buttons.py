@@ -23,6 +23,9 @@ class FakeKeyboard:
     def __init__(self):
         self.presses = []
 
+    def open(self):
+        pass
+
     def press(self, keys, hold):
         self.presses.append((tuple(keys), hold))
 
@@ -42,14 +45,18 @@ check("unknown value -> 0", b.reset_combo(ini("[MiSTer]\nreset_combo=7\n")) == 0
 
 osd = ini("0")
 kb = FakeKeyboard()
-buttons = b.Buttons(ini_path=ini("[MiSTer]\nreset_combo=2\n"), keyboard=kb, reboot=("true",), osd_file=osd)
+buttons = b.Buttons(ini_path=ini("[MiSTer]\nreset_combo=2\n"), keyboard=kb, reboot=("true",), osd_file=osd,
+                    sleep=lambda s: None)
 buttons.press("osd")
 buttons.press("user")
 check("osd taps F12", kb.presses[0] == ((b.KEY_F12,), b.TAP_SECONDS), repr(kb.presses))
 check("user holds the reset combo of MiSTer.ini",
       kb.presses[1] == ((b.KEY_LEFTCTRL, b.KEY_LEFTALT, b.KEY_DELETE), b.HOLD_SECONDS), repr(kb.presses))
 buttons.press("reset")
-check("reset sends no keys", len(kb.presses) == 2)
+check("reset holds the cold reset combo (with Left Shift) over a second",
+      kb.presses[2] == ((b.KEY_LEFTSHIFT, b.KEY_LEFTCTRL, b.KEY_LEFTALT, b.KEY_DELETE), b.COLD_RESET_HOLD_SECONDS)
+      and b.COLD_RESET_HOLD_SECONDS > 1.0, repr(kb.presses))
+del kb.presses[2:]
 with open(osd, "w") as f:
     f.write("1")
 kb.presses.clear()

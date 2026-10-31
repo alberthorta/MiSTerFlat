@@ -88,12 +88,13 @@ On the Waveshare ESP32-S3-Touch-LCD-2, a tap shows four round buttons. The nativ
 
 | Button | On the MiSTer | How |
 |---|---|---|
-| RESET (red, two taps) | Reboots the MiSTer, like the RESET button (an HPS cold reset) | `reboot` |
+| RESET (red, two taps) | Reboots the MiSTer, like the RESET button (an HPS cold reset) | The reset combo with Left Shift, held for 1.5 s: Main does its own cold reset (sync, then a hardware reset), as fast as the button. If the MiSTer is still up 4 s later, `reboot`. (A plain `reboot` runs every stop script first and is slower; `reboot -f` hung the MiSTer.) |
 | OSD (orange) | Opens or closes the OSD | F12 on a virtual keyboard (`/dev/uinput`) |
 | USER (green) | Resets the core, like the USER button | The keyboard reset combo of `MiSTer.ini` `reset_combo` (default Left Ctrl + Left Alt + Right Alt). An open OSD is closed first: Main does not pass the combo to the core while the OSD is open |
 | Bluetooth (blue) | The BT pairing menu, as when the OSD button is held for 3 s | F11 with the OSD open (opened first if needed) |
 
-The virtual keyboard is created at the first tap; Main_MiSTer needs about a second to find it.
+The daemon creates the virtual keyboard as soon as a touch display connects, because Main_MiSTer
+needs about a second to find a new input device.
 `/tmp/OSD_VISIBLE` (written by Main when `log_file_entry` is on) tells whether the OSD is open.
 
 With two displays on one MiSTer, `MDS_SERIAL` in `config.ini` picks the one the daemon uses.

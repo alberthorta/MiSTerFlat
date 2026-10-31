@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#define MDS_FW_VERSION "0.2.1"
+#define MDS_FW_VERSION "0.2.2"
 
 // One firmware, several boards: platformio.ini sets MDS_BOARD_* per environment. Each board file
 // gives its pins, panel, screen size and the id it answers to CMDHWINF.

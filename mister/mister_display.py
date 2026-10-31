@@ -57,6 +57,7 @@ SLEEP_FILE = "/tmp/tty2oled_sleep"
 # cannot ask the board themselves while the daemon holds the port. Removed when the display goes.
 FW_FILE = "/tmp/misterlily_fw"
 BOARD_FILE = "/tmp/misterlily_board"  # its CMDHWINF id, a key of BOARDS in mdsserial.py
+TOUCH_BOARDS = {"HWWSTLCD2"}  # boards that send MDSBTN
 HWINF_RE = re.compile(rb"(HW[0-9A-Z]{7});MDS-([0-9A-Za-z.+-]{1,32});")
 POLL_SECONDS = 0.1
 RETRY_SECONDS = 2.0
@@ -355,6 +356,11 @@ class Display:
                 board, version = (g.decode() for g in HWINF_RE.search(line).groups())
                 write_fw_version(version, board)
                 debug("display {} firmware {}".format(board, version))
+                if board in TOUCH_BOARDS:
+                    try:
+                        self.buttons.prepare()
+                    except OSError as e:
+                        log("touch buttons will not work: {}".format(e))
             elif line.strip():
                 debug("display: {!r}".format(line))
 
