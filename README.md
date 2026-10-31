@@ -146,8 +146,8 @@ The panel shows 16-bit colour; `--dither` avoids bands in smooth gradients.
   firmware version; "Waiting for MiSTer" if nothing arrives within 10 s, or when our daemon stops
   answering for 15 s. Store the picture with `python3 tools/set_logo.py <port> logo.png`, or put it at
   `/media/fat/MiSTerLily/art/STARTUP.png` on the MiSTer (the daemon stores it when it changes).
-- The MiSTer menu (native mode): a clock screen with time, date and the MiSTer's IP address, unless
-  you put an `art/MENU.png`.
+- The MiSTer menu (native mode): a clock screen with time, date and the MiSTer's IP addresses, one
+  line each with an Ethernet or Wi-Fi icon (checked every 10 s), unless you put an `art/MENU.png`.
 - A short backlight dip when the core changes (can be turned off).
 - Brightness, rotation and the options below are remembered across power cycles. Optional idle
   sleep, dark or with a dim clock (`IDLE_MINUTES` / `IDLE_SCREEN` in the daemon config).

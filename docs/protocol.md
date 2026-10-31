@@ -101,7 +101,7 @@ MDSIMG,<bytes>,<crc32>,<png|jpg>,<core>\n
 | `MDSLOGO` | `MDSLOGO;crc=<hex>;bytes=<n>;format=<png\|jpg>\n` or `MDSLOGO;none\n`: the stored start-up picture |
 | `MDSLOGO,<bytes>,<crc32>,<png\|jpg>` + file | Store the start-up picture in flash (same framing as `MDSIMG`, max 256 KB). Reply `MDSLOGO;ok\n` or `MDSLOGO;err=<header\|size\|incomplete\|crc\|format\|storage>\n` |
 | `MDSCFG,logo,0` | Delete the stored start-up picture (back to the text start screen) |
-| `MDSNET,<ip>` | The MiSTer's IP address, shown on the menu clock screen (empty = none) |
+| `MDSNET,<text>` | The MiSTer's addresses for the menu clock screen (empty = none). Our daemon sends `eth=<ip> wifi=<ip>` (each part only when that interface has a link and an address); each shows on its own line with an icon, Ethernet first. A bare `<ip>` (older daemons) shows without an icon. Older firmware shows the text as it is |
 | `MDSINFO` | `MDSINFO;fw=..;board=<T-Display-S3\|Waveshare LCD 2>;psram=..;fb=psram;uptime_ms=..;reset=..;lines=..;images=..;discards=..;txdrop=..;txstale=..;lastimg=<result>:<bytes>;core=..\n` |
 | `MDSCORE,<core>` | Show the core name (no picture transfer) |
 | `MDSSHOT` | `MDSSHOT,<w>,<h>,<bytes>\n`, then `ttyack;`, then the frame buffer (RGB565 big-endian, row-major). `tools/screenshot.py` saves it as PNG |
@@ -139,8 +139,9 @@ the MiSTer's own buttons (`mister/buttons.py`); the stock tty2oled daemon ignore
   170-pixel layout; text "MiSTer / <board name>" if there is none or it cannot be decoded), the firmware version small in the top-right
   corner, and after 10 s without any data "Waiting for MiSTer" (anti-aliased DejaVu 24) below the picture. The picture lives in LittleFS
   on the `spiffs` data partition, which firmware uploads do not touch.
-- **Menu screen**: a core named `MENU` without a picture shows time, date and the IP from `MDSNET`
-  (once the time is known), redrawn every minute.
+- **Menu screen**: a core named `MENU` without a picture shows time, date, the addresses from
+  `MDSNET` and the firmware version (once the time is known), redrawn every minute. The column is
+  centred on the screen; on the 170-pixel T-Display-S3 the gaps shrink to fit two addresses.
 - **Fade**: the backlight goes down (120 ms), the new frame is pushed, and it comes back (180 ms),
   in steps of the 16 backlight levels.
   The main loop keeps running during the fade.

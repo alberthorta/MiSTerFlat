@@ -19,10 +19,12 @@ Usage (normally started by S60misterlily):
 """
 import argparse
 import binascii
+import fcntl
 import os
 import re
 import signal
 import socket
+import struct
 import subprocess
 import sys
 import termios
@@ -61,14 +63,15 @@ RETRY_SECONDS = 2.0
 PING_SECONDS = 5.0
 # No answer for this long: give up on the port and look for the display again.
 PONG_TIMEOUT_SECONDS = 15.0
-# The board's clock drifts with its crystal; refresh it now and then. Also how often the IP is checked.
+# The board's clock drifts with its crystal; refresh it now and then.
 TIME_RESEND_SECONDS = 600.0
 # The daemon starts about 15 s after boot. Without a working RTC the system time is still wrong
 # then, and NTP fixes it a few seconds later: the display showed the wrong time until the next
 # resend. A jump of the local wall clock against the monotonic clock (NTP, hwclock, date, DST)
 # larger than this sends the time at once.
 CLOCK_JUMP_SECONDS = 2.0
-IP_CHECK_SECONDS = 30.0
+# How often the network addresses are checked: an unplugged cable leaves the clock screen this fast.
+IP_CHECK_SECONDS = 10.0
 # A device node must exist this long before we open it: the kernel creates /dev/ttyACMn a moment
 # before the port is usable.
 SETTLE_SECONDS = 0.5
@@ -126,6 +129,47 @@ def local_ip():
         return ""
     finally:
         s.close()
+
+
+SIOCGIFADDR = 0x8915
+NET_KINDS = (("eth", ("eth", "en")), ("wifi", ("wlan", "wl")))
+
+
+def iface_ip(name):
+    """IPv4 address of a network interface, "" if it has none."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        req = struct.pack("256s", name[:15].encode())
+        return socket.inet_ntoa(fcntl.ioctl(s.fileno(), SIOCGIFADDR, req)[20:24])
+    except OSError:
+        return ""
+    finally:
+        s.close()
+
+
+def network_text(net_dir="/sys/class/net"):
+    """The MDSNET text: "eth=<ip> wifi=<ip>" for each wired or Wi-Fi interface that is connected
+    and has an address. Older firmware shows the text as it is, which still reads well. Falls back
+    to the bare address of the default route (other interface names, or no /sys)."""
+    found = {}
+    try:
+        names = sorted(os.listdir(net_dir))
+    except OSError:
+        names = []
+    for name in names:
+        try:
+            with open(os.path.join(net_dir, name, "carrier")) as f:
+                if f.read().strip() != "1":
+                    continue
+        except OSError:
+            continue
+        for kind, prefixes in NET_KINDS:
+            if name.startswith(prefixes) and kind not in found:
+                ip = iface_ip(name)
+                if ip:
+                    found[kind] = ip
+    parts = ["{}={}".format(kind, found[kind]) for kind, _ in NET_KINDS if kind in found]
+    return " ".join(parts) or local_ip()
 
 
 def write_fw_version(version, board=None):
@@ -276,7 +320,7 @@ class Display:
             self.send_time()
         if now >= self.next_ip_check:
             self.next_ip_check = now + IP_CHECK_SECONDS
-            ip = local_ip()
+            ip = network_text()
             if ip != self.ip:
                 self.ip = ip
                 self.port.write("MDSNET,{}\n".format(ip))
