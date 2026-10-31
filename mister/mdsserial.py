@@ -9,6 +9,13 @@ import select
 import termios
 import time
 
+# What each board answers to CMDHWINF (<id>;MDS-<version>;), and the PlatformIO environment that
+# builds its firmware. A release has one misterlily-<version>-<env>.bin per board.
+BOARDS = {
+    "HWTDISPS3": "tdisplay_s3",  # LILYGO T-Display-S3
+    "HWWSTLCD2": "waveshare_lcd2",  # Waveshare ESP32-S3-Touch-LCD-2
+}
+
 # macOS drops output still queued in the USB CDC driver when the port is closed, even after
 # tcdrain() (measured: 8 of 10 lines arrived when closing right away, 10 of 10 after 50 ms).
 CLOSE_SETTLE_SECONDS = 0.1

@@ -60,6 +60,7 @@ void App::loop() {
     showMenu(screen_ == Screen::IdleClock);
   }
   pumpScreenshot(millis());
+  if (MDS_HAS_TOUCH) pollTouch();
   transport_.poll(millis());
 
   if (restartPending_ && static_cast<int32_t>(millis() - restartAtMs_) >= 0) {
@@ -242,6 +243,16 @@ void App::onDiscard(proto::DiscardReason reason, size_t length) {
 
 void App::handle(const proto::Command& cmd, std::string_view line) {
   using proto::CommandId;
+#if MDS_TEST_COMMANDS
+  // MDSBUTTONS,<held button 0-3 or -1>,<reset armed 0|1>: the touch buttons in a given state,
+  // for screenshots. Checked first: the parser would take the bare word for a core name.
+  if (line.substr(0, 10) == "MDSBUTTONS") {
+    int held = -1, armed = 0;
+    sscanf(std::string(line).c_str(), "MDSBUTTONS,%d,%d", &held, &armed);
+    touchButtons_.preview(held, armed != 0, millis());
+    return;
+  }
+#endif
   bool present = true;
   switch (cmd.id) {
     case CommandId::CoreName:  // tty2oled sends the bare name when it has no picture
@@ -449,6 +460,23 @@ void App::noteActivity() {
   if (screen_ == Screen::Waiting || screen_ == Screen::Splash) screen_ = Screen::Other;
 }
 
+void App::pollTouch() {
+  const TouchButtons::Result t = touchButtons_.poll(millis());
+  // A tap counts as activity for idle sleep, but unlike a host command it leaves the start and
+  // "Waiting for MiSTer" screens as they are.
+  if (t.activity && presence_.onActivity(millis()) == presence::Event::Wake) {
+    LOGF("idle sleep: wake (touch)");
+    display_.setBacklightOn(true);
+    if (screen_ == Screen::IdleClock && coreNameLength_ > 0) showCore();
+  }
+  if (t.pressed) {
+    char line[24];
+    snprintf(line, sizeof(line), "MDSBTN,%s\n", t.pressed);
+    transport_.write(line);
+    LOGF("button %s", t.pressed);
+  }
+}
+
 void App::handlePresence(presence::Event event) {
   switch (event) {
     case presence::Event::HostLost:
@@ -547,13 +575,13 @@ void App::sendHardwareInfo() {
   // installer.sh reads this with `read`, takes ${BLA:0:9} as the board id and ${SWver:10} as
   // the version. The id is exactly 9 characters and unknown to the tty2oled flasher; the version
   // starts with a letter, so it compares newer than any tty2oled build date and no update is offered.
-  transport_.write("HWTDISPS3;MDS-" MDS_FW_VERSION ";\n");
+  transport_.write(MDS_BOARD_ID ";MDS-" MDS_FW_VERSION ";\n");
 }
 
 void App::sendInfo() {
   char line[320];
   const int n = snprintf(line, sizeof(line),
-                         "MDSINFO;fw=%s;board=T-Display-S3;psram=%u;fb=%s;uptime_ms=%lu;reset=%d;"
+                         "MDSINFO;fw=%s;board=" MDS_BOARD_NAME ";psram=%u;fb=%s;uptime_ms=%lu;reset=%d;"
                          "lines=%lu;images=%lu;discards=%lu;txdrop=%lu;txstale=%lu;lastimg=%d:%u;asseterr=%s;"
                          "host=%s;idle=%s;core=%s\n",
                          MDS_FW_VERSION, (unsigned)ESP.getPsramSize(), display_.hasFramebuffer() ? "psram" : "direct",

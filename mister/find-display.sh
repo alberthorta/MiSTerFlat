@@ -21,7 +21,8 @@ SYSFS_ROOT="${SYSFS_ROOT:-/sys}"
 DEV_ROOT="${DEV_ROOT:-/dev}"
 VID="303a"
 PID="1001"
-HW_ID="HWTDISPS3"
+# CMDHWINF ids of the supported boards (BOARDS in mdsserial.py): T-Display-S3, Waveshare LCD 2.
+HW_IDS="HWTDISPS3|HWWSTLCD2"
 CONFIG="${MDS_CONFIG:-$(dirname "$0")/config.ini}"
 
 quiet=no
@@ -65,7 +66,7 @@ probe_device() {
   printf 'CMDHWINF\n' >&3
   for i in 1 2 3 4 5 6 7 8 9 10; do
     sleep 0.2
-    if grep -q "$HW_ID" "$out" 2>/dev/null; then ok=0; break; fi
+    if grep -qE "($HW_IDS);MDS-" "$out" 2>/dev/null; then ok=0; break; fi
   done
   kill "$reader" 2>/dev/null
   wait "$reader" 2>/dev/null
@@ -95,9 +96,9 @@ for tty in "$SYSFS_ROOT"/class/tty/ttyACM*; do
   [ -c "$dev" ] || { say "  (no device node $dev)"; continue; }
   if [ "$probe" = yes ]; then
     if probe_device "$dev"; then
-      say "  answers $HW_ID"
+      say "  answers as a MiSTerLily display"
     else
-      say "  does not answer $HW_ID, skipped"
+      say "  is not a MiSTerLily display, skipped"
       continue
     fi
   fi

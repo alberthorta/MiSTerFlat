@@ -14,7 +14,8 @@ const char* const kMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 
 constexpr int kTitleY = 16;
 constexpr int kTimeY = 74;
-constexpr float kTimeScale = 1.5f;  // Font7 is 48 px tall: 72 px digits
+// The retro 8x8 font of the core names, 7x: 56 px digits, "HH:MM" 280 px wide.
+constexpr int kTimeScale = 7;
 constexpr int kDateY = 128;
 constexpr int kIpY = 156;
 
@@ -23,6 +24,7 @@ constexpr int kIpY = 156;
 void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip, bool dimmed) {
   auto& g = display.canvas();
   const int w = display.width();
+  const int top = display.layoutTop();
   const uint16_t timeColor = dimmed ? theme::rgb565(90, 90, 90) : theme::kText;
   const uint16_t accent = dimmed ? theme::rgb565(90, 50, 10) : theme::kAccent;
   const uint16_t dim = dimmed ? theme::rgb565(55, 55, 55) : theme::kTextDim;
@@ -33,14 +35,14 @@ void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip,
   g.setFont(&fonts::DejaVu18);
   g.setTextSize(1);
   g.setTextColor(accent);
-  g.drawString("MiSTer", w / 2, kTitleY);
+  g.drawString("MiSTer", w / 2, top + kTitleY);
 
   char buf[32];
   snprintf(buf, sizeof(buf), "%02d:%02d", t.hour, t.minute);
-  g.setFont(&fonts::Font7);
+  g.setFont(&fonts::Font8x8C64);
   g.setTextSize(kTimeScale);
   g.setTextColor(timeColor);
-  g.drawString(buf, w / 2, kTimeY);
+  g.drawString(buf, w / 2, top + kTimeY);
   g.setTextSize(1);
 
   const int wd = (t.weekday >= 0 && t.weekday < 7) ? t.weekday : 0;
@@ -48,12 +50,12 @@ void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip,
   snprintf(buf, sizeof(buf), "%s %d %s %d", kWeekdays[wd], t.day, kMonths[mo], t.year);
   g.setFont(&fonts::DejaVu18);
   g.setTextColor(dim);
-  g.drawString(buf, w / 2, kDateY);
+  g.drawString(buf, w / 2, top + kDateY);
 
   if (ip && ip[0]) {
     g.setFont(&fonts::Font2);
     g.setTextColor(dimmed ? theme::rgb565(45, 45, 45) : theme::kTextFaint);
-    g.drawString(ip, w / 2, kIpY);
+    g.drawString(ip, w / 2, top + kIpY);
   }
   display.present();
 }

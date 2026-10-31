@@ -1,24 +1,35 @@
 # MiSTerLily
 
-A colour status display for a MiSTer FPGA, built on a LILYGO T-Display-S3 (1.9" 320×170 TFT).
-When MiSTer loads a core, the display shows that system's logo and name.
+A colour status display for a MiSTer FPGA, built on a LILYGO T-Display-S3 (1.9" 320×170 TFT) or a
+Waveshare ESP32-S3-Touch-LCD-2 (2" 320×240 touch TFT). When MiSTer loads a core, the display shows
+that system's logo and name. On the touch board, a tap gives the MiSTer's RESET, OSD and USER
+buttons, plus Bluetooth pairing.
 
 Website: **https://alberthorta.github.io/MiSTerLily/**
 
 It speaks the serial protocol of [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled),
 so the unmodified tty2oled daemon and its picture library drive it over native USB.
 
-Status: **Phase 6** done — colour pictures, our own MiSTer daemon with heartbeat and reconnection,
-watchdog, stored settings, fades, a menu clock screen, idle sleep and a "Waiting for MiSTer" screen
-work on the bench (board on a Mac, scripts in Linux containers). tty2oled compatibility mode works
-too. Not yet tested on a real MiSTer.
+Status: in use on a real MiSTer (QMTECH Cyclone V). Colour pictures, our own MiSTer daemon with
+heartbeat and reconnection, watchdog, stored settings, fades, a menu clock screen, idle sleep, a
+"Waiting for MiSTer" screen, firmware updates from the MiSTer and touch buttons. tty2oled
+compatibility mode works too.
 
 ## Hardware
 
-- **LILYGO T-Display-S3**, ESP32-S3R8 (16 MB flash, 8 MB PSRAM), ST7789 170×320 on the 8-bit
-  parallel bus. Touch or non-touch version. Not the T-Display (ESP32) or T-Display-S3 AMOLED.
-- A USB-C data cable. In the final build: a free port on the MiSTer's internal USB hub
-  (see [docs/wiring.md](docs/wiring.md)).
+One of:
+
+| Board | Screen | Firmware environment | CMDHWINF id |
+|---|---|---|---|
+| **LILYGO T-Display-S3** (touch or non-touch; not the T-Display or the AMOLED) | ST7789 170×320, 8-bit parallel bus | `tdisplay_s3` | `HWTDISPS3` |
+| **Waveshare ESP32-S3-Touch-LCD-2** | ST7789T3 240×320 on SPI, CST816D touch | `waveshare_lcd2` | `HWWSTLCD2` |
+
+Both are ESP32-S3R8 (16 MB flash, 8 MB PSRAM) with native USB. The screens are used in landscape,
+320 wide. The layouts were made for the 170-pixel T-Display-S3; on the 240-pixel Waveshare they are
+centred vertically, and colour pictures made for 320×170 get black bars above and below.
+
+Plus a USB-C data cable. In the final build: a free port on the MiSTer's internal USB hub
+(see [docs/wiring.md](docs/wiring.md)).
 
 ## Build and flash
 
@@ -26,10 +37,13 @@ Needs [PlatformIO](https://platformio.org/) (`brew install platformio`).
 
 ```sh
 cd firmware
-pio run                       # build
+pio run                       # build (T-Display-S3)
 pio run -t upload             # build and flash (auto-detects the port)
+pio run -e waveshare_lcd2 -t upload   # the same for the Waveshare board
 pio test -e native            # protocol unit tests on the computer, no board needed
 ```
+
+Each board needs its own firmware; the board files are in `firmware/include/boards/`.
 
 No buttons are needed to flash. If an upload fails: hold **BOOT**, press and release **RST**,
 release **BOOT**, upload again.
@@ -88,6 +102,7 @@ bash tests/mister/run_e2e.sh                               # Docker: real tty2ol
 bash tests/mister/run_updater_test.sh                      # Docker: tty2oled updater after our installer
 bash tests/mister/run_update_test.sh                       # Docker: misterlily_update against GitHub
 python3 tests/mister/test_flash_image.py                   # firmware file check of misterlily_flash.py
+python3 tests/mister/test_buttons.py                       # keys sent for the touch buttons
 python3 tools/fake_mister.py --selftest <Pictures folder>  # picture decoding vs tail | xxd
 python3 tests/fixtures/make_fixtures.py                    # rebuild the parser test fixtures
 python3 tests/fixtures/make_art.py                         # rebuild the colour test pictures
@@ -136,6 +151,11 @@ The panel shows 16-bit colour; `--dither` avoids bands in smooth gradients.
 - A short backlight dip when the core changes (can be turned off).
 - Brightness, rotation and the options below are remembered across power cycles. Optional idle
   sleep, dark or with a dim clock (`IDLE_MINUTES` / `IDLE_SCREEN` in the daemon config).
+- Touch board only: a tap fades in four round buttons over the dimmed screen: RESET (reboots the
+  MiSTer; needs a second tap), OSD, USER (resets the core) and Bluetooth (the pairing menu). The
+  native daemon does what the MiSTer's own buttons do (see
+  [docs/mister-install.md](docs/mister-install.md#touch-buttons)). A tap on a dark idle screen
+  only wakes it.
 
 ## tty2oled compatibility
 
@@ -152,8 +172,6 @@ Full command list: [docs/protocol.md](docs/protocol.md).
 
 ## Known limitations
 
-- Not tested on a MiSTer yet (the QMTECH board has not arrived). Open points are listed at the end
-  of [docs/mister-install.md](docs/mister-install.md).
 - tty2oled pictures are monochrome/greyscale and 256×64. Scaled 1.25× with area averaging, edges
   are slightly soft. Native colour artwork is Phase 5.
 - If nobody reads the replies, one `ttyack;` stays in the USB FIFO and reaches the next reader first.

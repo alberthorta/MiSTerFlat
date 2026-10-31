@@ -14,7 +14,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "mister"))
-from mdsserial import Port  # noqa: E402
+from mdsserial import BOARDS, Port  # noqa: E402
 
 failures = 0
 
@@ -51,14 +51,14 @@ def main():
         check("MDSINFO", before is not None and before.get("fw") is not None, str(before))
 
         reply = port.query("CMDHWINF")
-        ok = reply is not None and re.match(rb"^HWTDISPS3;MDS-[0-9.]+;\n", reply) is not None
-        check("CMDHWINF -> HWTDISPS3;MDS-x.y.z;", ok, repr(reply))
+        m = reply and re.match(rb"^(HW[0-9A-Z]{7});MDS-[0-9.]+;\n", reply)
+        check("CMDHWINF -> <board id>;MDS-x.y.z;", bool(m) and m.group(1).decode() in BOARDS, repr(reply))
         port.read_until("ttyack;", 1.0)
         if reply:
             line = reply.decode().split("\n")[0]
             # The same slicing installer.sh does.
             mcu, ver = line[:9], line.rsplit(";", 1)[0][10:]
-            check("installer.sh parse", mcu == "HWTDISPS3" and ver.startswith("MDS-"), "MCUtype={} SWver={}".format(mcu, ver))
+            check("installer.sh parse", mcu in BOARDS and ver.startswith("MDS-"), "MCUtype={} SWver={}".format(mcu, ver))
 
         port.drain()
         burst = "QWERTZ\nCMDCON,255\nCMDSETTIME,1759939200\nCMDSAVER,0,0,0\nCMDNULL\n"

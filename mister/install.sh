@@ -60,7 +60,7 @@ remove_block() {  # file
 mkdir -p "$DEST/art"
 if [ "$SRC" != "$DEST" ]; then
   for f in find-display.sh uninstall.sh install.sh misterlily_update.sh mister_display.py misterlily_flash.py \
-           mdsserial.py pictures.py S60misterlily; do
+           mdsserial.py pictures.py buttons.py S60misterlily; do
     cp -f "$SRC/$f" "$DEST/"
   done
   # The commit this copy came from, for misterlily_update.sh.

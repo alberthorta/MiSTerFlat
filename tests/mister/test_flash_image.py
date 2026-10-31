@@ -18,10 +18,10 @@ def image(chip=mf.ESP32S3_CHIP_ID, marker=b"HWTDISPS3;MDS-1.2.3;", size=4096):
 
 
 def check(name, data, want):
-    """want: the version, or None when the file must be refused."""
+    """want: (board id, version), or None when the file must be refused."""
     global failures
     try:
-        got = mf.image_version(data)
+        got = mf.image_info(data)
     except mf.FlashError as e:
         got, why = None, str(e)
     else:
@@ -31,9 +31,11 @@ def check(name, data, want):
     failures += not ok
 
 
-check("MiSTerLily image", image(), "1.2.3")
-check("pre-release version", image(marker=b"HWTDISPS3;MDS-0.2.0-rc1;"), "0.2.0-rc1")
-check("no MiSTerLily reply inside", image(marker=b"HWESP32S3;230702;"), None)
+check("T-Display-S3 image", image(), ("HWTDISPS3", "1.2.3"))
+check("Waveshare LCD 2 image", image(marker=b"HWWSTLCD2;MDS-1.2.3;"), ("HWWSTLCD2", "1.2.3"))
+check("pre-release version", image(marker=b"HWTDISPS3;MDS-0.2.0-rc1;"), ("HWTDISPS3", "0.2.0-rc1"))
+check("tty2oled firmware", image(marker=b"HWESP32S3;230702;"), None)
+check("unknown board id", image(marker=b"HWXXXXXXX;MDS-1.2.3;"), None)
 check("other chip", image(chip=0), None)
 check("not an image", b"\x89PNG\r\n\x1a\n".ljust(4096, b"\0"), None)
 check("too large for app0", image(size=mf.APP_SIZE + 1), None)

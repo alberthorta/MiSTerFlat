@@ -17,7 +17,7 @@ import tarfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MISTER_FILES = ["install.sh", "uninstall.sh", "misterlily_update.sh", "find-display.sh", "mister_display.py",
-                "misterlily_flash.py", "mdsserial.py", "pictures.py", "S60misterlily", "config.ini"]
+                "misterlily_flash.py", "mdsserial.py", "pictures.py", "buttons.py", "S60misterlily", "config.ini"]
 OUT = os.path.join(ROOT, "dist", "misterlily_install.sh")
 
 HEADER = r'''#!/bin/bash

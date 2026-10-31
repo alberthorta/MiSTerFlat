@@ -49,19 +49,21 @@ The host should set the port raw (`stty ... raw -echo -hupcl`), like tty2oled do
 | `CMDDUPD` | Update the screen from the frame buffer |
 | `CMDCLST,t,c` | Fill with grey level `c`, forget the stored picture |
 | `CMDDOFF` / `CMDDON` | Backlight and panel off / on (content kept) |
-| `CMDCON,<0..255>` | Brightness: one of the 16 backlight levels, 0 → level 3, 255 → level 16 (0 is dim, not black) |
+| `CMDCON,<0..255>` | Brightness. T-Display-S3: one of the 16 backlight levels, 0 → level 3, 255 → level 16 (0 is dim, not black). Waveshare: PWM, same curve |
 | `CMDROT,<0\|1>` | 1 = turned 180° |
 | `CMDTXT,f,c,b,x,y,text` | Text in a 256×64 area centered on the screen; fonts mapped to similar ones; `f >= 100` = buffer only |
 | `CMDGEO,g,c,x,y,i,j,k,l` | Figures 1..10 in the same 256×64 area; `g >= 100` = buffer only |
 | `CMDSORG`, `sorg` | Start screen |
 | `CMDTEST` | Colour bars, 16 greys, 1 px red frame |
-| `CMDHWINF` | `HWTDISPS3;MDS-<version>;\n` |
+| `CMDHWINF` | `<board id>;MDS-<version>;\n`: `HWTDISPS3` (T-Display-S3) or `HWWSTLCD2` (Waveshare ESP32-S3-Touch-LCD-2) |
 | `CMDRESET` | Restart after 100 ms (the USB port stays; no re-enumeration) |
 | `CMDSETTIME,<epoch>` | Sets the clock (tty2oled sends local time as an epoch). Used by the menu and idle clock screens. Our daemon sends it at setup, every 10 min, and at once when the MiSTer clock jumps (NTP sync after boot, `hwclock`, DST) |
 | `QWERTZ` (also with leading noise), `CMDNULL`, `CMDSAVER`, `CMDSWSAVER`, `CMDSECD`, `CMDSHCD`, `CMDSHTIME`, `CMDSSCP`, `CMDBYE`, `bye` | Accepted, nothing visible yet |
 | any other `CMD...` | Ignored (the sketch would draw it as a core name) |
 
-`HWTDISPS3` is 9 characters, as `installer.sh` expects (`${BLA:0:9}`), and unknown to its flasher.
+Both ids are 9 characters, as `installer.sh` expects (`${BLA:0:9}`), and unknown to its flasher.
+`BOARDS` in `mister/mdsserial.py` maps them to the firmware environments; `misterlily_flash.py`
+only flashes a file built for the board that answers.
 The version starts with a letter, so the installer sees it as newer than any tty2oled build and does
 not offer an update.
 
@@ -100,7 +102,7 @@ MDSIMG,<bytes>,<crc32>,<png|jpg>,<core>\n
 | `MDSLOGO,<bytes>,<crc32>,<png\|jpg>` + file | Store the start-up picture in flash (same framing as `MDSIMG`, max 256 KB). Reply `MDSLOGO;ok\n` or `MDSLOGO;err=<header\|size\|incomplete\|crc\|format\|storage>\n` |
 | `MDSCFG,logo,0` | Delete the stored start-up picture (back to the text start screen) |
 | `MDSNET,<ip>` | The MiSTer's IP address, shown on the menu clock screen (empty = none) |
-| `MDSINFO` | `MDSINFO;fw=..;board=T-Display-S3;psram=..;fb=psram;uptime_ms=..;reset=..;lines=..;images=..;discards=..;txdrop=..;txstale=..;lastimg=<result>:<bytes>;core=..\n` |
+| `MDSINFO` | `MDSINFO;fw=..;board=<T-Display-S3\|Waveshare LCD 2>;psram=..;fb=psram;uptime_ms=..;reset=..;lines=..;images=..;discards=..;txdrop=..;txstale=..;lastimg=<result>:<bytes>;core=..\n` |
 | `MDSCORE,<core>` | Show the core name (no picture transfer) |
 | `MDSSHOT` | `MDSSHOT,<w>,<h>,<bytes>\n`, then `ttyack;`, then the frame buffer (RGB565 big-endian, row-major). `tools/screenshot.py` saves it as PNG |
 
@@ -109,6 +111,19 @@ MDSIMG,<bytes>,<crc32>,<png|jpg>,<core>\n
 `reset`: ESP-IDF reset reason (1 power-on, 3 software/`CMDRESET`, 6 task watchdog, ...).
 
 `MDSHANG` exists only in the `tdisplay_s3_debug` build: it stops the main loop to check the watchdog.
+`MDSBUTTONS,<held 0-3 or -1>,<armed 0|1>` exists only in builds with `MDS_TEST_COMMANDS`: it shows the
+touch buttons in that state, for screenshots.
+
+## From the display: `MDSBTN` (touch board)
+
+The only line the display sends without being asked. A tap shows four buttons; a tap on one sends
+
+```
+MDSBTN,<reset|osd|user|bt>\n
+```
+
+`reset` needs two taps on the display (the first one arms it for 3 s). The native daemon acts like
+the MiSTer's own buttons (`mister/buttons.py`); the stock tty2oled daemon ignores the line.
 
 ## Device behaviour
 
@@ -120,8 +135,8 @@ MDSIMG,<bytes>,<crc32>,<png|jpg>,<core>\n
   the next core change (as with tty2oled's own hardware).
 - **Idle sleep**: off by default (an LCD has no burn-in). `CMDDOFF`/`CMDDON` stay independent: a core
   change wakes an idle sleep, but not a `CMDDOFF`.
-- **Start screen**: the stored start-up picture (centered in the top 320×130 area; text "MiSTer /
-  T-Display-S3" if there is none or it cannot be decoded), the firmware version small in the top-right
+- **Start screen**: the stored start-up picture (centered in a 320×130 area at the top of the
+  170-pixel layout; text "MiSTer / <board name>" if there is none or it cannot be decoded), the firmware version small in the top-right
   corner, and after 10 s without any data "Waiting for MiSTer" (anti-aliased DejaVu 24) below the picture. The picture lives in LittleFS
   on the `spiffs` data partition, which firmware uploads do not touch.
 - **Menu screen**: a core named `MENU` without a picture shows time, date and the IP from `MDSNET`

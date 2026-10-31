@@ -30,6 +30,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from buttons import Buttons  # noqa: E402
 from mdsserial import Port  # noqa: E402
 from pictures import asset_frame, decode_picture, find_art, find_picture  # noqa: E402
 
@@ -53,6 +54,8 @@ SLEEP_FILE = "/tmp/tty2oled_sleep"
 # Firmware version of the connected display, for misterlily_flash.py and MiSTerManager, which
 # cannot ask the board themselves while the daemon holds the port. Removed when the display goes.
 FW_FILE = "/tmp/misterlily_fw"
+BOARD_FILE = "/tmp/misterlily_board"  # its CMDHWINF id, a key of BOARDS in mdsserial.py
+HWINF_RE = re.compile(rb"(HW[0-9A-Z]{7});MDS-([0-9A-Za-z.+-]{1,32});")
 POLL_SECONDS = 0.1
 RETRY_SECONDS = 2.0
 PING_SECONDS = 5.0
@@ -125,17 +128,18 @@ def local_ip():
         s.close()
 
 
-def write_fw_version(version):
-    """None removes the file. Written through a temporary file so readers never see half of it."""
-    try:
-        if version is None:
-            os.remove(FW_FILE)
-        else:
-            with open(FW_FILE + ".tmp", "w") as f:
-                f.write(version + "\n")
-            os.replace(FW_FILE + ".tmp", FW_FILE)
-    except OSError:
-        pass
+def write_fw_version(version, board=None):
+    """None removes the files. Written through temporary files so readers never see half of one."""
+    for path, value in ((FW_FILE, version), (BOARD_FILE, board)):
+        try:
+            if version is None:
+                os.remove(path)
+            else:
+                with open(path + ".tmp", "w") as f:
+                    f.write(value + "\n")
+                os.replace(path + ".tmp", path)
+        except OSError:
+            pass
 
 
 def wall_offset():
@@ -175,6 +179,7 @@ class Display:
         self.sent_offset = 0.0
         self.next_ip_check = 0.0
         self.ip = None
+        self.buttons = Buttons()
 
     def connected(self):
         return self.port is not None
@@ -300,12 +305,22 @@ class Display:
                     self.uptime = int(up)
             elif line.startswith(b"MDSIMG;err"):
                 log("display: " + line.decode(errors="replace"))
-            elif line.startswith(b"HWTDISPS3;MDS-"):
-                version = line[len(b"HWTDISPS3;MDS-"):].split(b";", 1)[0].decode(errors="replace")
-                write_fw_version(version)
-                debug("display firmware {}".format(version))
+            elif line.startswith(b"MDSBTN,"):
+                self.press(line[len(b"MDSBTN,"):].strip().decode(errors="replace"))
+            elif HWINF_RE.search(line):
+                board, version = (g.decode() for g in HWINF_RE.search(line).groups())
+                write_fw_version(version, board)
+                debug("display {} firmware {}".format(board, version))
             elif line.strip():
                 debug("display: {!r}".format(line))
+
+    def press(self, name):
+        """A touch button on the display (boards with a touch panel)."""
+        log("display button {}".format(name))
+        try:
+            self.buttons.press(name)
+        except (OSError, ValueError) as e:
+            log("button {} failed: {}".format(name, e))
 
     def show(self, core):
         cfg = self.cfg

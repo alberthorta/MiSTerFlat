@@ -7,8 +7,9 @@
 
 Only the application is written (0x10000), plus a blank otadata so the board boots it. Settings and
 the start-up picture live in the spiffs partition and stay. Before the board is touched, the file
-must pass as a MiSTerLily image: ESP32-S3 image header, our HWTDISPS3;MDS-<version>; reply inside,
-and small enough for the app partition.
+must pass as a MiSTerLily image: ESP32-S3 image header, our <board id>;MDS-<version>; reply inside,
+small enough for the app partition, and built for the board that is connected (the daemon writes
+its id to /tmp/misterlily_board). A release has one misterlily-<version>-<env>.bin per board.
 
 esptool 3.3.3 (one file, as tty2oled uses) and pyserial 3.5 are downloaded on first use into
 tools/, pinned by SHA-256; pyserial is imported straight from its wheel. The daemon holds the port,
@@ -33,7 +34,8 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from mister_display import FW_FILE, find_device, read_config  # noqa: E402
+from mdsserial import BOARDS  # noqa: E402
+from mister_display import BOARD_FILE, FW_FILE, find_device, read_config  # noqa: E402
 
 REPO = "alberthorta/MiSTerLily"
 TOOLS_DIR = os.path.join(HERE, "tools")
@@ -49,7 +51,9 @@ TOOLS = {
 OTADATA_OFFSET, OTADATA_SIZE = 0xE000, 0x2000
 APP_OFFSET, APP_SIZE = 0x10000, 0x640000
 ESP32S3_CHIP_ID = 9
-VERSION_RE = re.compile(rb"HWTDISPS3;MDS-([0-9A-Za-z.+-]{1,32});")
+HWINF_RE = re.compile(rb"(HW[0-9A-Z]{7});MDS-([0-9A-Za-z.+-]{1,32});")
+# v0.1.0 was released before the second board, as one misterlily-0.1.0.bin for the T-Display-S3.
+LEGACY_ENV = "tdisplay_s3"
 LOCK_FILE = "/tmp/misterlily_flash.lock"
 # The board leaves USB during the flash; the daemon finds it again and asks its version.
 REAPPEAR_SECONDS = 30.0
@@ -71,8 +75,8 @@ def fetch(url, timeout=30):
         return r.read()
 
 
-def image_version(data):
-    """The MiSTerLily version inside a firmware image; FlashError if it is not one."""
+def image_info(data):
+    """(board id, version) of a MiSTerLily firmware image; FlashError if it is not one."""
     if len(data) < 0x100 or data[0] != 0xE9:
         raise FlashError("not an ESP32 application image")
     chip = data[12] | data[13] << 8
@@ -80,27 +84,39 @@ def image_version(data):
         raise FlashError("image is for another chip (id {}), not the ESP32-S3".format(chip))
     if len(data) > APP_SIZE:
         raise FlashError("image is larger than the app partition")
-    m = VERSION_RE.search(data)
-    if not m:
+    m = HWINF_RE.search(data)
+    if not m or m.group(1).decode() not in BOARDS:
         raise FlashError("not a MiSTerLily firmware")
-    return m.group(1).decode()
+    return m.group(1).decode(), m.group(2).decode()
 
 
-def board_version():
+def read_status(path):
     try:
-        with open(FW_FILE) as f:
+        with open(path) as f:
             return f.read().strip() or None
     except OSError:
         return None
 
 
-def latest_release():
-    """(version, url of the .bin) of the latest GitHub release."""
+def board_version():
+    return read_status(FW_FILE)
+
+
+def board_id():
+    return read_status(BOARD_FILE)
+
+
+def latest_release(board):
+    """(version, url of the .bin for this board) of the latest GitHub release."""
     rel = json.loads(fetch("https://api.github.com/repos/{}/releases/latest".format(REPO)))
+    version = rel["tag_name"].lstrip("v")
+    names = {"misterlily-{}-{}.bin".format(version, BOARDS[board])}
+    if BOARDS[board] == LEGACY_ENV:
+        names.add("misterlily-{}.bin".format(version))
     for asset in rel.get("assets", []):
-        if asset["name"].endswith(".bin"):
-            return rel["tag_name"].lstrip("v"), asset["browser_download_url"]
-    raise FlashError("release {} has no firmware file".format(rel.get("tag_name")))
+        if asset["name"] in names:
+            return version, asset["browser_download_url"]
+    raise FlashError("release {} has no firmware for this display ({})".format(version, BOARDS[board]))
 
 
 def ensure_tools():
@@ -150,9 +166,11 @@ def run_esptool(device, image_path, blank_path):
         raise FlashError("esptool failed: " + " | ".join(l for l in tail if l))
 
 
-def flash(data, args):
-    version = image_version(data)
-    emit("STEP", "firmware {}, {} bytes".format(version, len(data)))
+def flash(data, board, args):
+    image_board, version = image_info(data)
+    if image_board != board:
+        raise FlashError("this firmware is for {}, the display is {}".format(BOARDS[image_board], BOARDS[board]))
+    emit("STEP", "firmware {} for {}, {} bytes".format(version, BOARDS[board], len(data)))
     ensure_tools()
     cfg = read_config(args.config)
     device = args.device or find_device(cfg)
@@ -196,14 +214,17 @@ def main():
     fl.add_argument("--latest", action="store_true")
     fl.add_argument("--device", help="serial device instead of auto-detection")
     fl.add_argument("--no-daemon", action="store_true", help="do not stop/start the daemon (bench use)")
+    fl.add_argument("--board", choices=sorted(BOARDS), help="board id when the daemon is not running")
     args = parser.parse_args()
 
     if args.cmd == "check":
-        out = {"board": board_version(), "latest": None, "error": None}
-        try:
-            out["latest"] = latest_release()[0]
-        except (OSError, ValueError, KeyError, FlashError) as e:
-            out["error"] = "could not read the latest release: {}".format(e)
+        board = board_id()
+        out = {"board": board_version(), "model": BOARDS.get(board), "latest": None, "error": None}
+        if board in BOARDS:
+            try:
+                out["latest"] = latest_release(board)[0]
+            except (OSError, ValueError, KeyError, FlashError) as e:
+                out["error"] = "could not read the latest release: {}".format(e)
         print(json.dumps(out))
         return 0
 
@@ -216,16 +237,19 @@ def main():
         emit("ERROR", "another flash is running")
         return 1
     try:
+        board = args.board or board_id()
+        if board not in BOARDS:
+            raise FlashError("unknown display: the MiSTerLily daemon has not seen it (give --board)")
         if args.latest:
-            version, url = latest_release()
+            version, url = latest_release(board)
             emit("STEP", "downloading firmware {}".format(version))
             data = fetch(url, timeout=120)
-            if image_version(data) != version:
-                raise FlashError("release {} contains firmware {}".format(version, image_version(data)))
+            if image_info(data)[1] != version:
+                raise FlashError("release {} contains firmware {}".format(version, image_info(data)[1]))
         else:
             with open(args.file, "rb") as f:
                 data = f.read(APP_SIZE + 1)
-        emit("DONE", flash(data, args))
+        emit("DONE", flash(data, board, args))
         return 0
     except (OSError, ValueError, KeyError, FlashError, subprocess.SubprocessError) as e:
         emit("ERROR", str(e))

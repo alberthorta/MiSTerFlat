@@ -12,6 +12,7 @@
 #include "app/StartupLogo.h"
 #include "transport/SerialTransport.h"
 #include "ui/DisplayManager.h"
+#include "ui/TouchButtons.h"
 
 // Glue between the serial protocol and the screens. The parser only produces events; this class
 // keeps the state (current core, its picture, display settings) and decides what to draw.
@@ -40,6 +41,7 @@ class App : public proto::ParserListener {
   void handle(const proto::Command& cmd, std::string_view line);
   static bool changesScreen(proto::CommandId id);
   void noteActivity();
+  void pollTouch();
   void handlePresence(presence::Event event);
   void handleConfig(std::string_view args);
   void sendConfig();
@@ -69,6 +71,7 @@ class App : public proto::ParserListener {
   StartupLogo& logo_;
   proto::ProtocolParser parser_;
   presence::Presence presence_;
+  TouchButtons touchButtons_{display_};
   Screen screen_ = Screen::Splash;
   wallclock::WallClock clock_;
   int64_t shownMinute_ = -1;  // minute on the clock screen, to redraw when it changes

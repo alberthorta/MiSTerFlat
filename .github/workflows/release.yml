@@ -1,5 +1,6 @@
-# Builds the firmware for a version tag and publishes it as a GitHub release.
-# misterlily_flash.py (and MiSTerManager through it) flashes the .bin of the latest release.
+# Builds the firmware of every board for a version tag and publishes it as a GitHub release, one
+# misterlily-<version>-<env>.bin per board. misterlily_flash.py (and MiSTerManager through it)
+# flashes the one for the connected board.
 #
 #   1. set MDS_FW_VERSION in firmware/include/config.h, commit
 #   2. git tag v0.2.0 && git push origin v0.2.0
@@ -39,21 +40,27 @@ jobs:
       - name: Build
         run: |
           pip install platformio
-          cd firmware && pio run -e tdisplay_s3
+          cd firmware && pio run -e tdisplay_s3 -e waveshare_lcd2
 
-      - name: Check the image as the MiSTer will
+      - name: Check the images as the MiSTer will
         run: |
-          cp firmware/.pio/build/tdisplay_s3/firmware.bin "misterlily-$VERSION.bin"
-          python3 -c "
-          import sys; sys.path.insert(0, 'mister')
+          python3 - <<'PY'
+          import os, shutil, sys
+          sys.path.insert(0, "mister")
           import misterlily_flash as mf
-          v = mf.image_version(open('misterlily-$VERSION.bin', 'rb').read())
-          assert v == '$VERSION', v
-          print('image ok:', v)"
+          from mdsserial import BOARDS
+          version = os.environ["VERSION"]
+          for board, env in BOARDS.items():
+              src = "firmware/.pio/build/{}/firmware.bin".format(env)
+              got = mf.image_info(open(src, "rb").read())
+              assert got == (board, version), (env, got)
+              shutil.copy(src, "misterlily-{}-{}.bin".format(version, env))
+              print("image ok:", env, got)
+          PY
 
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "misterlily-$VERSION.bin" \
+          gh release create "$GITHUB_REF_NAME" misterlily-"$VERSION"-*.bin \
             --title "MiSTerLily $VERSION" --generate-notes

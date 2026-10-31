@@ -56,7 +56,7 @@ void drawNameOnly(DisplayManager& display, std::string_view coreName) {
   g.fillScreen(theme::kBackground);
 
   const std::string_view name = coreinfo::displayName(coreName);
-  const TextRenderer::Box box{kMargin, kNameTop, w - 2 * kMargin, kNameHeight};
+  const TextRenderer::Box box{kMargin, display.layoutTop() + kNameTop, w - 2 * kMargin, kNameHeight};
   const int bottom = TextRenderer::drawFittedC64(g, name, box, theme::kText);
 
   const int accentY = bottom + kAccentGap;

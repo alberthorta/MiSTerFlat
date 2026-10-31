@@ -1,5 +1,6 @@
 #include "ui/SplashScreen.h"
 
+#include "config.h"
 #include "ui/Theme.h"
 
 namespace SplashScreen {
@@ -10,24 +11,24 @@ namespace {
 // line below the logo, so the version moved to the top-right corner, which the logo area leaves free.
 constexpr int kHintY = 140;
 
-bool drawLogo(lgfx::LovyanGFX& g, int w, const Logo& logo) {
+bool drawLogo(lgfx::LovyanGFX& g, int w, int top, const Logo& logo) {
   if (!logo.data || logo.size == 0) return false;
-  // The datum centres the picture in the (0, 0, w, kLogoAreaHeight) box; larger ones are cropped.
-  return logo.png ? g.drawPng(logo.data, logo.size, 0, 0, w, kLogoAreaHeight, 0, 0, 1.0f, 0.0f, lgfx::middle_center)
-                  : g.drawJpg(logo.data, logo.size, 0, 0, w, kLogoAreaHeight, 0, 0, 1.0f, 0.0f, lgfx::middle_center);
+  // The datum centres the picture in the (0, top, w, kLogoAreaHeight) box; larger ones are cropped.
+  return logo.png ? g.drawPng(logo.data, logo.size, 0, top, w, kLogoAreaHeight, 0, 0, 1.0f, 0.0f, lgfx::middle_center)
+                  : g.drawJpg(logo.data, logo.size, 0, top, w, kLogoAreaHeight, 0, 0, 1.0f, 0.0f, lgfx::middle_center);
 }
 
-void drawTextTitle(lgfx::LovyanGFX& g, int w) {
+void drawTextTitle(lgfx::LovyanGFX& g, int w, int top) {
   g.setTextDatum(lgfx::middle_center);
   g.setTextColor(theme::kText);
   g.setFont(&fonts::FreeSansBold24pt7b);
-  g.drawString("MiSTer", w / 2, 62);
+  g.drawString("MiSTer", w / 2, top + 62);
 
-  g.fillRect(w / 2 - 50, 92, 100, 3, theme::kAccent);
+  g.fillRect(w / 2 - 50, top + 92, 100, 3, theme::kAccent);
 
   g.setTextColor(theme::kTextDim);
   g.setFont(&fonts::FreeSans12pt7b);
-  g.drawString("T-Display-S3", w / 2, 118);
+  g.drawString(MDS_BOARD_NAME, w / 2, top + 118);
 }
 
 }  // namespace
@@ -35,12 +36,13 @@ void drawTextTitle(lgfx::LovyanGFX& g, int w) {
 void draw(DisplayManager& display, const char* version, const char* hint, const Logo* logo) {
   auto& g = display.canvas();
   const int w = display.width();
+  const int top = display.layoutTop();
 
   g.fillScreen(theme::kBackground);
   g.setTextSize(1);
-  if (!logo || !drawLogo(g, w, *logo)) {
+  if (!logo || !drawLogo(g, w, top, *logo)) {
     g.fillScreen(theme::kBackground);  // a failed decode may have drawn part of the picture
-    drawTextTitle(g, w);
+    drawTextTitle(g, w, top);
   }
 
   g.setTextDatum(lgfx::top_right);
@@ -52,7 +54,7 @@ void draw(DisplayManager& display, const char* version, const char* hint, const 
     g.setTextDatum(lgfx::middle_center);
     g.setTextColor(theme::kAccent, theme::kBackground);
     g.setFont(&fonts::DejaVu24);
-    g.drawString(hint, w / 2, kHintY);
+    g.drawString(hint, w / 2, top + kHintY);
   }
 
   display.present();

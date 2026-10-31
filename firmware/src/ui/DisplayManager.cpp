@@ -1,6 +1,8 @@
 #include "ui/DisplayManager.h"
 
 #include <Arduino.h>
+#include <esp_heap_caps.h>
+#include <string.h>
 
 #include "config.h"
 #include "util/Log.h"
@@ -14,8 +16,10 @@ constexpr uint32_t kFadeInMs = 180;
 }  // namespace
 
 bool DisplayManager::begin(uint8_t rotation) {
-  pinMode(cfg::pin::kPowerOn, OUTPUT);
-  digitalWrite(cfg::pin::kPowerOn, HIGH);
+  if (cfg::pin::kPowerOn >= 0) {
+    pinMode(cfg::pin::kPowerOn, OUTPUT);
+    digitalWrite(cfg::pin::kPowerOn, HIGH);
+  }
 
   // init() pulses LCD reset and clears the panel, so a warm reboot starts from a known state.
   // The backlight stays off until the first frame is pushed.
@@ -41,6 +45,7 @@ lgfx::LovyanGFX& DisplayManager::canvas() {
 }
 
 void DisplayManager::present() {
+  ++frameCount_;
   if (fadeArmed_) {
     fadeArmed_ = false;
     presentFaded(fadeArmedMs_);
@@ -53,6 +58,7 @@ void DisplayManager::present() {
 }
 
 void DisplayManager::presentFaded(uint32_t nowMs) {
+  ++frameCount_;
   if (!framebufferOk_ || !awake_ || !backlightOn_) {
     finishFade();
     if (framebufferOk_ && awake_) frame_.pushSprite(0, 0);
@@ -139,6 +145,66 @@ void DisplayManager::wake() {
   lcd_.wakeup();
   present();
   if (backlightOn_) lcd_.setBrightness(brightness_);
+}
+
+bool DisplayManager::touched(int* x, int* y) {
+#if MDS_HAS_TOUCH
+  lgfx::touch_point_t tp;
+  if (lcd_.getTouch(&tp, 1) == 0) return false;
+  *x = tp.x;
+  *y = tp.y;
+  return true;
+#else
+  (void)x;
+  (void)y;
+  return false;
+#endif
+}
+
+bool DisplayManager::saveFrame(Slot slot) {
+  if (!framebufferOk_) return false;
+  uint8_t*& copy = saved_[slot];
+  if (!copy) copy = static_cast<uint8_t*>(heap_caps_malloc(framebufferSize(), MALLOC_CAP_SPIRAM));
+  if (!copy) return false;
+  memcpy(copy, framebufferBytes(), framebufferSize());
+  return true;
+}
+
+void DisplayManager::restoreFrame(Slot slot) {
+  if (saved_[slot] && framebufferOk_) memcpy(frame_.getBuffer(), saved_[slot], framebufferSize());
+}
+
+void DisplayManager::blendSaved(uint8_t alpha) {
+  if (!framebufferOk_ || !saved_[kUnder] || !saved_[kOver]) return;
+  const uint8_t* a = saved_[kUnder];
+  const uint8_t* b = saved_[kOver];
+  uint8_t* out = static_cast<uint8_t*>(frame_.getBuffer());
+  const int k = alpha > 32 ? 32 : alpha;
+  const size_t pixels = framebufferSize() / 2;
+  for (size_t i = 0; i < pixels; ++i, a += 2, b += 2, out += 2) {
+    // RGB565, big-endian per pixel; each channel a + (b - a) * k / 32.
+    const int pa = a[0] << 8 | a[1];
+    const int pb = b[0] << 8 | b[1];
+    const int r = (pa >> 11) + (((pb >> 11) - (pa >> 11)) * k >> 5);
+    const int g = (pa >> 5 & 0x3F) + (((pb >> 5 & 0x3F) - (pa >> 5 & 0x3F)) * k >> 5);
+    const int bl = (pa & 0x1F) + (((pb & 0x1F) - (pa & 0x1F)) * k >> 5);
+    const uint16_t v = static_cast<uint16_t>(r << 11 | g << 5 | bl);
+    out[0] = v >> 8;
+    out[1] = v & 0xFF;
+  }
+}
+
+void DisplayManager::dimFrame() {
+  if (!framebufferOk_) return;
+  // RGB565, big-endian per pixel. Each channel shifted right by 2; the mask drops the bits that
+  // slid into the next channel.
+  uint8_t* p = static_cast<uint8_t*>(frame_.getBuffer());
+  const size_t pixels = framebufferSize() / 2;
+  for (size_t i = 0; i < pixels; ++i, p += 2) {
+    const uint16_t v = static_cast<uint16_t>((p[0] << 8 | p[1]) >> 2 & 0x39E7);
+    p[0] = v >> 8;
+    p[1] = v & 0xFF;
+  }
 }
 
 int DisplayManager::width() const { return cfg::kScreenWidth; }

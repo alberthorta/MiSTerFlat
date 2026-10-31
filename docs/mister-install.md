@@ -69,14 +69,34 @@ python3 /media/fat/MiSTerLily/misterlily_flash.py flash FILE.bin   # flash a fil
 
 - Only the program is written (`0x10000`, plus a blank `otadata`). Settings and the start-up picture
   are in the spiffs partition and stay.
-- The file is checked first: ESP32-S3 image, a MiSTerLily version inside, small enough for `app0`.
+- The file is checked first: ESP32-S3 image, a MiSTerLily version inside, small enough for `app0`,
+  and built for the board that is connected (the daemon writes its id to `/tmp/misterlily_board`).
   Anything else is refused before the board is touched.
+- A release has one file per board (`misterlily-<version>-tdisplay_s3.bin`,
+  `misterlily-<version>-waveshare_lcd2.bin`); `--latest` takes the one for the connected board.
 - esptool 3.3.3 and pyserial 3.5 are downloaded on first use into `MiSTerLily/tools/`, pinned by
   SHA-256. Nothing is installed in the MiSTer system folders.
 - The daemon is stopped during the flash and started again, also when the flash fails. It writes the
   board's version to `/tmp/misterlily_fw`, and the script waits until the new version shows there.
 - A flash takes about 15 s. If it is cut in the middle, the program is broken but the bootloader is
   not touched: flash again. If the board does not answer, hold **BOOT** while you plug it in.
+
+## Touch buttons
+
+On the Waveshare ESP32-S3-Touch-LCD-2, a tap shows four round buttons. The native daemon
+(`mister/buttons.py`) does what the MiSTer's own buttons do:
+
+| Button | On the MiSTer | How |
+|---|---|---|
+| RESET (red, two taps) | Reboots the MiSTer, like the RESET button (an HPS cold reset) | `reboot` |
+| OSD (orange) | Opens or closes the OSD | F12 on a virtual keyboard (`/dev/uinput`) |
+| USER (green) | Resets the core, like the USER button | The keyboard reset combo of `MiSTer.ini` `reset_combo` (default Left Ctrl + Left Alt + Right Alt). An open OSD is closed first: Main does not pass the combo to the core while the OSD is open |
+| Bluetooth (blue) | The BT pairing menu, as when the OSD button is held for 3 s | F11 with the OSD open (opened first if needed) |
+
+The virtual keyboard is created at the first tap; Main_MiSTer needs about a second to find it.
+`/tmp/OSD_VISIBLE` (written by Main when `log_file_entry` is on) tells whether the OSD is open.
+
+With two displays on one MiSTer, `MDS_SERIAL` in `config.ini` picks the one the daemon uses.
 
 ## 2. Alternative: install tty2oled (for its picture library)
 

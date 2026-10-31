@@ -107,6 +107,7 @@ def main():
     check("MENU sent at start", b"MDSCORE,MENU\n" in data)
     check("firmware version asked", b"CMDHWINF\n" in data)
     check("firmware version file written", open("/tmp/misterlily_fw").read() == "9.8.7\n")
+    check("board file written", open("/tmp/misterlily_board").read() == "HWTDISPS3\n")
     png = open("/src/tests/fixtures/art/MDSTEST.png", "rb").read()
     m = re.search(rb"MDSIMG,(\d+),([0-9a-f]{8}),png,MDSTEST\n", data)
     check("colour picture wins, sent as MDSIMG", m is not None and int(m.group(1)) == len(png)
@@ -118,7 +119,8 @@ def main():
     # Unplug, plug in again: the daemon must notice, find it again and resend the current core.
     disp.unplug()
     time.sleep(1.0)
-    check("firmware version file removed when the display goes", not os.path.exists("/tmp/misterlily_fw"))
+    check("version and board files removed when the display goes",
+          not os.path.exists("/tmp/misterlily_fw") and not os.path.exists("/tmp/misterlily_board"))
     disp2 = FakeDisplay()
     time.sleep(4.0)
     data2 = bytes(disp2.data)
@@ -136,6 +138,14 @@ def main():
     check("restart: setup and core sent again", b"CMDSTTYACK,0\n" in after and b"MDSCORE,Atari5200\n" in after,
           repr(after[-60:]))
     check("restart logged", "display restarted" in open("/tmp/mister-display.log").read())
+
+    # A touch button: the daemon must act on it. The container has no /dev/uinput, so the action
+    # fails, which must be logged and not stop the daemon.
+    os.write(disp2.master, b"MDSBTN,osd\n")
+    time.sleep(0.5)
+    log = open("/tmp/mister-display.log").read()
+    check("touch button logged", "display button osd" in log, log[-200:])
+    check("daemon survives a failing button", sh("bash {}/MiSTerLily/S60misterlily status".format(FAT)) == 0)
 
     # The sleep file (MiSTer SAM) pauses sending.
     open("/tmp/tty2oled_sleep", "w").close()
