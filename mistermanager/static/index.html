@@ -462,7 +462,7 @@ async function lily(refresh) {
   $('lily-panel').hidden = !l.installed;
   if (!l.installed) return;
   const job = l.job, running = !!(job && job.running);
-  $('lily-state').textContent = 'Display firmware: ' + (l.board ? 'v' + l.board : 'display not connected') + '. '
+  $('lily-state').textContent = (l.board ? (l.model || 'Display') + ', firmware v' + l.board : 'Display not connected') + '. '
     + (l.latest ? 'Latest release: v' + l.latest + (l.latest === l.board ? ' (up to date).' : '.') : (l.error || ''));
   $('lily-latest').textContent = !l.latest ? 'Update firmware' : l.latest === l.board ? 'Reinstall v' + l.latest : 'Update to v' + l.latest;
   $('lily-latest').disabled = running || !l.latest || !l.board;

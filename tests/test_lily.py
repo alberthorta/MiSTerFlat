@@ -34,7 +34,10 @@ class LilyTest(unittest.TestCase):
         self.fw = os.path.join(root, 'fw')
         with open(self.fw, 'w') as f:
             f.write('0.1.0\n')
-        self.lily = Lily(root, root, fw_file=self.fw)
+        self.board_file = os.path.join(root, 'board')
+        with open(self.board_file, 'w') as f:
+            f.write('HWWSTLCD2\n')
+        self.lily = Lily(root, root, fw_file=self.fw, board_file=self.board_file)
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -56,8 +59,11 @@ class LilyTest(unittest.TestCase):
     def test_info(self):
         info = self.lily.info()
         self.assertEqual((info['board'], info['latest'], info['job']), ('0.1.0', '0.2.0', None))
+        self.assertEqual(info['model'], 'Waveshare ESP32-S3-Touch-LCD-2')
         os.remove(self.fw)
-        self.assertIsNone(self.lily.info()['board'])
+        os.remove(self.board_file)
+        info = self.lily.info()
+        self.assertEqual((info['board'], info['model']), (None, None))
 
     def test_flash_latest(self):
         self.lily.flash_latest()

@@ -5,7 +5,8 @@ the same way. It checks the file, stops the MiSTerLily daemon (which holds the U
 with esptool and starts the daemon again. Its output is one event per line (STEP, PROGRESS, DONE,
 ERROR); a flash runs in the background and the page polls the job.
 
-The daemon writes the version of the connected board to /tmp/misterlily_fw.
+The daemon writes the firmware version of the connected board to /tmp/misterlily_fw and its
+CMDHWINF id to /tmp/misterlily_board. misterlily_flash.py picks the firmware for that board.
 """
 from __future__ import annotations
 
@@ -18,6 +19,8 @@ import time
 from typing import Optional
 
 FW_FILE = '/tmp/misterlily_fw'
+BOARD_FILE = '/tmp/misterlily_board'
+MODELS = {'HWTDISPS3': 'LILYGO T-Display-S3', 'HWWSTLCD2': 'Waveshare ESP32-S3-Touch-LCD-2'}
 # app0 in the board's partition table; misterlily_flash.py refuses larger files too.
 MAX_FIRMWARE = 0x640000
 LATEST_CACHE_SECONDS = 600
@@ -28,28 +31,40 @@ class LilyError(Exception):
 
 
 class Lily:
-    def __init__(self, fat: str, state_dir: str, fw_file: str = FW_FILE):
+    def __init__(self, fat: str, state_dir: str, fw_file: str = FW_FILE, board_file: str = BOARD_FILE):
         self.tool = os.path.join(fat, 'MiSTerLily', 'misterlily_flash.py')
         self.upload_path = os.path.join(state_dir, 'misterlily-upload.bin')
         self.fw_file = fw_file
+        self.board_file = board_file
         self._lock = threading.Lock()
         self._job: Optional[dict] = None
         self._latest: Optional[dict] = None
         self._latest_at = 0.0
+        self._latest_for: Optional[str] = None  # board id the cached answer is for
 
     def installed(self) -> bool:
         return os.path.isfile(self.tool)
 
-    def board(self) -> Optional[str]:
+    @staticmethod
+    def _read(path: str) -> Optional[str]:
         try:
-            with open(self.fw_file) as f:
+            with open(path) as f:
                 return f.read().strip() or None
         except OSError:
             return None
 
+    def board(self) -> Optional[str]:
+        return self._read(self.fw_file)
+
+    def model(self) -> Optional[str]:
+        board_id = self._read(self.board_file)
+        return MODELS.get(board_id, board_id)
+
     def latest(self, refresh: bool = False) -> dict:
         """{'latest': version or None, 'error': text or None}; asks GitHub at most every 10 min."""
-        if refresh or self._latest is None or time.monotonic() - self._latest_at > LATEST_CACHE_SECONDS:
+        board_id = self._read(self.board_file)
+        if (refresh or self._latest is None or board_id != self._latest_for
+                or time.monotonic() - self._latest_at > LATEST_CACHE_SECONDS):
             try:
                 out = subprocess.run([sys.executable, self.tool, 'check'], stdout=subprocess.PIPE,
                                      stderr=subprocess.DEVNULL, timeout=60).stdout
@@ -58,12 +73,13 @@ class Lily:
             except (OSError, ValueError, IndexError, subprocess.SubprocessError) as e:
                 self._latest = {'latest': None, 'error': 'could not run misterlily_flash.py: {}'.format(e)}
             self._latest_at = time.monotonic()
+            self._latest_for = board_id
         return dict(self._latest)
 
     def info(self, refresh: bool = False) -> dict:
         if not self.installed():
             return {'installed': False}
-        out = {'installed': True, 'board': self.board(), 'job': self.job()}
+        out = {'installed': True, 'board': self.board(), 'model': self.model(), 'job': self.job()}
         out.update(self.latest(refresh))
         return out
 
