@@ -16,9 +16,12 @@ class TouchButtons {
 
   struct Result {
     bool activity = false;          // any tap: counts as activity (wakes an idle-dark screen)
-    const char* pressed = nullptr;  // "reset", "osd", "user" or "bt"
+    const char* pressed = nullptr;  // "reset", "osd", "user", "bt", or "wifi" (see setWifiSlot)
   };
   Result poll(uint32_t nowMs);
+  // USER's place shows Wi-Fi set-up instead (in the MiSTer menu, with a Wi-Fi dongle). Takes
+  // effect the next time the buttons open.
+  void setWifiSlot(bool on) { wifiSlot_ = on; }
   // Test builds: show the buttons with one held (-1 = none) and RESET armed or not.
   void preview(int held, bool resetArmed, uint32_t nowMs);
 
@@ -39,6 +42,7 @@ class TouchButtons {
   DisplayManager& display_;
   bool shown_ = false;
   bool resetArmed_ = false;
+  bool wifiSlot_ = false;
   bool down_ = false;
   Button held_ = kNone;    // under the finger now: drawn filled
   Button chosen_ = kNone;  // released on: stays filled until the buttons close

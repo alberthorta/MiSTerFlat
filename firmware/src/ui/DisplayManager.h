@@ -39,6 +39,12 @@ class DisplayManager {
   // A point on the screen (in drawing coordinates) while a finger is on it. Always false on
   // boards without a touch panel.
   bool touched(int* x, int* y);
+  // Test builds (MDSTAP): a finger at (x, y) for the next `ms` milliseconds.
+  void injectTouch(int x, int y, uint32_t ms) {
+    injectX_ = x;
+    injectY_ = y;
+    injectUntilMs_ = millis() + ms;
+  }
   // Counts present() calls, so an overlay can tell whether its frame is still the one shown.
   uint32_t frameCount() const { return frameCount_; }
   // Copies of the framebuffer (in PSRAM) for an overlay: kUnder is what it covers, kOver the
@@ -67,6 +73,9 @@ class DisplayManager {
   LGFX_Sprite frame_{&lcd_};
   bool framebufferOk_ = false;
   uint8_t* saved_[2] = {};
+  int injectX_ = 0;
+  int injectY_ = 0;
+  uint32_t injectUntilMs_ = 0;
   uint32_t frameCount_ = 0;
   bool awake_ = true;
   bool backlightOn_ = true;

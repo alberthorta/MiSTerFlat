@@ -76,9 +76,36 @@ void App::loop() {
   }
 }
 
+bool App::handleTestCommand(std::string_view line) {
+#if MDS_TEST_COMMANDS
+  // Before parsing: the parser takes words it does not know for core names, which would count as
+  // a screen change.
+  // MDSBUTTONS,<held button 0-3 or -1>,<reset armed 0|1>: the touch buttons in a given state.
+  if (line.substr(0, 10) == "MDSBUTTONS") {
+    int held = -1, armed = 0;
+    sscanf(std::string(line).c_str(), "MDSBUTTONS,%d,%d", &held, &armed);
+    touchButtons_.preview(held, armed != 0, millis());
+    return true;
+  }
+  // MDSTAP,<x>,<y>: a 100 ms touch at that point, as if a finger tapped the screen.
+  if (line.substr(0, 7) == "MDSTAP,") {
+    int x = 0, y = 0;
+    sscanf(std::string(line).c_str(), "MDSTAP,%d,%d", &x, &y);
+    display_.injectTouch(x, y, 100);
+    return true;
+  }
+#endif
+  (void)line;
+  return false;
+}
+
 void App::onLine(const char* line, size_t length) {
   ++linesReceived_;
   const std::string_view text(line, length);
+  if (handleTestCommand(text)) {
+    ack();
+    return;
+  }
   const proto::Command cmd = proto::parseCommand(text);
   LOGF("line '%s' -> %d", line, (int)cmd.id);
   if (changesScreen(cmd.id)) noteActivity();
@@ -250,16 +277,6 @@ void App::onDiscard(proto::DiscardReason reason, size_t length) {
 
 void App::handle(const proto::Command& cmd, std::string_view line) {
   using proto::CommandId;
-#if MDS_TEST_COMMANDS
-  // MDSBUTTONS,<held button 0-3 or -1>,<reset armed 0|1>: the touch buttons in a given state,
-  // for screenshots. Checked first: the parser would take the bare word for a core name.
-  if (line.substr(0, 10) == "MDSBUTTONS") {
-    int held = -1, armed = 0;
-    sscanf(std::string(line).c_str(), "MDSBUTTONS,%d,%d", &held, &armed);
-    touchButtons_.preview(held, armed != 0, millis());
-    return;
-  }
-#endif
   bool present = true;
   switch (cmd.id) {
     case CommandId::CoreName:  // tty2oled sends the bare name when it has no picture
@@ -341,6 +358,13 @@ void App::handle(const proto::Command& cmd, std::string_view line) {
     case CommandId::MdsLogo:
       sendLogoStatus();
       break;
+    case CommandId::MdsWifi:
+      if (cmd.args.substr(0, 7) == "dongle,") {
+        wifiDongle_ = cmd.args.substr(7) == "1";
+      } else {
+        wifi_.onHost(cmd.args, millis());
+      }
+      break;
     case CommandId::MdsNet: {
       const size_t n = cmd.args.size() < sizeof(ip_) - 1 ? cmd.args.size() : sizeof(ip_) - 1;
       memcpy(ip_, cmd.args.data(), n);
@@ -421,6 +445,7 @@ void App::showSplash() {
 void App::showMenu(bool dimmed) {
   screen_ = dimmed ? Screen::IdleClock : Screen::Menu;
   shownMinute_ = clock_.minuteStamp(millis());
+  if (wifi_.active()) return;  // the Wi-Fi screen is on top; redrawCurrent() brings the clock back
   MenuScreen::draw(display_, clock_.local(millis()), ip_, dimmed);
 }
 
@@ -483,6 +508,8 @@ void App::pollRestart() {
 void App::noteActivity() {
   endRestartDark();
   restartGrace_ = false;
+  // A new screen from the host (a game was loaded) wins over the Wi-Fi screen.
+  wifi_.close();
   if (presence_.onActivity(millis()) == presence::Event::Wake) {
     LOGF("idle sleep: wake");
     display_.setBacklightOn(true);
@@ -492,7 +519,25 @@ void App::noteActivity() {
   if (screen_ == Screen::Waiting || screen_ == Screen::Splash) screen_ = Screen::Other;
 }
 
+void App::redrawCurrent() {
+  if (screen_ == Screen::Menu || screen_ == Screen::IdleClock) {
+    showMenu(screen_ == Screen::IdleClock);
+  } else if (coreNameLength_ > 0) {
+    showCore();
+  } else {
+    drawSplash(screen_ == Screen::Waiting ? kWaitingText : nullptr);
+  }
+}
+
 void App::pollTouch() {
+  if (wifi_.active()) {
+    const WifiScreen::Result w = wifi_.poll(millis());
+    if (w.activity) presence_.onActivity(millis());
+    if (w.closed) redrawCurrent();
+    return;
+  }
+  const std::string_view core(coreName_, coreNameLength_);
+  touchButtons_.setWifiSlot(wifiDongle_ && core == "MENU");
   const TouchButtons::Result t = touchButtons_.poll(millis());
   // A tap counts as activity for idle sleep, but unlike a host command it leaves the start and
   // "Waiting for MiSTer" screens as they are.
@@ -501,6 +546,11 @@ void App::pollTouch() {
     LOGF("idle sleep: wake (touch)");
     display_.setBacklightOn(true);
     if (screen_ == Screen::IdleClock && coreNameLength_ > 0) showCore();
+  }
+  if (t.pressed && strcmp(t.pressed, "wifi") == 0) {
+    // Handled here, not by the host: the Wi-Fi screen asks the daemon for what it needs.
+    wifi_.open(millis());
+    return;
   }
   if (t.pressed) {
     char line[24];
@@ -521,6 +571,7 @@ void App::handlePresence(presence::Event event) {
     case presence::Event::HostLost:
       LOGF("host lost");
       if (restartGrace_) break;  // expected while the MiSTer reboots; pollRestart() handles it
+      wifi_.close();
       screen_ = Screen::Waiting;
       drawSplash(kWaitingText);
       break;

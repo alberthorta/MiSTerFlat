@@ -3,7 +3,7 @@
 A colour status display for a MiSTer FPGA, built on a LILYGO T-Display-S3 (1.9" 320×170 TFT) or a
 Waveshare ESP32-S3-Touch-LCD-2 (2" 320×240 touch TFT). When MiSTer loads a core, the display shows
 that system's logo and name. On the touch board, a tap gives the MiSTer's RESET, OSD and USER
-buttons, plus Bluetooth pairing.
+buttons, plus Bluetooth pairing, and in the MiSTer menu a Wi-Fi set-up with an on-screen keyboard.
 
 Website: **https://alberthorta.github.io/MiSTerLily/**
 
@@ -103,6 +103,7 @@ bash tests/mister/run_updater_test.sh                      # Docker: tty2oled up
 bash tests/mister/run_update_test.sh                       # Docker: misterlily_update against GitHub
 python3 tests/mister/test_flash_image.py                   # firmware file check of misterlily_flash.py
 python3 tests/mister/test_buttons.py                       # keys sent for the touch buttons
+python3 tests/mister/test_wifi.py                          # Wi-Fi scan parsing and config changes
 python3 tools/fake_mister.py --selftest <Pictures folder>  # picture decoding vs tail | xxd
 python3 tests/fixtures/make_fixtures.py                    # rebuild the parser test fixtures
 python3 tests/fixtures/make_art.py                         # rebuild the colour test pictures
@@ -157,6 +158,10 @@ The panel shows 16-bit colour; `--dither` avoids bands in smooth gradients.
   [docs/mister-install.md](docs/mister-install.md#touch-buttons)). After RESET the screen goes
   dark and, 2 s later, shows the menu clock from its own clock while the MiSTer boots. A tap on a
   dark idle screen only wakes it.
+- Touch board, in the MiSTer menu with a Wi-Fi dongle: USER (no core to reset there) becomes
+  Wi-Fi. It scans, lists the networks (drag to scroll), takes the password on an on-screen keyboard
+  and joins; the saved networks stay as a fallback (see
+  [docs/mister-install.md](docs/mister-install.md#wi-fi-set-up)).
 
 ## tty2oled compatibility
 

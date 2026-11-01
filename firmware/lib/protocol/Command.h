@@ -49,6 +49,7 @@ enum class CommandId : uint8_t {
   MdsCore,  // MDSCORE,<core name> -> show the core name (no picture transfer)
   MdsLogo,  // MDSLOGO -> stored start-up logo: "MDSLOGO;crc=<hex>;bytes=<n>;format=<png|jpg>" or "MDSLOGO;none"
   MdsNet,   // MDSNET,<ip> -> the MiSTer's address, shown on the menu screen ("" = none)
+  MdsWifi,  // MDSWIFI,dongle|scanning|net|end|status,... -> the Wi-Fi screen (touch boards)
   MdsCfg,   // MDSCFG -> settings; MDSCFG,idle,<minutes>; MDSCFG,reset
   MdsHang,  // MDSHANG (test builds only): stop feeding the watchdog
   MdsShot,  // MDSSHOT -> "MDSSHOT,<w>,<h>,<bytes>\n" + "ttyack;" + framebuffer (RGB565 big-endian)

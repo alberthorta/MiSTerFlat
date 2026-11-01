@@ -99,6 +99,22 @@ needs about a second to find a new input device.
 
 With two displays on one MiSTer, `MDS_SERIAL` in `config.ini` picks the one the daemon uses.
 
+## Wi-Fi set-up
+
+In the MiSTer menu there is no core to reset, so when a Wi-Fi dongle is plugged in (wlan0), the
+USER button becomes a Wi-Fi button (`mister/wifi.py` does the work):
+
+- **Scan**: `iw dev wlan0 scan`, about 12 s. Hidden networks are left out.
+- **Join**: the password is typed on the screen (shown as typed; 8 characters at least). The
+  network is added to `/media/fat/linux/wpa_supplicant.conf` with the highest priority; the saved
+  networks stay, so they are a fallback. The SSID is written in hex and the PSK is derived on the
+  MiSTer (as `wpa_passphrase` does): the password itself is not stored. The old file is kept as
+  `wpa_supplicant.conf.misterlily.bak`.
+- wpa_supplicant runs without a control interface on the MiSTer, so it is restarted with its own
+  command line; dhcpcd then gets an address. If wlan0 is not on the new network with an address
+  within 30 s, the old file is put back and wpa_supplicant restarted again.
+- The scan and the join run in a thread, so the daemon keeps pinging the display meanwhile.
+
 ## 2. Alternative: install tty2oled (for its picture library)
 
 Not needed when you use `misterlily_update`. If you prefer tty2oled's own updater:

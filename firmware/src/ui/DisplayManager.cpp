@@ -148,6 +148,12 @@ void DisplayManager::wake() {
 }
 
 bool DisplayManager::touched(int* x, int* y) {
+  if (injectUntilMs_ && static_cast<int32_t>(millis() - injectUntilMs_) < 0) {
+    *x = injectX_;
+    *y = injectY_;
+    return true;
+  }
+  injectUntilMs_ = 0;
 #if MDS_HAS_TOUCH
   lgfx::touch_point_t tp;
   if (lcd_.getTouch(&tp, 1) == 0) return false;

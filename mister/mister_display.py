@@ -28,6 +28,7 @@ import struct
 import subprocess
 import sys
 import termios
+import threading
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -35,6 +36,7 @@ sys.path.insert(0, HERE)
 from buttons import Buttons  # noqa: E402
 from mdsserial import Port  # noqa: E402
 from pictures import asset_frame, decode_picture, find_art, find_picture  # noqa: E402
+import wifi  # noqa: E402
 
 DEFAULTS = {
     "MDS_SERIAL": "",
@@ -58,6 +60,9 @@ SLEEP_FILE = "/tmp/tty2oled_sleep"
 FW_FILE = "/tmp/misterlily_fw"
 BOARD_FILE = "/tmp/misterlily_board"  # its CMDHWINF id, a key of BOARDS in mdsserial.py
 TOUCH_BOARDS = {"HWWSTLCD2"}  # boards that send MDSBTN
+# Firmware from this version on has the Wi-Fi screen (MDSWIFI). Older firmware shows any MDS line it
+# does not know as a core name, so it never gets MDSWIFI lines.
+WIFI_SINCE = (0, 3, 0)
 HWINF_RE = re.compile(rb"(HW[0-9A-Z]{7});MDS-([0-9A-Za-z.+-]{1,32});")
 POLL_SECONDS = 0.1
 RETRY_SECONDS = 2.0
@@ -187,6 +192,16 @@ def write_fw_version(version, board=None):
             pass
 
 
+def version_tuple(version):
+    """(0, 3, 0) for "0.3.0" or "0.3.0-rc1"; () when it does not start with a number."""
+    out = []
+    for part in version.split("-", 1)[0].split("."):
+        if not part.isdigit():
+            break
+        out.append(int(part))
+    return tuple(out)
+
+
 def wall_offset():
     """Local wall clock minus the monotonic clock: constant until someone sets the time."""
     return time.time() + time.localtime().tm_gmtoff - time.monotonic()
@@ -225,6 +240,12 @@ class Display:
         self.next_ip_check = 0.0
         self.ip = None
         self.buttons = Buttons()
+        self.wifi_screen = False  # the board has the Wi-Fi screen
+        self.wifi_dongle = None  # last state sent to it
+        self.wifi_busy = False
+        # Lines from the Wi-Fi worker thread; only the main loop writes to the port.
+        self.outbox = []
+        self.outbox_lock = threading.Lock()
 
     def connected(self):
         return self.port is not None
@@ -251,6 +272,7 @@ class Display:
         self.send_time()
         self.ip = None
         self.next_ip_check = 0.0
+        self.wifi_dongle = None
         self.sync_logo()
         # After sync_logo: its read_until() would swallow the reply. drain() picks it up.
         self.port.write("CMDHWINF\n")
@@ -317,6 +339,7 @@ class Display:
         self.next_time = time.monotonic() + TIME_RESEND_SECONDS
 
     def housekeeping(self, now):
+        self.flush_outbox()
         if now >= self.next_time or abs(wall_offset() - self.sent_offset) > CLOCK_JUMP_SECONDS:
             self.send_time()
         if now >= self.next_ip_check:
@@ -326,6 +349,11 @@ class Display:
                 self.ip = ip
                 self.port.write("MDSNET,{}\n".format(ip))
                 debug("ip {}".format(ip or "none"))
+            if self.wifi_screen:
+                dongle = wifi.dongle_present()
+                if dongle != self.wifi_dongle:
+                    self.wifi_dongle = dongle
+                    self.port.write("MDSWIFI,dongle,{}\n".format(int(dongle)))
 
     def heartbeat(self, now):
         """Pings the display; raises OSError if it stopped answering."""
@@ -350,12 +378,17 @@ class Display:
                     self.uptime = int(up)
             elif line.startswith(b"MDSIMG;err"):
                 log("display: " + line.decode(errors="replace"))
+            elif line.startswith(b"MDSWIFI,") and self.wifi_screen:
+                self.wifi_request(line[len(b"MDSWIFI,"):].strip().decode(errors="replace"))
             elif line.startswith(b"MDSBTN,"):
                 self.press(line[len(b"MDSBTN,"):].strip().decode(errors="replace"))
             elif HWINF_RE.search(line):
                 board, version = (g.decode() for g in HWINF_RE.search(line).groups())
                 write_fw_version(version, board)
                 debug("display {} firmware {}".format(board, version))
+                self.wifi_screen = board in TOUCH_BOARDS and version_tuple(version) >= WIFI_SINCE
+                self.wifi_dongle = None
+                self.next_ip_check = 0.0  # tell it about the dongle now
                 if board in TOUCH_BOARDS:
                     try:
                         self.buttons.prepare()
@@ -363,6 +396,59 @@ class Display:
                         log("touch buttons will not work: {}".format(e))
             elif line.strip():
                 debug("display: {!r}".format(line))
+
+    def wifi_request(self, request):
+        """MDSWIFI,scan or MDSWIFI,join,<ssid hex>,<password hex> from the Wi-Fi screen. Scanning
+        takes about 12 s and joining up to 30 s, so a thread does it; the replies go out from the
+        main loop (flush_outbox)."""
+        if self.wifi_busy:
+            return
+        parts = request.split(",")
+        if parts[0] == "scan":
+            target = self.wifi_scan
+        elif parts[0] == "join" and len(parts) == 3:
+            try:
+                ssid, password = bytes.fromhex(parts[1]), bytes.fromhex(parts[2]).decode()
+            except ValueError:
+                return
+            log("wifi: joining {}".format(ssid.decode(errors="replace")))
+            target = lambda: self.wifi_join(ssid, password)  # noqa: E731
+        else:
+            return
+        self.wifi_busy = True
+        threading.Thread(target=target, daemon=True).start()
+
+    def queue(self, line):
+        with self.outbox_lock:
+            self.outbox.append(line)
+
+    def flush_outbox(self):
+        with self.outbox_lock:
+            lines, self.outbox = self.outbox, []
+        for line in lines:
+            self.port.write(line)
+
+    def wifi_scan(self):
+        self.queue("MDSWIFI,scanning\n")
+        try:
+            for ssid, signal, secure, linked in wifi.scan():
+                self.queue("MDSWIFI,net,{},{},{},{}\n".format(signal, int(secure), int(linked), ssid.hex()))
+        except (OSError, subprocess.SubprocessError) as e:
+            log("wifi scan failed: {}".format(e))
+        self.queue("MDSWIFI,end\n")
+        self.wifi_busy = False
+
+    def wifi_join(self, ssid, password):
+        self.queue("MDSWIFI,status,connecting\n")
+        try:
+            ip = wifi.join(ssid, password, lambda: iface_ip(wifi.IFACE))
+            log("wifi: on {} as {}".format(ssid.decode(errors="replace"), ip))
+            self.queue("MDSWIFI,status,ok,{}\n".format(ip))
+        except (OSError, ValueError, subprocess.SubprocessError) as e:
+            log("wifi: join failed: {}".format(e))
+            self.queue("MDSWIFI,status,fail,{}\n".format(str(e)[:80].replace("\n", " ")))
+        self.next_ip_check = 0.0  # show the new address on the clock at once
+        self.wifi_busy = False
 
     def press(self, name):
         """A touch button on the display (boards with a touch panel)."""

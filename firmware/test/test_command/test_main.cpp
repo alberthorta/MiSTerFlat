@@ -66,6 +66,10 @@ void test_prefix_commands_and_args() {
   c = parseCommand("MDSCORE,Atari 5200");
   TEST_ASSERT_EQUAL(CommandId::MdsCore, c.id);
   TEST_ASSERT_EQUAL_STRING("Atari 5200", str(c.args).c_str());
+
+  c = parseCommand("MDSWIFI,net,-59,1,1,547578");
+  TEST_ASSERT_EQUAL(CommandId::MdsWifi, c.id);
+  TEST_ASSERT_EQUAL_STRING("net,-59,1,1,547578", str(c.args).c_str());
 }
 
 void test_split_fields_keeps_commas_in_last_field() {

@@ -111,12 +111,13 @@ MDSIMG,<bytes>,<crc32>,<png|jpg>,<core>\n
 `reset`: ESP-IDF reset reason (1 power-on, 3 software/`CMDRESET`, 6 task watchdog, ...).
 
 `MDSHANG` exists only in the `tdisplay_s3_debug` build: it stops the main loop to check the watchdog.
-`MDSBUTTONS,<held 0-3 or -1>,<armed 0|1>` exists only in builds with `MDS_TEST_COMMANDS`: it shows the
-touch buttons in that state, for screenshots.
+`MDSBUTTONS,<held 0-3 or -1>,<armed 0|1>` and `MDSTAP,<x>,<y>` exist only in builds with
+`MDS_TEST_COMMANDS`: the touch buttons in a given state, and a 100 ms touch at a point, for
+screenshots and for walking the touch screens over the serial port.
 
 ## From the display: `MDSBTN` (touch board)
 
-The only line the display sends without being asked. A tap shows four buttons; a tap on one sends
+A tap shows four buttons; a tap on one sends
 
 ```
 MDSBTN,<reset|osd|user|bt>\n
@@ -130,6 +131,24 @@ powered and keeps its clock while the MiSTer reboots, and a rebooted MiSTer star
 2 s later it shows the menu clock by itself, as if the MiSTer were back already. The daemon sends
 the same screen and the addresses when it starts (about 19 s after the reset). "Waiting for MiSTer"
 is held back for 60 s meanwhile. A tap lights a dark screen again.
+
+## Wi-Fi set-up: `MDSWIFI` (touch board, firmware 0.3.0 and later)
+
+Older firmware shows MDS lines it does not know as core names, so the daemon sends these only to a
+touch board that answers `CMDHWINF` with version 0.3.0 or later. SSIDs and passwords travel in hex.
+
+| Line | Direction | Meaning |
+|---|---|---|
+| `MDSWIFI,dongle,<0\|1>` | host → display | A Wi-Fi dongle is there (wlan0). With 1, in the MiSTer menu, USER becomes the Wi-Fi button |
+| `MDSWIFI,scan` | display → host | Scan for networks |
+| `MDSWIFI,scanning` | host → display | Scan started (the list is cleared) |
+| `MDSWIFI,net,<dBm>,<secure 0\|1>,<linked 0\|1>,<ssid hex>` | host → display | One network, strongest first, the linked one first of all; at most 20 |
+| `MDSWIFI,end` | host → display | End of the list |
+| `MDSWIFI,join,<ssid hex>,<password hex>` | display → host | Join; empty password for an open network |
+| `MDSWIFI,status,connecting` | host → display | Joining |
+| `MDSWIFI,status,ok,<ip>` / `MDSWIFI,status,fail,<reason>` | host → display | Result |
+
+The display gives up waiting after 45 s (scan) and 60 s (join).
 
 ## Device behaviour
 

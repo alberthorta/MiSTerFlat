@@ -13,6 +13,7 @@
 #include "transport/SerialTransport.h"
 #include "ui/DisplayManager.h"
 #include "ui/TouchButtons.h"
+#include "ui/WifiScreen.h"
 
 // Glue between the serial protocol and the screens. The parser only produces events; this class
 // keeps the state (current core, its picture, display settings) and decides what to draw.
@@ -39,6 +40,7 @@ class App : public proto::ParserListener {
   enum class Screen : uint8_t { Splash, Core, Menu, IdleClock, Waiting, Other };
 
   void handle(const proto::Command& cmd, std::string_view line);
+  bool handleTestCommand(std::string_view line);
   static bool changesScreen(proto::CommandId id);
   void noteActivity();
   void pollTouch();
@@ -72,6 +74,9 @@ class App : public proto::ParserListener {
   proto::ProtocolParser parser_;
   presence::Presence presence_;
   TouchButtons touchButtons_{display_};
+  WifiScreen wifi_{display_, transport_};
+  bool wifiDongle_ = false;  // MDSWIFI,dongle,<0|1> from the daemon
+  void redrawCurrent();
   Screen screen_ = Screen::Splash;
   wallclock::WallClock clock_;
   int64_t shownMinute_ = -1;  // minute on the clock screen, to redraw when it changes

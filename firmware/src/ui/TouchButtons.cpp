@@ -34,6 +34,12 @@ const Style kStyles[] = {
     {"user", theme::rgb565(80, 200, 120)},
     {"bt", theme::rgb565(60, 140, 255)},
 };
+// In the MiSTer menu there is no core to reset: USER becomes Wi-Fi set-up when there is a dongle.
+const Style kWifiStyle = {"wifi", theme::rgb565(0, 190, 200)};
+constexpr int kWifiIcon = 4;
+constexpr int kUserSlot = 2;
+
+const Style& styleFor(int i, bool wifiSlot) { return i == kUserSlot && wifiSlot ? kWifiStyle : kStyles[i]; }
 
 constexpr uint16_t kFace = theme::rgb565(28, 28, 32);
 
@@ -67,11 +73,18 @@ void drawBluetooth(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
   g.drawWideLine(cx + 7, cy + 7, cx - 8, cy - 7, r, c);
 }
 
+void drawWifi(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
+  g.fillCircle(cx, cy + 8, 3, c);
+  g.fillArc(cx, cy + 10, 11, 8, 225, 315, c);
+  g.fillArc(cx, cy + 10, 18, 15, 225, 315, c);
+}
+
 void drawIcon(lgfx::LovyanGFX& g, int i, int cx, int cy, uint16_t c) {
   switch (i) {
     case 0: drawPower(g, cx, cy, c); break;
     case 1: drawMenu(g, cx, cy, c); break;
     case 2: drawRestart(g, cx, cy, c); break;
+    case kWifiIcon: drawWifi(g, cx, cy, c); break;
     default: drawBluetooth(g, cx, cy, c); break;
   }
 }
@@ -141,7 +154,7 @@ TouchButtons::Result TouchButtons::release(uint32_t nowMs) {
     draw();
     return r;
   }
-  r.pressed = kStyles[b].name;
+  r.pressed = styleFor(b, wifiSlot_).name;
   chosen_ = b;
   closeAtMs_ = nowMs + kChosenMs;
   if (closeAtMs_ == 0) closeAtMs_ = 1;
@@ -237,18 +250,18 @@ void TouchButtons::compose() {
   g.setTextSize(1);
   g.setFont(&fonts::DejaVu12);
   for (int i = 0; i < kCount; ++i) {
-    const Style& s = kStyles[i];
+    const Style& s = styleFor(i, wifiSlot_);
     const int cx = centreX(w, i);
     const bool armed = i == kReset && resetArmed_;
     const bool lit = i == held_ || i == chosen_ || armed;
     const int r = kRadius + (i == held_ || i == chosen_ ? kHeldGrow : 0);
     if (lit) {
       g.fillCircle(cx, cy, r, s.colour);
-      drawIcon(g, i, cx, cy, theme::kText);
+      drawIcon(g, &s == &kWifiStyle ? kWifiIcon : i, cx, cy, theme::kText);
     } else {
       g.fillCircle(cx, cy, r, s.colour);
       g.fillCircle(cx, cy, r - kRing, kFace);
-      drawIcon(g, i, cx, cy, s.colour);
+      drawIcon(g, &s == &kWifiStyle ? kWifiIcon : i, cx, cy, s.colour);
     }
     if (armed) {
       g.setTextColor(s.colour);
