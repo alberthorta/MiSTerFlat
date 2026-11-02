@@ -49,7 +49,9 @@ __PAYLOAD__
 
 
 def main():
-    version = subprocess.run(["git", "-C", ROOT, "describe", "--always", "--dirty"],
+    # --tags: actions/checkout fetches the release tag without its annotation, and plain describe
+    # skips such tags (the v0.4.1 installer said v0.3.0-7).
+    version = subprocess.run(["git", "-C", ROOT, "describe", "--tags", "--always", "--dirty"],
                              stdout=subprocess.PIPE).stdout.decode().strip() or "unknown"
     buf = io.BytesIO()
     # ustar: the plain format busybox tar on the MiSTer reads without warnings.
