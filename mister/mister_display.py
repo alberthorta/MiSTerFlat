@@ -6,6 +6,8 @@ Replaces the tty2oled daemon (and reuses its picture library). For every core ch
   1. a colour picture  <ART_DIR>/<core>.png|.jpg            -> MDSIMG
   2. a tty2oled picture <TTY2OLED_PICS>/...gsc|.xbm           -> CMDCOR + raw bytes
   3. the name only                                           -> MDSCORE,<core>
+In the MiSTer menu it also shows the colour picture of the core under the cursor of the core
+browser (menu_browse.py), and the menu screen again on a folder or a core without a picture.
 
 It finds the display with find-display.sh, keeps the port open, reads every reply (so nothing
 piles up in the device), and when the display disappears it waits for it, sets the port up again
@@ -36,6 +38,7 @@ sys.path.insert(0, HERE)
 from buttons import Buttons, Volume  # noqa: E402
 from mdsserial import Port  # noqa: E402
 from pictures import asset_frame, decode_picture, find_art, find_picture  # noqa: E402
+import menu_browse  # noqa: E402
 import wifi  # noqa: E402
 
 DEFAULTS = {
@@ -53,6 +56,8 @@ DEFAULTS = {
     "IDLE_SCREEN": "",  # what idle shows: "off" (dark) or "clock" (dim clock); "" = keep the board's
     "FADE": "",  # backlight dip on core changes: "yes"/"no"; "" = keep the board's (default yes)
     "MENU_SCREEN": "clock",  # MiSTer menu: "clock" (built-in clock screen) or "picture" (tty2oled MENU logo)
+    # In the MiSTer menu, show the picture of the core under the cursor (needs log_file_entry=1).
+    "MENU_BROWSE": "yes",
 }
 SLEEP_FILE = "/tmp/tty2oled_sleep"
 # Firmware version of the connected display, for misterlily_flash.py and MiSTerManager, which
@@ -79,6 +84,9 @@ TIME_RESEND_SECONDS = 600.0
 # resend. A jump of the local wall clock against the monotonic clock (NTP, hwclock, date, DST)
 # larger than this sends the time at once.
 CLOCK_JUMP_SECONDS = 2.0
+# The cursor must rest on a core this long before its picture is sent: scrolling through the list
+# does not queue a picture for every line it passes.
+BROWSE_SETTLE_SECONDS = 0.3
 # How often the network addresses are checked: an unplugged cable leaves the clock screen this fast.
 IP_CHECK_SECONDS = 10.0
 # A device node must exist this long before we open it: the kernel creates /dev/ttyACMn a moment
@@ -482,6 +490,15 @@ class Display:
         except (OSError, ValueError) as e:
             log("button {} failed: {}".format(name, e))
 
+    def show_browse(self, core, art):
+        """Picture of the core under the menu cursor; the menu screen when there is none."""
+        if not art:
+            self.show("MENU")
+            return
+        head, data = asset_frame(core, art)
+        self.port.write(head + data)
+        debug("menu cursor on {} -> {}".format(core, os.path.basename(art)))
+
     def show(self, core):
         cfg = self.cfg
         art = find_art(cfg["ART_DIR"], core)
@@ -512,6 +529,10 @@ def run(args, display):
     cfg = display.cfg
     last_stamp = None
     shown = None  # core currently on the display
+    # Menu browser: the picture for the cursor position, since when, and the one on the display.
+    pick, pick_since, browsed = None, 0.0, None
+    # The /tmp files are read every poll; the folder and the art directory only when they change.
+    last_sel, last_sel_core, last_sel_art = None, None, None
     next_search = 0.0
     sleeping = False
     log("started (config {}, corename {})".format(args.config, args.corename))
@@ -560,6 +581,18 @@ def run(args, display):
                     display.show(core)
                     shown = core
                     last_stamp = stamp
+                    browsed = None  # show() put the plain menu screen (or a core) up
+                if core == "MENU" and cfg["MENU_BROWSE"] == "yes":
+                    sel = menu_browse.selection()
+                    if sel != last_sel:
+                        last_sel = sel
+                        last_sel_core = menu_browse.core_for(*sel) if sel else None
+                        last_sel_art = find_art(cfg["ART_DIR"], last_sel_core) if last_sel_core else None
+                    if last_sel_art != pick:
+                        pick, pick_since = last_sel_art, time.monotonic()
+                    elif pick != browsed and time.monotonic() - pick_since >= BROWSE_SETTLE_SECONDS:
+                        display.show_browse(last_sel_core, pick)
+                        browsed = pick
         except (OSError, termios.error) as e:  # tcdrain() raises termios.error on a dead port
             display.disconnect(str(e))
             next_search = time.monotonic() + RETRY_SECONDS
