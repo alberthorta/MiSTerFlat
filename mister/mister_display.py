@@ -7,7 +7,8 @@ Replaces the tty2oled daemon (and reuses its picture library). For every core ch
   2. a tty2oled picture <TTY2OLED_PICS>/...gsc|.xbm           -> CMDCOR + raw bytes
   3. the name only                                           -> MDSCORE,<core>
 In the MiSTer menu it also shows the colour picture of the core under the cursor of the core
-browser (menu_browse.py), and the menu screen again on a folder or a core without a picture.
+browser (menu_browse.py), and the menu screen again on a folder, on a core without a picture, or
+after a minute without moving.
 
 It finds the display with find-display.sh, keeps the port open, reads every reply (so nothing
 piles up in the device), and when the display disappears it waits for it, sets the port up again
@@ -87,6 +88,8 @@ CLOCK_JUMP_SECONDS = 2.0
 # The cursor must rest on a core this long before its picture is sent: scrolling through the list
 # does not queue a picture for every line it passes.
 BROWSE_SETTLE_SECONDS = 0.3
+# A picture from the menu cursor stays this long without a move, then the menu screen comes back.
+BROWSE_IDLE_SECONDS = 60.0
 # How often the network addresses are checked: an unplugged cable leaves the clock screen this fast.
 IP_CHECK_SECONDS = 10.0
 # A device node must exist this long before we open it: the kernel creates /dev/ttyACMn a moment
@@ -532,7 +535,7 @@ def run(args, display):
     # Menu browser: the picture for the cursor position, since when, and the one on the display.
     pick, pick_since, browsed = None, 0.0, None
     # The /tmp files are read every poll; the folder and the art directory only when they change.
-    last_sel, last_sel_core, last_sel_art = None, None, None
+    last_sel, last_sel_core, last_sel_art, sel_since = None, None, None, 0.0
     next_search = 0.0
     sleeping = False
     log("started (config {}, corename {})".format(args.config, args.corename))
@@ -584,15 +587,18 @@ def run(args, display):
                     browsed = None  # show() put the plain menu screen (or a core) up
                 if core == "MENU" and cfg["MENU_BROWSE"] == "yes":
                     sel = menu_browse.selection()
+                    now = time.monotonic()
                     if sel != last_sel:
-                        last_sel = sel
+                        last_sel, sel_since = sel, now
                         last_sel_core = menu_browse.core_for(*sel) if sel else None
                         last_sel_art = find_art(cfg["ART_DIR"], last_sel_core) if last_sel_core else None
                     if last_sel_art != pick:
-                        pick, pick_since = last_sel_art, time.monotonic()
-                    elif pick != browsed and time.monotonic() - pick_since >= BROWSE_SETTLE_SECONDS:
-                        display.show_browse(last_sel_core, pick)
-                        browsed = pick
+                        pick, pick_since = last_sel_art, now
+                    # After a while without moving, the menu screen (clock) comes back.
+                    want = None if now - sel_since >= BROWSE_IDLE_SECONDS else pick
+                    if want != browsed and now - pick_since >= BROWSE_SETTLE_SECONDS:
+                        display.show_browse(last_sel_core, want)
+                        browsed = want
         except (OSError, termios.error) as e:  # tcdrain() raises termios.error on a dead port
             display.disconnect(str(e))
             next_search = time.monotonic() + RETRY_SECONDS
