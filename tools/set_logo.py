@@ -5,8 +5,10 @@
     python3 tools/set_logo.py /dev/cu.usbmodemXXXX --status     # what is stored
     python3 tools/set_logo.py /dev/cu.usbmodemXXXX --clear      # back to the text start screen
 
-The picture is drawn centered in the top 320x130 area; the line below is kept for "Waiting for
-MiSTer", and the version goes in the top-right corner. Larger pictures are cropped. On the MiSTer,
+The picture is drawn centred in the logo area: 320x184 at the top of a 240-line screen, 320x130 on
+the 170-line T-Display-S3 (a 320x184 picture shows its middle 130 lines there). The line below is
+kept for "Waiting for MiSTer", and the version goes in the top-right corner. Larger pictures are
+cropped. On the MiSTer,
 put the file at /media/fat/MiSTerLily/art/STARTUP.png and the daemon stores it when it changes.
 """
 import argparse

@@ -149,7 +149,8 @@ The panel shows 16-bit colour; `--dither` avoids bands in smooth gradients.
   centered, no text (the logos carry the name).
 - A core without a picture, or a failed transfer: the system name, large, in the Commodore 64 font.
 - Common systems get a friendly name (`PSX` → PLAYSTATION) with the MiSTer core name small below.
-- Start-up: your own picture (stored on the board, 320×130 area) or "MiSTer / <board name>", and the
+- Start-up: your own picture (stored on the board; 320×184 area on the Waveshare, 320×130 on the
+  T-Display-S3) or "MiSTer / <board name>", and the
   firmware version; "Waiting for MiSTer" if nothing arrives within 10 s, or when our daemon stops
   answering for 15 s. Store the picture with `python3 tools/set_logo.py <port> logo.png`, or put it at
   `/media/fat/MiSTerLily/art/STARTUP.png` on the MiSTer (the daemon stores it when it changes).
