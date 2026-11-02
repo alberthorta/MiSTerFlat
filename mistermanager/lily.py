@@ -1,4 +1,4 @@
-"""MiSTerLily display: firmware version and firmware updates.
+"""MiSTerLily display: firmware version, firmware updates and the display's own settings.
 
 The work is done by MiSTerLily's own misterlily_flash.py, so the Scripts menu and this page flash
 the same way. It checks the file, stops the MiSTerLily daemon (which holds the USB port), flashes
@@ -7,6 +7,10 @@ ERROR); a flash runs in the background and the page polls the job.
 
 The daemon writes the firmware version of the connected board to /tmp/misterlily_fw and its
 CMDHWINF id to /tmp/misterlily_board. misterlily_flash.py picks the firmware for that board.
+
+Display settings (firmware 0.4.1 and later) also go through the daemon, which holds the port: it
+writes the display's settings as JSON to /tmp/misterlily_cfg every few seconds, and sends the lines
+of /tmp/misterlily_cmd ("brightness 5", "clockfont 4") to the display.
 """
 from __future__ import annotations
 
@@ -20,6 +24,8 @@ from typing import Optional
 
 FW_FILE = '/tmp/misterlily_fw'
 BOARD_FILE = '/tmp/misterlily_board'
+CFG_FILE = '/tmp/misterlily_cfg'
+CMD_FILE = '/tmp/misterlily_cmd'
 MODELS = {'HWTDISPS3': 'LILYGO T-Display-S3', 'HWWSTLCD2': 'Waveshare ESP32-S3-Touch-LCD-2'}
 # app0 in the board's partition table; misterlily_flash.py refuses larger files too.
 MAX_FIRMWARE = 0x640000
@@ -31,11 +37,14 @@ class LilyError(Exception):
 
 
 class Lily:
-    def __init__(self, fat: str, state_dir: str, fw_file: str = FW_FILE, board_file: str = BOARD_FILE):
+    def __init__(self, fat: str, state_dir: str, fw_file: str = FW_FILE, board_file: str = BOARD_FILE,
+                 cfg_file: str = CFG_FILE, cmd_file: str = CMD_FILE):
         self.tool = os.path.join(fat, 'MiSTerLily', 'misterlily_flash.py')
         self.upload_path = os.path.join(state_dir, 'misterlily-upload.bin')
         self.fw_file = fw_file
         self.board_file = board_file
+        self.cfg_file = cfg_file
+        self.cmd_file = cmd_file
         self._lock = threading.Lock()
         self._job: Optional[dict] = None
         self._latest: Optional[dict] = None
@@ -76,10 +85,42 @@ class Lily:
             self._latest_for = board_id
         return dict(self._latest)
 
+    def display(self) -> Optional[dict]:
+        """{'brightness', 'brightness_max', 'clockfont', 'clockfonts'}, or None (no display, or a
+        firmware or daemon without settings)."""
+        try:
+            with open(self.cfg_file) as f:
+                cfg = json.load(f)
+            return {'brightness': int(cfg['brightness']), 'brightness_max': int(cfg['brightness_max']),
+                    'clockfont': int(cfg['clockfont']), 'clockfonts': [str(n) for n in cfg['clockfonts']]}
+        except (OSError, ValueError, KeyError, TypeError):
+            return None
+
+    def set_display(self, setting: str, value) -> None:
+        cfg = self.display()
+        if cfg is None:
+            raise LilyError('the display does not take settings (firmware 0.4.1 or later is needed)')
+        limits = {'brightness': cfg['brightness_max'], 'clockfont': len(cfg['clockfonts']) - 1}
+        if setting not in limits:
+            raise LilyError('unknown setting')
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= limits[setting]:
+            raise LilyError('value out of range')
+        # Lines not taken by the daemon yet are kept, so two quick changes are both sent. Written to a
+        # temporary file and renamed: the daemon never reads half a line.
+        try:
+            with open(self.cmd_file) as f:
+                pending = f.read()
+        except OSError:
+            pending = ''
+        with open(self.cmd_file + '.tmp', 'w') as f:
+            f.write(pending + '{} {}\n'.format(setting, value))
+        os.replace(self.cmd_file + '.tmp', self.cmd_file)
+
     def info(self, refresh: bool = False) -> dict:
         if not self.installed():
             return {'installed': False}
-        out = {'installed': True, 'board': self.board(), 'model': self.model(), 'job': self.job()}
+        out = {'installed': True, 'board': self.board(), 'model': self.model(), 'job': self.job(),
+               'display': self.display()}
         out.update(self.latest(refresh))
         return out
 

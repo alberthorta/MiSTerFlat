@@ -170,6 +170,11 @@ label.check { display: flex; gap: 6px; align-items: center; font-size: 14px; }
   <div class="panel" id="lily-panel" hidden>
     <h3>MiSTerLily display</h3>
     <p id="lily-state" class="note"></p>
+    <div id="lily-display" hidden>
+      <div class="field"><label for="lily-bright">Brightness</label>
+        <div class="vol"><input type="range" id="lily-bright" min="0" max="7" step="1"><strong id="lily-brightval">–</strong></div></div>
+      <div class="field"><label for="lily-font">Clock font</label><select id="lily-font"></select></div>
+    </div>
     <div class="row" style="margin-top: 10px">
       <button id="lily-latest" class="primary">Update firmware</button>
       <button id="lily-file">Flash a file…</button>
@@ -457,6 +462,9 @@ async function coreShow() {
 }
 
 let lilyTimer = null;
+const FONT_LABELS = {c64: 'Commodore 64', '7seg': 'Seven segments', big: 'Big digits', sans: 'Sans',
+  orbitron: 'Orbitron', serif: 'Serif', mono: 'Typewriter', retro16: 'Retro thin'};
+const fontLabel = n => FONT_LABELS[n] || n;
 async function lily(refresh) {
   const l = await api('/api/lily' + (refresh ? '?refresh=1' : ''));
   $('lily-panel').hidden = !l.installed;
@@ -468,6 +476,18 @@ async function lily(refresh) {
   $('lily-latest').disabled = running || !l.latest || !l.board;
   $('lily-file').disabled = running || !l.board;
   $('lily-job').hidden = !job;
+  const d = l.display;
+  $('lily-display').hidden = !d;
+  // Not while the user moves the slider or has the list open: a refresh would undo the choice.
+  if (d && document.activeElement !== $('lily-bright') && document.activeElement !== $('lily-font')) {
+    $('lily-bright').max = d.brightness_max;
+    $('lily-bright').value = d.brightness;
+    $('lily-brightval').textContent = d.brightness + ' / ' + d.brightness_max;
+    const sel = $('lily-font');
+    if (sel.options.length !== d.clockfonts.length)
+      sel.replaceChildren(...d.clockfonts.map((n, i) => new Option(fontLabel(n), i)));
+    sel.value = d.clockfont;
+  }
   if (job) {
     $('lily-progress').value = job.progress;
     $('lily-step').textContent = job.error ? 'Error: ' + job.error
@@ -529,6 +549,12 @@ $('lily-latest').onclick = async () => {
   if (!confirm($('lily-latest').textContent + ' on the MiSTerLily display? Do not unplug it while it runs.')) return;
   try { await api('/api/lily/flash', {}); lily(); } catch (e) { toast('Error: ' + e.message); }
 };
+async function lilySet(setting, value) {
+  try { await api('/api/lily/display', {setting, value}); } catch (e) { toast('Error: ' + e.message); }
+}
+$('lily-bright').oninput = () => { $('lily-brightval').textContent = $('lily-bright').value + ' / ' + $('lily-bright').max; };
+$('lily-bright').onchange = () => lilySet('brightness', +$('lily-bright').value);
+$('lily-font').onchange = () => lilySet('clockfont', +$('lily-font').value);
 $('lily-file').onclick = () => { $('lily-input').value = ''; $('lily-input').click(); };
 $('lily-input').onchange = async () => {
   const file = $('lily-input').files[0];

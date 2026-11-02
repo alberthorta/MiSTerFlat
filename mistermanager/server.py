@@ -181,6 +181,9 @@ def make_handler(app: App):
                 elif url.path == '/api/controllers/motion':
                     app.motion.set_enabled(bool(body.get('enabled')))
                     self._json({'ok': True})
+                elif url.path == '/api/lily/display':
+                    app.lily.set_display(str(body.get('setting', '')), body.get('value'))
+                    self._json({'ok': True})
                 elif url.path == '/api/lily/flash':
                     app.lily.flash_latest()
                     self._json({'ok': True})

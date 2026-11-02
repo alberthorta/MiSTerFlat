@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 import time
@@ -37,7 +38,16 @@ class LilyTest(unittest.TestCase):
         self.board_file = os.path.join(root, 'board')
         with open(self.board_file, 'w') as f:
             f.write('HWWSTLCD2\n')
-        self.lily = Lily(root, root, fw_file=self.fw, board_file=self.board_file)
+        self.cfg = os.path.join(root, 'cfg')
+        self.cmd = os.path.join(root, 'cmd')
+        self.lily = Lily(root, root, fw_file=self.fw, board_file=self.board_file, cfg_file=self.cfg,
+                         cmd_file=self.cmd)
+
+    def write_cfg(self):
+        # As MiSTerLily's daemon writes it from the MDSCFG reply.
+        with open(self.cfg, 'w') as f:
+            json.dump({'contrast': 182, 'clockfont': 4, 'brightness': 5, 'brightness_max': 7,
+                       'clockfonts': ['c64', '7seg', 'big', 'sans', 'orbitron', 'serif', 'mono', 'retro16']}, f)
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -93,6 +103,25 @@ class LilyTest(unittest.TestCase):
             self.lily.flash_file(b'')
         with self.assertRaises(LilyError):
             self.lily.flash_file(b'x' * (0x640000 + 1))
+
+    def test_display_settings(self):
+        self.assertIsNone(self.lily.info()['display'])
+        self.write_cfg()
+        d = self.lily.info()['display']
+        self.assertEqual((d['brightness'], d['clockfont'], d['clockfonts'][4]), (5, 4, 'orbitron'))
+
+    def test_set_display(self):
+        with self.assertRaises(LilyError):  # no settings file: old firmware or daemon
+            self.lily.set_display('brightness', 3)
+        self.write_cfg()
+        self.lily.set_display('brightness', 3)
+        self.lily.set_display('clockfont', 7)
+        with open(self.cmd) as f:
+            self.assertEqual(f.read(), 'brightness 3\nclockfont 7\n')
+        for setting, value in (('brightness', 8), ('clockfont', 8), ('brightness', -1), ('brightness', '3'),
+                               ('brightness', True), ('volume', 3)):
+            with self.assertRaises(LilyError):
+                self.lily.set_display(setting, value)
 
 
 if __name__ == '__main__':
