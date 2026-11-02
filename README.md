@@ -5,7 +5,8 @@ Waveshare ESP32-S3-Touch-LCD-2 (2" 320×240 touch TFT). When MiSTer loads a core
 that system's logo and name. On the touch board, a tap gives the MiSTer's RESET, OSD and USER
 buttons, plus Bluetooth pairing, and in the MiSTer menu a Wi-Fi set-up with an on-screen keyboard.
 
-Website: **https://alberthorta.github.io/MiSTerLily/**
+Website: **https://alberthorta.github.io/MiSTerLily/** · How all the parts work together:
+**[docs/how-it-works.md](docs/how-it-works.md)**
 
 It speaks the serial protocol of [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled),
 so the unmodified tty2oled daemon and its picture library drive it over native USB.
@@ -53,13 +54,15 @@ port never carries debug output, because the MiSTer scripts read replies from it
 
 ### Releases
 
-A version tag builds the firmware on GitHub Actions and publishes it as a release
-(`.github/workflows/release.yml`). The MiSTer can then flash it without a computer (see
+A version tag builds the firmware of both boards on GitHub Actions and publishes a release with
+`misterlily-<version>-tdisplay_s3.bin`, `misterlily-<version>-waveshare_lcd2.bin` and the MiSTer
+installer `misterlily_install.sh` (`.github/workflows/release.yml`). The MiSTer can then flash the
+display without a computer (see
 [docs/mister-install.md](docs/mister-install.md#firmware-updates-from-the-mister)).
 
 ```sh
 # set MDS_FW_VERSION in firmware/include/config.h, commit, then:
-git tag v0.2.0 && git push origin v0.2.0
+git tag v0.3.1 && git push origin main v0.3.1
 ```
 
 The workflow stops if the tag and `MDS_FW_VERSION` differ.
@@ -111,9 +114,10 @@ python3 tests/fixtures/make_art.py                         # rebuild the colour 
 
 ## Installing on the MiSTer
 
-See [docs/mister-install.md](docs/mister-install.md). Quickest: `python3 tools/make_mister_installer.py`,
-copy `dist/misterlily_install.sh` to `/media/fat/Scripts/` (or to the `Scripts` folder of a fresh
-Mr. Fusion card) and run it once from the MiSTer Scripts menu. Then run `misterlily_update` from the
+See [docs/mister-install.md](docs/mister-install.md). Quickest: download `misterlily_install.sh` from
+the [latest release](https://github.com/alberthorta/MiSTerLily/releases/latest) (or build it with
+`python3 tools/make_mister_installer.py`), copy it to `/media/fat/Scripts/` (or to the `Scripts`
+folder of a fresh Mr. Fusion card) and run it once from the MiSTer Scripts menu. Then run `misterlily_update` from the
 same menu: it downloads the tty2oled logo library and keeps MiSTerLily up to date from this repository. Colour pictures go to `/media/fat/MiSTerLily/art/<core>.png`.
 
 The daemon can also run on a Mac/Linux PC for testing:
@@ -134,6 +138,8 @@ python3 tools/fake_mister.py /dev/cu.usbmodemXXXX --art art PSX
 ```
 
 The file name is the core name. PNG for logos and sharp artwork; JPEG (baseline) for photos.
+On the 320×240 Waveshare screen a 320×170 picture is centred with black bars; a 320×240 picture
+fills it (and is cropped to the middle on the T-Display-S3).
 The panel shows 16-bit colour; `--dither` avoids bands in smooth gradients.
 
 ## What the screen shows
@@ -143,7 +149,7 @@ The panel shows 16-bit colour; `--dither` avoids bands in smooth gradients.
   centered, no text (the logos carry the name).
 - A core without a picture, or a failed transfer: the system name, large, in the Commodore 64 font.
 - Common systems get a friendly name (`PSX` → PLAYSTATION) with the MiSTer core name small below.
-- Start-up: your own picture (stored on the board, 320×130 area) or "MiSTer / T-Display-S3", and the
+- Start-up: your own picture (stored on the board, 320×130 area) or "MiSTer / <board name>", and the
   firmware version; "Waiting for MiSTer" if nothing arrives within 10 s, or when our daemon stops
   answering for 15 s. Store the picture with `python3 tools/set_logo.py <port> logo.png`, or put it at
   `/media/fat/MiSTerLily/art/STARTUP.png` on the MiSTer (the daemon stores it when it changes).
@@ -179,7 +185,7 @@ Full command list: [docs/protocol.md](docs/protocol.md).
 ## Known limitations
 
 - tty2oled pictures are monochrome/greyscale and 256×64. Scaled 1.25× with area averaging, edges
-  are slightly soft. Native colour artwork is Phase 5.
+  are slightly soft. Colour pictures (`art/`) avoid that.
 - If nobody reads the replies, one `ttyack;` stays in the USB FIFO and reaches the next reader first.
 - tty2oled mode only: after unplugging/replugging the display, restart the tty2oled daemon (it sets
   the port up only at start). The native daemon reconnects by itself.

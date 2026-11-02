@@ -273,7 +273,7 @@
         </figure>
         <figure class="shot">
           <img src="img/menu.png" width="320" height="170" alt="Clock screen: 21:47, Thu 8 Oct 2026, 192.168.1.42" loading="lazy">
-          <figcaption><strong>The menu</strong>Time, date and the MiSTer’s network address.</figcaption>
+          <figcaption><strong>The menu</strong>Time, date and the MiSTer’s network addresses, cable and Wi-Fi.</figcaption>
         </figure>
         <figure class="shot">
           <img src="img/startup.png" width="320" height="170" alt="MiSTer logo with Waiting for MiSTer" loading="lazy">
@@ -361,16 +361,42 @@ pio run -t upload</code></pre>
     </div>
   </section>
 
+  <section id="touch">
+    <div class="wrap">
+      <div class="section-grid">
+        <h2>On the touch board</h2>
+        <div class="prose">
+          <p>On the Waveshare ESP32-S3-Touch-LCD-2, a tap brings up the MiSTer’s own buttons: RESET, OSD and USER, plus Bluetooth pairing. They do exactly what the buttons on the case do. In the MiSTer menu, with a Wi-Fi dongle plugged in, USER becomes Wi-Fi set-up: pick a network and type the password on the screen. The display’s firmware updates from the MiSTer itself, no computer needed.</p>
+        </div>
+      </div>
+      <div class="shots">
+        <figure class="shot">
+          <img src="img/touch-buttons.png" width="320" height="240" alt="Four round buttons over the dimmed clock: power, menu, Wi-Fi and Bluetooth" loading="lazy">
+          <figcaption><strong>The MiSTer’s buttons</strong>RESET asks for a second tap. In the menu, Wi-Fi takes USER’s place.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="img/touch-wifi.png" width="320" height="240" alt="A list of Wi-Fi networks with signal bars and locks" loading="lazy">
+          <figcaption><strong>Wi-Fi networks</strong>Strongest first, the current one at the top. Drag to scroll.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="img/touch-keyboard.png" width="320" height="240" alt="On-screen keyboard with a password field" loading="lazy">
+          <figcaption><strong>The password</strong>Typed on the screen. Your saved networks stay as a fallback.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
   <section id="hardware">
     <div class="wrap">
       <div class="section-grid">
         <h2>Hardware</h2>
         <table class="spec">
-          <tr><th scope="row">Board</th><td>LILYGO T-Display-S3 (touch or non-touch), not the AMOLED version</td></tr>
-          <tr><th scope="row">Chip</th><td>ESP32-S3R8, 16 MB flash, 8 MB PSRAM</td></tr>
-          <tr><th scope="row">Display</th><td>1.9″ ST7789 IPS, 320 × 170, 16-bit colour, 8-bit parallel bus</td></tr>
+          <tr><th scope="row">Boards</th><td>LILYGO T-Display-S3 (touch or non-touch), not the AMOLED version; or Waveshare ESP32-S3-Touch-LCD-2</td></tr>
+          <tr><th scope="row">Chip</th><td>ESP32-S3R8, 16 MB flash, 8 MB PSRAM (both boards)</td></tr>
+          <tr><th scope="row">Display</th><td>T-Display-S3: 1.9″ ST7789 IPS, 320 × 170, 8-bit parallel bus. Waveshare: 2″ ST7789T3 IPS, 320 × 240, SPI, capacitive touch</td></tr>
           <tr><th scope="row">Connection</th><td>USB-C to any MiSTer USB port or internal hub; USB CDC, <code>303a:1001</code></td></tr>
-          <tr><th scope="row">MiSTer side</th><td>Python 3 daemon, tested on Linux; tty2oled’s own daemon also works</td></tr>
+          <tr><th scope="row">MiSTer side</th><td>Python 3 daemon, in daily use on a real MiSTer; tty2oled’s own daemon also works</td></tr>
+          <tr><th scope="row">Updates</th><td>Firmware from the MiSTer (Scripts or MiSTerManager), one release file per board; the MiSTer side with <code>misterlily_update</code></td></tr>
           <tr><th scope="row">Licence</th><td>GPL-3.0</td></tr>
         </table>
       </div>

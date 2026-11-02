@@ -1,6 +1,7 @@
 # Builds the firmware of every board for a version tag and publishes it as a GitHub release, one
-# misterlily-<version>-<env>.bin per board. misterlily_flash.py (and MiSTerManager through it)
-# flashes the one for the connected board.
+# misterlily-<version>-<env>.bin per board, plus the one-file MiSTer installer
+# (misterlily_install.sh). misterlily_flash.py (and MiSTerManager through it) flashes the .bin for
+# the connected board.
 #
 #   1. set MDS_FW_VERSION in firmware/include/config.h, commit
 #   2. git tag v0.2.0 && git push origin v0.2.0
@@ -18,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the installer names its version with git describe
 
       - uses: actions/setup-python@v5
         with:
@@ -58,9 +61,12 @@ jobs:
               print("image ok:", env, got)
           PY
 
+      - name: MiSTer installer
+        run: python3 tools/make_mister_installer.py
+
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" misterlily-"$VERSION"-*.bin \
+          gh release create "$GITHUB_REF_NAME" misterlily-"$VERSION"-*.bin dist/misterlily_install.sh \
             --title "MiSTerLily $VERSION" --generate-notes

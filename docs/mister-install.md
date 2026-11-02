@@ -8,17 +8,20 @@ Two modes:
 - **tty2oled compatibility** (`install.sh --tty2oled`): the unmodified tty2oled daemon drives the
   display; we only tell it where the display is. Grey logos only.
 
-> Status: both modes are tested on Linux in a container (the real `tty2oled.sh`; our daemon with
-> reconnection), and the daemon is tested against the board from a Mac (including unplug/replug).
-> **Not yet tested on a real MiSTer.**
+> Status: native mode is in daily use on a real MiSTer (QMTECH Cyclone V with the I/O board V2.1),
+> with both boards: install, update, firmware updates, touch buttons and Wi-Fi set-up. Both modes are
+> also tested on Linux in a container. For how all the parts fit together, see
+> [how-it-works.md](how-it-works.md).
 
 Needs `python3` on the MiSTer (native mode). The MiSTer Linux image has it: `update_all` is a Python
 program run directly by the system.
 
 ## Quick way: the one-file installer
 
-`python3 tools/make_mister_installer.py` builds `dist/misterlily_install.sh`, a single script with
-everything inside (daemon, scripts, default config, start-up picture). Copy it to
+`misterlily_install.sh` is a single script with everything inside (daemon, scripts, default config,
+start-up picture). Download it from the latest release on GitHub
+(github.com/alberthorta/MiSTerLily/releases), or build it with `python3 tools/make_mister_installer.py`
+(writes `dist/misterlily_install.sh`). Copy it to
 `/media/fat/Scripts/` and run it once from the MiSTer Scripts menu. Then run **`misterlily_update`**
 (also in the Scripts menu now): it downloads the tty2oled logo library and, later, updates
 MiSTerLily from GitHub (github.com/alberthorta/MiSTerLily, branch `main`). That is all you need;
@@ -193,13 +196,24 @@ tty2oled's `CONTRAST` (default 100 ≈ half): add `CONTRAST="255"` to `tty2oled-
   `install.sh` picks ours; `find-display.sh --probe` asks each one `CMDHWINF`.
 - If detection fails on the MiSTer, set `TTYDEV="/dev/ttyACM0"` (or the right number) in `config.ini`.
 
-## Not verified yet (needs the MiSTer)
+## Checked on a real MiSTer
 
-- The sysfs layout and `/dev/ttyACM<n>` number on the MiSTer kernel.
-- `python3` version and modules on the current MiSTer image (the daemon uses only `os`, `select`,
-  `termios`, `binascii`, `subprocess`, `argparse`).
-- tty2oled mode only: `S60tty2oled` waits up to 10 s for `TTYDEV` at boot; a late hub can miss it.
-  It also sets the port up only at start, so restart it after replugging the display.
-  (Native mode waits and reconnects by itself.)
+QMTECH Cyclone V with the I/O board V2.1, MiSTer Linux with Python 3.9.6:
+
+- The display shows up as `/dev/ttyACM0`; `find-display.sh` finds it through sysfs, with two
+  displays it picks the one in `MDS_SERIAL`.
+- The daemon starts from `user-startup.sh` about 17 s after a reset and runs with the standard
+  library only.
+- `/dev/uinput` is there (kernel `CONFIG_INPUT_UINPUT=y`), so the touch buttons work; `iw` is there
+  for the Wi-Fi scan.
+- `misterlily_update` installs a new version from GitHub and keeps `config.ini`; the files it
+  installs match the repository.
+- Firmware updates from the MiSTer and from MiSTerManager, for both boards.
+
+Not checked yet (tty2oled mode only):
+
+- `S60tty2oled` waits up to 10 s for `TTYDEV` at boot; a late hub can miss it. It also sets the port
+  up only at start, so restart it after replugging the display. (Native mode waits and reconnects
+  by itself.)
 - Linux `cdc-acm` closing behaviour with tty2oled's one-`echo`-per-message writes (native mode keeps
   the port open, so it is not affected).
