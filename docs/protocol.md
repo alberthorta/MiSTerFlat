@@ -93,11 +93,13 @@ MDSIMG,<bytes>,<crc32>,<png|jpg>,<core>\n
 | Command | Reply |
 |---|---|
 | `MDSPING` | `MDSPONG;up=<uptime ms>\n`. Our daemon sends it every 5 s: a lower uptime means the board restarted (resend everything); once pings were seen, 15 s without one shows "Waiting for MiSTer". Pings do not wake an idle-sleeping screen |
-| `MDSCFG` | `MDSCFG;contrast=<0..255>;rotate=<0\|1>;idle=<minutes>;fade=<0\|1>;idleclock=<0\|1>;screenbrightness=<0\|1>\n` (settings stored in flash). `screenbrightness=1`: the brightness was picked on the touch screen, and `CMDCON` is ignored from then on |
+| `MDSCFG` | `MDSCFG;contrast=<0..255>;rotate=<0\|1>;idle=<minutes>;fade=<0\|1>;idleclock=<0\|1>;screenbrightness=<0\|1>;clockfont=<n>;brightness=<0..7>\n` (settings stored in flash). `screenbrightness=1`: the brightness was picked on the touch screen or with `MDSCFG,brightness`, and `CMDCON` is ignored from then on. `brightness` is the contrast in the 8 steps of the touch row. `clockfont` and `brightness` from firmware 0.4.1 |
 | `MDSCFG,idle,<minutes>` | Backlight off after `<minutes>` without a core change or display command (0 = never, the default; max 1440); replies like `MDSCFG` |
 | `MDSCFG,fade,<0\|1>` | Short backlight dip on core changes (default 1). `CMDCOR,<core>,0` skips it for one change |
 | `MDSCFG,idleclock,<0\|1>` | When idle: a dim clock instead of a dark screen (default 0; needs the time) |
-| `MDSCFG,reset` | Default settings (brightness 255, no rotation, no idle sleep, fade on, no idle clock); `CMDCON` works again |
+| `MDSCFG,brightness,<0-7>` | Backlight, like the brightness row of the touch buttons (0.4.1); `CMDCON` is ignored after it, so the daemon's `CONTRAST` does not undo it |
+| `MDSCFG,clockfont,<n>` | Font of the time on the clock screen (0.4.1): 0 c64 (default), 1 7seg, 2 big, 3 sans, 4 orbitron, 5 serif, 6 mono, 7 retro16 |
+| `MDSCFG,reset` | Default settings (brightness 255, no rotation, no idle sleep, fade on, no idle clock, c64 clock font); `CMDCON` works again |
 | `MDSLOGO` | `MDSLOGO;crc=<hex>;bytes=<n>;format=<png\|jpg>\n` or `MDSLOGO;none\n`: the stored start-up picture |
 | `MDSLOGO,<bytes>,<crc32>,<png\|jpg>` + file | Store the start-up picture in flash (same framing as `MDSIMG`, max 256 KB). Reply `MDSLOGO;ok\n` or `MDSLOGO;err=<header\|size\|incomplete\|crc\|format\|storage>\n` |
 | `MDSCFG,logo,0` | Delete the stored start-up picture (back to the text start screen) |
@@ -185,3 +187,12 @@ The display gives up waiting after 45 s (scan) and 60 s (join).
 - **Fade**: the backlight goes down (120 ms), the new frame is pushed, and it comes back (180 ms),
   in steps of the 16 backlight levels.
   The main loop keeps running during the fade.
+
+## Display settings for other programs (native daemon)
+
+The daemon holds the serial port, so other programs on the MiSTer (MiSTerManager's Settings page)
+use two files. With firmware 0.4.1 or later, the daemon asks for `MDSCFG` every 2 s and writes the
+reply as JSON to `/tmp/misterlily_cfg`, with the font names (`clockfonts`) and `brightness_max`. It
+also reads `/tmp/misterlily_cmd`, one `brightness <0-7>` or `clockfont <n>` per line, sends each as
+`MDSCFG,<setting>,<value>` and removes the file. Write that file through a temporary file and a
+rename. `mister/display_settings.py` has the details.

@@ -20,10 +20,27 @@ const char* const kMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 // Heights are those of the fonts; the gaps shrink when the column does not fit (two networks on
 // the 170-pixel T-Display-S3).
 constexpr int kTitleScale = 2;  // retro 8x8 font
-constexpr int kTimeScale = 7;   // 56 px digits, "HH:MM" 280 px wide
 constexpr int kNetScale = 2;
 constexpr int kTitleH = 8 * kTitleScale;
-constexpr int kTimeH = 8 * kTimeScale;
+
+// Each font with the scale that makes "HH:MM" about 280 px wide at most, and the digit height used
+// for the layout (the fonts' own line heights add space above and below).
+struct ClockFont {
+  const char* name;
+  const lgfx::IFont* font;
+  float scale;
+  int height;
+};
+const ClockFont kClockFonts[kClockFontCount] = {
+    {"c64", &fonts::Font8x8C64, 7.0f, 56},        // the retro 8x8 font
+    {"7seg", &fonts::Font7, 1.4f, 67},            // seven segments, like an alarm clock
+    {"big", &fonts::Font8, 1.0f, 75},             // large plain digits
+    {"sans", &fonts::DejaVu72, 1.0f, 54},
+    {"orbitron", &fonts::Orbitron_Light_32, 2.0f, 46},
+    {"serif", &fonts::FreeSerifBold24pt7b, 2.0f, 66},
+    {"mono", &fonts::FreeMonoBold24pt7b, 1.8f, 50},
+    {"retro16", &fonts::AsciiFont24x48, 1.15f, 55},
+};
 constexpr int kDateH = 18;
 constexpr int kNetH = 8 * kNetScale;
 constexpr int kGapTitle = 14;  // below the title
@@ -91,7 +108,13 @@ void drawWiFi(lgfx::LovyanGFX& g, int x, int y, uint16_t c) {
 
 }  // namespace
 
-void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip, bool dimmed) {
+const char* clockFontName(int index) {
+  return (index >= 0 && index < kClockFontCount) ? kClockFonts[index].name : "";
+}
+
+void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip, bool dimmed, int clockFont) {
+  const ClockFont& cf = kClockFonts[(clockFont >= 0 && clockFont < kClockFontCount) ? clockFont : 0];
+  const int timeH = cf.height;
   auto& g = display.canvas();
   const int w = display.width();
   const int h = display.height();
@@ -103,7 +126,7 @@ void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip,
   const int n = ip ? parseNet(ip, nets) : 0;
 
   // Column height, gaps shrunk if needed.
-  const int heights = kTitleH + kTimeH + kDateH + n * kNetH;
+  const int heights = kTitleH + timeH + kDateH + n * kNetH;
   int gaps[3 + kMaxEntries] = {kGapTitle, kGapTime, n ? kGapDate : 0, kGapNet, 0};
   int gapSum = gaps[0] + gaps[1] + gaps[2] + (n > 1 ? gaps[3] : 0);
   const int room = h - 2 * kMargin - heights;
@@ -124,10 +147,11 @@ void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip,
 
   char buf[32];
   snprintf(buf, sizeof(buf), "%02d:%02d", t.hour, t.minute);
-  g.setTextSize(kTimeScale);
+  g.setFont(cf.font);
+  g.setTextSize(cf.scale);
   g.setTextColor(timeColor);
-  g.drawString(buf, w / 2, y + kTimeH / 2);
-  y += kTimeH + gaps[1];
+  g.drawString(buf, w / 2, y + timeH / 2);
+  y += timeH + gaps[1];
 
   const int wd = (t.weekday >= 0 && t.weekday < 7) ? t.weekday : 0;
   const int mo = (t.month >= 1 && t.month <= 12) ? t.month - 1 : 0;

@@ -39,6 +39,7 @@ sys.path.insert(0, HERE)
 from buttons import Buttons, Volume  # noqa: E402
 from mdsserial import Port  # noqa: E402
 from pictures import asset_frame, decode_picture, find_art, find_picture  # noqa: E402
+import display_settings  # noqa: E402
 import menu_browse  # noqa: E402
 import wifi  # noqa: E402
 
@@ -70,6 +71,10 @@ TOUCH_BOARDS = {"HWWSTLCD2"}  # boards that send MDSBTN
 # does not know as a core name, so it never gets MDSWIFI lines.
 WIFI_SINCE = (0, 3, 0)
 VOLUME_SINCE = (0, 4, 0)  # the volume row on the touch buttons (MDSVOL)
+SETTINGS_SINCE = (0, 4, 1)  # MDSCFG,brightness and MDSCFG,clockfont, for display_settings.py
+# How often the display's settings are asked for, so a change on the touch screen reaches
+# /tmp/misterlily_cfg; also how long a command from /tmp/misterlily_cmd may wait.
+SETTINGS_CHECK_SECONDS = 2.0
 # Volume changed some other way (keyboard, OSD menu) shows on the display after at most this long.
 VOLUME_CHECK_SECONDS = 2.0
 HWINF_RE = re.compile(rb"(HW[0-9A-Z]{7});MDS-([0-9A-Za-z.+-]{1,32});")
@@ -258,6 +263,8 @@ class Display:
         self.volume_row = False  # the board has the volume row
         self.sent_volume = None
         self.next_volume_check = 0.0
+        self.settings_file = False  # the board takes MDSCFG,brightness/clockfont
+        self.next_settings_check = 0.0
         self.wifi_screen = False  # the board has the Wi-Fi screen
         self.wifi_dongle = None  # last state sent to it
         self.wifi_busy = False
@@ -318,6 +325,8 @@ class Display:
             self.port = None
             log("display lost ({})".format(why))
         write_fw_version(None)
+        display_settings.write_state(None)
+        self.settings_file = False
 
     def still_there(self):
         return self.port is not None and os.path.exists(self.path)
@@ -372,6 +381,12 @@ class Display:
                 if dongle != self.wifi_dongle:
                     self.wifi_dongle = dongle
                     self.port.write("MDSWIFI,dongle,{}\n".format(int(dongle)))
+        if self.settings_file and now >= self.next_settings_check:
+            self.next_settings_check = now + SETTINGS_CHECK_SECONDS
+            for setting, value in display_settings.take_commands():
+                self.port.write("MDSCFG,{},{}\n".format(setting, value))
+                log("display {} set to {}".format(setting, value))
+            self.port.write("MDSCFG\n")  # the reply goes to /tmp/misterlily_cfg (drain)
         if self.volume_row and now >= self.next_volume_check:
             self.next_volume_check = now + VOLUME_CHECK_SECONDS
             self.send_volume(self.volume.read())
@@ -402,6 +417,11 @@ class Display:
                         log("display restarted (uptime {} ms)".format(int(up)))
                         self.restarted = True
                     self.uptime = int(up)
+            elif line.startswith(b"MDSCFG;"):
+                if self.settings_file:
+                    cfg = display_settings.parse_cfg(line)
+                    if cfg:
+                        display_settings.write_state(cfg)
             elif line.startswith(b"MDSIMG;err"):
                 log("display: " + line.decode(errors="replace"))
             elif line.startswith(b"MDSWIFI,") and self.wifi_screen:
@@ -414,6 +434,8 @@ class Display:
                 debug("display {} firmware {}".format(board, version))
                 self.wifi_screen = board in TOUCH_BOARDS and version_tuple(version) >= WIFI_SINCE
                 self.volume_row = board in TOUCH_BOARDS and version_tuple(version) >= VOLUME_SINCE
+                self.settings_file = version_tuple(version) >= SETTINGS_SINCE
+                self.next_settings_check = 0.0
                 self.sent_volume = None
                 self.next_volume_check = 0.0
                 self.wifi_dongle = None

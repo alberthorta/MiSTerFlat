@@ -455,7 +455,7 @@ void App::showMenu(bool dimmed) {
   screen_ = dimmed ? Screen::IdleClock : Screen::Menu;
   shownMinute_ = clock_.minuteStamp(millis());
   if (wifi_.active()) return;  // the Wi-Fi screen is on top; redrawCurrent() brings the clock back
-  MenuScreen::draw(display_, clock_.local(millis()), ip_, dimmed);
+  MenuScreen::draw(display_, clock_.local(millis()), ip_, dimmed, settings_.clockFont());
 }
 
 void App::setTime(std::string_view args) {
@@ -563,10 +563,7 @@ void App::pollTouch() {
   }
   if (t.pressed && strcmp(t.pressed, "bright") == 0) {
     // This display's own setting: kept here, the host is not told.
-    settings_.setContrast(contrastForLevel(t.level));
-    settings_.setScreenBrightness(true);
-    display_.setBrightness(Settings::backlightFor(settings_.contrast()));
-    LOGF("brightness %d (contrast %u)", t.level, settings_.contrast());
+    setBrightnessLevel(t.level);
     return;
   }
   if (t.pressed) {
@@ -621,6 +618,8 @@ void App::handleConfig(std::string_view args) {
   // MDSCFG,idle,<minutes> -> idle sleep after <minutes> without a core change (0 = never)
   // MDSCFG,fade,<0|1>     -> backlight dip on core changes
   // MDSCFG,idleclock,<0|1> -> when idle, a dim clock instead of backlight off
+  // MDSCFG,clockfont,<n>  -> font of the time on the clock screen (MenuScreen::kClockFonts)
+  // MDSCFG,brightness,<0-7> -> backlight in the steps of the touch row; CMDCON is ignored after it
   // MDSCFG,logo,0         -> delete the stored start-up picture
   // MDSCFG,reset          -> defaults
   std::string_view f[2];
@@ -633,6 +632,12 @@ void App::handleConfig(std::string_view args) {
     settings_.setFade(v == 1);
   } else if (n == 2 && f[0] == "idleclock" && proto::parseInt(f[1], v) && (v == 0 || v == 1)) {
     settings_.setIdleClock(v == 1);
+  } else if (n == 2 && f[0] == "brightness" && proto::parseInt(f[1], v) && v >= 0 && v <= TouchButtons::kLevelMax) {
+    setBrightnessLevel(v);
+  } else if (n == 2 && f[0] == "clockfont" && proto::parseInt(f[1], v) && v >= 0 &&
+             v < MenuScreen::kClockFontCount) {
+    settings_.setClockFont(static_cast<uint8_t>(v));
+    if (screen_ == Screen::Menu || screen_ == Screen::IdleClock) showMenu(screen_ == Screen::IdleClock);
   } else if (n == 2 && f[0] == "logo" && f[1] == "0") {
     logo_.clear();
     if (screen_ == Screen::Splash || screen_ == Screen::Waiting) {
@@ -652,22 +657,33 @@ void App::handleConfig(std::string_view args) {
 }
 
 void App::sendConfig() {
-  char line[96];
+  char line[128];
   const int n = snprintf(line, sizeof(line),
-                         "MDSCFG;contrast=%u;rotate=%d;idle=%u;fade=%d;idleclock=%d;screenbrightness=%d\n",
+                         "MDSCFG;contrast=%u;rotate=%d;idle=%u;fade=%d;idleclock=%d;screenbrightness=%d;clockfont=%u;"
+                         "brightness=%d\n",
                          settings_.contrast(), settings_.rotated() ? 1 : 0, settings_.idleMinutes(),
-                         settings_.fade() ? 1 : 0, settings_.idleClock() ? 1 : 0, settings_.screenBrightness() ? 1 : 0);
+                         settings_.fade() ? 1 : 0, settings_.idleClock() ? 1 : 0, settings_.screenBrightness() ? 1 : 0,
+                         settings_.clockFont(), levelForContrast(settings_.contrast()));
   if (n > 0) transport_.write(line, n);
 }
 
 void App::setContrast(std::string_view args) {
   int32_t contrast = 0;
   if (!proto::parseInt(args, contrast)) return;
-  if (MDS_HAS_TOUCH && settings_.screenBrightness()) return;
+  if (settings_.screenBrightness()) return;
   contrast = contrast < 0 ? 0 : (contrast > 255 ? 255 : contrast);
   settings_.setContrast(static_cast<uint8_t>(contrast));
   display_.setBrightness(Settings::backlightFor(settings_.contrast()));
   touchButtons_.setBrightness(levelForContrast(settings_.contrast()));
+}
+
+// From the touch row or MDSCFG,brightness: stored, and from then on CMDCON is ignored.
+void App::setBrightnessLevel(int level) {
+  settings_.setContrast(contrastForLevel(level));
+  settings_.setScreenBrightness(true);
+  display_.setBrightness(Settings::backlightFor(settings_.contrast()));
+  touchButtons_.setBrightness(level);
+  LOGF("brightness %d (contrast %u)", level, settings_.contrast());
 }
 
 // The brightness row has kLevelMax + 1 steps over the whole CMDCON range.

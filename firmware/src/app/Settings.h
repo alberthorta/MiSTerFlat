@@ -20,6 +20,7 @@ class Settings {
   // The brightness was picked on the touch screen: from then on CMDCON from the host is ignored,
   // since the daemon sends its configured contrast every time it connects.
   bool screenBrightness() const { return screenBrightness_; }
+  uint8_t clockFont() const { return clockFont_; }  // MenuScreen::kClockFonts index
 
   void setContrast(uint8_t v);
   void setRotated(bool v);
@@ -27,6 +28,7 @@ class Settings {
   void setFade(bool v);
   void setIdleClock(bool v);
   void setScreenBrightness(bool v);
+  void setClockFont(uint8_t v);
   void resetToDefaults();
 
   // CMDCON is OLED contrast (tty2oled default 100). On a backlit TFT 0 must not mean "black",
@@ -40,4 +42,5 @@ class Settings {
   bool fade_ = true;
   bool idleClock_ = false;
   bool screenBrightness_ = false;
+  uint8_t clockFont_ = 0;
 };
