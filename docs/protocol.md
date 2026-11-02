@@ -93,11 +93,11 @@ MDSIMG,<bytes>,<crc32>,<png|jpg>,<core>\n
 | Command | Reply |
 |---|---|
 | `MDSPING` | `MDSPONG;up=<uptime ms>\n`. Our daemon sends it every 5 s: a lower uptime means the board restarted (resend everything); once pings were seen, 15 s without one shows "Waiting for MiSTer". Pings do not wake an idle-sleeping screen |
-| `MDSCFG` | `MDSCFG;contrast=<0..255>;rotate=<0\|1>;idle=<minutes>;fade=<0\|1>;idleclock=<0\|1>\n` (settings stored in flash) |
+| `MDSCFG` | `MDSCFG;contrast=<0..255>;rotate=<0\|1>;idle=<minutes>;fade=<0\|1>;idleclock=<0\|1>;screenbrightness=<0\|1>\n` (settings stored in flash). `screenbrightness=1`: the brightness was picked on the touch screen, and `CMDCON` is ignored from then on |
 | `MDSCFG,idle,<minutes>` | Backlight off after `<minutes>` without a core change or display command (0 = never, the default; max 1440); replies like `MDSCFG` |
 | `MDSCFG,fade,<0\|1>` | Short backlight dip on core changes (default 1). `CMDCOR,<core>,0` skips it for one change |
 | `MDSCFG,idleclock,<0\|1>` | When idle: a dim clock instead of a dark screen (default 0; needs the time) |
-| `MDSCFG,reset` | Default settings (brightness 255, no rotation, no idle sleep, fade on, no idle clock) |
+| `MDSCFG,reset` | Default settings (brightness 255, no rotation, no idle sleep, fade on, no idle clock); `CMDCON` works again |
 | `MDSLOGO` | `MDSLOGO;crc=<hex>;bytes=<n>;format=<png\|jpg>\n` or `MDSLOGO;none\n`: the stored start-up picture |
 | `MDSLOGO,<bytes>,<crc32>,<png\|jpg>` + file | Store the start-up picture in flash (same framing as `MDSIMG`, max 256 KB). Reply `MDSLOGO;ok\n` or `MDSLOGO;err=<header\|size\|incomplete\|crc\|format\|storage>\n` |
 | `MDSCFG,logo,0` | Delete the stored start-up picture (back to the text start screen) |
@@ -122,6 +122,20 @@ A tap shows four buttons; a tap on one sends
 ```
 MDSBTN,<reset|osd|user|bt>\n
 ```
+
+From firmware 0.4.0, two level rows sit under the buttons, each with -, a bar of 8 steps and +.
+
+- Volume (only once the host has sent `MDSVOL`): `MDSBTN,voldown`, `MDSBTN,volup`, or
+  `MDSBTN,vol,<0-7>` for a tap on the bar. The native daemon passes them to Main as
+  `volume <n>` / `volume unmute` on `/dev/MiSTer_cmd`. Out of mute, - and + only unmute (like
+  Main's volume keys).
+- Brightness of the display itself: handled on the board, nothing is sent. It is stored in flash
+  as the contrast (step n = n * 255 / 7), and from then on `CMDCON` is ignored.
+
+`MDSVOL,<0-7>,<muted 0|1>` (host → display) gives the MiSTer's global volume, in the steps of
+Main's `volume <n>` command (7 = loudest). The daemon sends it after `CMDHWINF` shows a touch board
+with firmware 0.4.0 or later, after each volume tap, and when `Volume.dat` changes (checked every
+2 s).
 
 `reset` needs two taps on the display (the first one arms it for 3 s). The native daemon acts like
 the MiSTer's own buttons (`mister/buttons.py`); the stock tty2oled daemon ignores the line.

@@ -81,4 +81,61 @@ except ValueError:
 event = len(b.struct.pack("llHHi", 0, 0, b.EV_KEY, b.KEY_F12, 1))
 check("input_event size matches this platform's struct", event == (16 if b.struct.calcsize("l") == 4 else 24))
 check("uinput_user_dev is 1116 bytes", b.struct.calcsize("=80sHHHHi256i") == 1116)
+
+
+def volume_file(byte):
+    f = tempfile.NamedTemporaryFile("wb", suffix=".dat", delete=False)
+    f.write(bytes([byte]))
+    f.close()
+    return f.name
+
+
+class Clock:
+    def __init__(self):
+        self.now = 100.0
+
+    def __call__(self):
+        return self.now
+
+
+def fifo():
+    path = os.path.join(tempfile.mkdtemp(), "MiSTer_cmd")
+    os.mkfifo(path)
+    reader = os.open(path, os.O_RDONLY | os.O_NONBLOCK)  # Main's end, so writes do not fail
+    return path, reader
+
+
+cmd, reader = fifo()
+clock = Clock()
+vol = b.Volume(path=volume_file(3), cmd=cmd, clock=clock)
+check("Volume.dat 3 -> level 4", vol.read() == (4, False), repr(vol.read()))
+check("no Volume.dat -> full volume", b.Volume(path="/nonexistent", cmd=cmd).read() == (7, False))
+check("mute bit", b.Volume(path=volume_file(0x12), cmd=cmd).read() == (5, True))
+check("up one step", vol.step(True) == (5, False))
+check("sends volume 5", os.read(reader, 100) == b"volume 5\n")
+check("our change wins while Main has not saved it yet", vol.step(True) == (6, False))
+os.read(reader, 100)
+clock.now += b.VOLUME_TRUST_SECONDS + 1
+check("then the file again", vol.read() == (4, False))
+top = b.Volume(path=volume_file(0), cmd=cmd, clock=clock)
+check("up at the top stays at 7", top.step(True) == (7, False))
+os.read(reader, 100)
+bottom = b.Volume(path=volume_file(7), cmd=cmd, clock=clock)
+check("down at the bottom stays at 0", bottom.step(False) == (0, False))
+os.read(reader, 100)
+muted = b.Volume(path=volume_file(0x13), cmd=cmd, clock=clock)
+check("out of mute the first step only unmutes", muted.step(False) == (4, False))
+check("sends volume unmute", os.read(reader, 100) == b"volume unmute\n")
+muted = b.Volume(path=volume_file(0x13), cmd=cmd, clock=clock)
+b.COMMAND_GAP_SECONDS = 0
+check("bar tap out of mute", muted.set(2) == (2, False))
+check("sends unmute, then the level", os.read(reader, 100) == b"volume unmute\nvolume 2\n")
+check("bar tap clamps", b.Volume(path=volume_file(3), cmd=cmd).set(9) == (7, False))
+check("sends volume 7", os.read(reader, 100) == b"volume 7\n")
+os.close(reader)
+try:
+    b.Volume(path=volume_file(3), cmd=cmd).step(True)
+    check("no reader on MiSTer_cmd raises OSError", False)
+except OSError:
+    check("no reader on MiSTer_cmd raises OSError", True)
 sys.exit(1 if failures else 0)

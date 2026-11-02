@@ -1,6 +1,7 @@
 #include "ui/TouchButtons.h"
 
 #include <Arduino.h>
+#include <math.h>
 
 #include "ui/Theme.h"
 
@@ -23,6 +24,20 @@ constexpr int kRing = 3;
 constexpr int kSpacing = 74;  // centre to centre
 constexpr int kCaptionGap = 16;
 
+// Level rows (volume, brightness) under the main row: icon, small -, bar, small +. The icon sits
+// under RESET and + under BLUETOOTH. All rows together are centred on the screen.
+constexpr int kMainToLevel = 76;  // centre of the main row to centre of the first level row
+constexpr int kLevelGap = 52;     // centre to centre of two level rows
+constexpr int kSmallRadius = 18;
+constexpr int kIconToDown = 44;
+constexpr int kSegments = TouchButtons::kLevelMax + 1;
+constexpr int kSegmentGap = 4;
+constexpr int kSegmentHeight = 14;
+constexpr int kBarMargin = 10;  // between the bar and the - and + buttons
+constexpr uint16_t kVolColour = theme::rgb565(190, 120, 255);
+constexpr uint16_t kBrightColour = theme::rgb565(240, 190, 40);
+constexpr uint16_t kSegmentOff = theme::rgb565(60, 60, 66);
+
 struct Style {
   const char* name;
   uint16_t colour;
@@ -44,7 +59,6 @@ const Style& styleFor(int i, bool wifiSlot) { return i == kUserSlot && wifiSlot 
 constexpr uint16_t kFace = theme::rgb565(28, 28, 32);
 
 int centreX(int w, int i) { return w / 2 + (2 * i - 3) * kSpacing / 2; }
-int centreY(int h) { return h / 2; }
 
 // Icons, drawn with primitives, about 30 px across. fillArc angles: 0 = 3 o'clock, clockwise.
 void drawPower(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
@@ -79,6 +93,32 @@ void drawWifi(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
   g.fillArc(cx, cy + 10, 18, 15, 225, 315, c);
 }
 
+void drawMinus(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) { g.fillRoundRect(cx - 8, cy - 2, 16, 4, 2, c); }
+
+void drawPlus(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
+  drawMinus(g, cx, cy, c);
+  g.fillRoundRect(cx - 2, cy - 8, 4, 16, 2, c);
+}
+
+void drawSpeaker(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
+  g.fillRect(cx - 11, cy - 4, 6, 8, c);
+  g.fillTriangle(cx - 6, cy - 4, cx + 1, cy - 11, cx + 1, cy + 11, c);
+  g.fillTriangle(cx - 6, cy - 4, cx - 6, cy + 4, cx + 1, cy + 11, c);
+  for (int r : {9, 15}) {
+    g.fillArc(cx + 1, cy, r, r - 2, 315, 360, c);
+    g.fillArc(cx + 1, cy, r, r - 2, 0, 45, c);
+  }
+}
+
+void drawSun(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
+  g.fillCircle(cx, cy, 5, c);
+  for (int k = 0; k < 8; ++k) {
+    const float a = k * static_cast<float>(M_PI) / 4;
+    const float dx = cosf(a), dy = sinf(a);
+    g.drawWideLine(cx + dx * 8.5f, cy + dy * 8.5f, cx + dx * 12.5f, cy + dy * 12.5f, 1.2f, c);
+  }
+}
+
 void drawIcon(lgfx::LovyanGFX& g, int i, int cx, int cy, uint16_t c) {
   switch (i) {
     case 0: drawPower(g, cx, cy, c); break;
@@ -105,6 +145,11 @@ TouchButtons::Result TouchButtons::poll(uint32_t nowMs) {
     return r;
   }
   if (shown_ && closeAtMs_ && static_cast<int32_t>(nowMs - closeAtMs_) >= 0) hide();
+  if (shown_ && unlightAtMs_ && static_cast<int32_t>(nowMs - unlightAtMs_) >= 0) {
+    unlightAtMs_ = 0;
+    chosen_ = kNone;
+    draw();
+  }
   if (shown_ && resetArmed_ && nowMs - armedAtMs_ >= kConfirmMs) {
     resetArmed_ = false;
     draw();
@@ -148,6 +193,34 @@ TouchButtons::Result TouchButtons::release(uint32_t nowMs) {
     hide();
     return r;
   }
+  if (b >= kCount) {
+    // Shown at once; the host confirms the volume with MDSVOL.
+    const int step = b == kVolUp || b == kBrightUp ? 1 : -1;
+    if (b == kVolDown || b == kVolUp) {
+      // Like Main's volume keys: the first step out of mute only unmutes.
+      if (muted_) {
+        muted_ = false;
+      } else {
+        volume_ = constrain(volume_ + step, 0, kLevelMax);
+      }
+      r.pressed = step > 0 ? "volup" : "voldown";
+    } else if (b == kVolBar) {
+      volume_ = r.level = levelAt(lastX_);
+      muted_ = false;
+      r.pressed = "vol";
+    } else {
+      brightness_ = b == kBrightBar ? levelAt(lastX_) : constrain(brightness_ + step, 0, kLevelMax);
+      r.level = brightness_;
+      r.pressed = "bright";
+    }
+    if (b != kVolBar && b != kBrightBar) {
+      chosen_ = b;
+      unlightAtMs_ = nowMs + kChosenMs;
+      if (unlightAtMs_ == 0) unlightAtMs_ = 1;
+    }
+    draw();
+    return r;
+  }
   if (b == kReset && !resetArmed_) {
     resetArmed_ = true;
     armedAtMs_ = nowMs;
@@ -165,7 +238,8 @@ TouchButtons::Result TouchButtons::release(uint32_t nowMs) {
 void TouchButtons::preview(int held, bool resetArmed, uint32_t nowMs) {
   if (!shown_) show(nowMs);
   fade_ = Fade::None;  // screenshots want the final frame at once
-  held_ = held >= 0 && held < kCount ? static_cast<Button>(held) : kNone;
+  const bool volumeButton = held == kVolDown || held == kVolUp || held == kVolBar;
+  held_ = held >= 0 && held < kAll && (!volumeButton || volumeRow()) ? static_cast<Button>(held) : kNone;
   resetArmed_ = resetArmed;
   armedAtMs_ = shownAtMs_ = nowMs;
   draw();
@@ -177,7 +251,7 @@ void TouchButtons::show(uint32_t nowMs) {
   shown_ = true;
   resetArmed_ = false;
   held_ = chosen_ = kNone;
-  closeAtMs_ = 0;
+  closeAtMs_ = unlightAtMs_ = 0;
   shownAtMs_ = nowMs;
   compose();
   if (!display_.saveFrame(DisplayManager::kOver)) {
@@ -227,6 +301,7 @@ void TouchButtons::hide() {
 void TouchButtons::finishHide() {
   shown_ = false;
   resetArmed_ = false;
+  unlightAtMs_ = 0;
   held_ = chosen_ = kNone;
   display_.restoreFrame(DisplayManager::kUnder);
   display_.present();
@@ -244,7 +319,7 @@ void TouchButtons::compose() {
   display_.dimFrame();
   auto& g = display_.canvas();
   const int w = display_.width();
-  const int cy = centreY(display_.height());
+  const int cy = rowY();
 
   g.setTextDatum(lgfx::middle_center);
   g.setTextSize(1);
@@ -268,17 +343,112 @@ void TouchButtons::compose() {
       g.drawString("Tap again", cx, cy + kRadius + kCaptionGap);
     }
   }
+  if (volumeRow()) composeLevel(true, volumeY(), volume_, muted_);
+  composeLevel(false, brightnessY(), brightness_, false);
 }
+
+TouchButtons::LevelLayout TouchButtons::levelLayout() const {
+  const int w = display_.width();
+  LevelLayout l;
+  l.iconX = centreX(w, 0);
+  l.downX = l.iconX + kIconToDown;
+  l.upX = centreX(w, kCount - 1);
+  const int edge = kSmallRadius + kHeldGrow + kBarMargin;
+  const int space = l.upX - l.downX - 2 * edge;
+  l.seg = (space - (kSegments - 1) * kSegmentGap) / kSegments;
+  l.barW = kSegments * l.seg + (kSegments - 1) * kSegmentGap;
+  l.barX = (l.downX + l.upX - l.barW) / 2;
+  return l;
+}
+
+int TouchButtons::levelAt(int x) const {
+  const LevelLayout l = levelLayout();
+  return constrain((x - l.barX + kSegmentGap / 2) / (l.seg + kSegmentGap), 0, kLevelMax);
+}
+
+void TouchButtons::composeLevel(bool volume, int cy, int level, bool greyed) {
+  auto& g = display_.canvas();
+  const LevelLayout l = levelLayout();
+  const uint16_t colour = volume ? kVolColour : kBrightColour;
+  const Button down = volume ? kVolDown : kBrightDown;
+  const Button up = volume ? kVolUp : kBrightUp;
+
+  const uint16_t iconColour = greyed ? theme::kTextDim : colour;
+  if (volume) {
+    drawSpeaker(g, l.iconX, cy, iconColour);
+  } else {
+    drawSun(g, l.iconX, cy, iconColour);
+  }
+  for (const Button b : {down, up}) {
+    const int cx = b == down ? l.downX : l.upX;
+    const bool lit = b == held_ || b == chosen_;
+    const int r = kSmallRadius + (lit ? kHeldGrow : 0);
+    g.fillCircle(cx, cy, r, colour);
+    if (!lit) g.fillCircle(cx, cy, r - kRing, kFace);
+    const uint16_t icon = lit ? theme::kText : colour;
+    if (b == down) {
+      drawMinus(g, cx, cy, icon);
+    } else {
+      drawPlus(g, cx, cy, icon);
+    }
+  }
+  // Main's own volume bar has 8 steps as well: level n lights n + 1 of them.
+  const uint16_t on = greyed ? theme::kTextDim : colour;
+  for (int i = 0; i < kSegments; ++i) {
+    g.fillRoundRect(l.barX + i * (l.seg + kSegmentGap), cy - kSegmentHeight / 2, l.seg, kSegmentHeight, 3,
+                    i <= level ? on : kSegmentOff);
+  }
+  if (greyed) {
+    g.setTextColor(theme::kTextDim);
+    g.drawString("Muted", l.barX + l.barW / 2, cy + kSegmentHeight / 2 + kCaptionGap - 4);
+  }
+}
+
+void TouchButtons::setVolume(int level, bool muted) {
+  level = constrain(level, 0, kLevelMax);
+  if (level == volume_ && muted == muted_) return;
+  volume_ = level;
+  muted_ = muted;
+  if (shown_ && fade_ == Fade::None && !closeAtMs_) draw();
+}
+
+void TouchButtons::setBrightness(int level) {
+  level = constrain(level, 0, kLevelMax);
+  if (level == brightness_) return;
+  brightness_ = level;
+  if (shown_ && fade_ == Fade::None && !closeAtMs_) draw();
+}
+
+int TouchButtons::rowY() const {
+  const int levelRows = volumeRow() ? 2 : 1;
+  const int total = kRadius + kMainToLevel + (levelRows - 1) * kLevelGap + kSmallRadius;
+  return (display_.height() - total) / 2 + kRadius;
+}
+
+int TouchButtons::volumeY() const { return rowY() + kMainToLevel; }
+
+int TouchButtons::brightnessY() const { return rowY() + kMainToLevel + (volumeRow() ? kLevelGap : 0); }
 
 TouchButtons::Button TouchButtons::hit(int x, int y) const {
   const int w = display_.width();
-  const int cy = centreY(display_.height());
+  const int cy = rowY();
   // A little larger than the circle: half the spacing across, a margin above and below.
   for (int i = 0; i < kCount; ++i) {
     const int dx = x - centreX(w, i);
     if (dx * dx < (kSpacing / 2) * (kSpacing / 2) && y > cy - kRadius - 12 && y < cy + kRadius + 12) {
       return static_cast<Button>(i);
     }
+  }
+  // Level rows: the whole band of the row counts. Left of the bar (the icon too) is -, right is +.
+  const LevelLayout l = levelLayout();
+  for (const bool volume : {true, false}) {
+    if (volume && !volumeRow()) continue;
+    const int ry = volume ? volumeY() : brightnessY();
+    if (y <= ry - kLevelGap / 2 || y >= ry + kLevelGap / 2) continue;
+    if (x < l.iconX - kSpacing / 2 || x > l.upX + kSpacing / 2) return kNone;
+    if (x < l.barX - kBarMargin / 2) return volume ? kVolDown : kBrightDown;
+    if (x > l.barX + l.barW + kBarMargin / 2) return volume ? kVolUp : kBrightUp;
+    return volume ? kVolBar : kBrightBar;
   }
   return kNone;
 }

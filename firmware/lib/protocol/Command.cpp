@@ -56,6 +56,7 @@ constexpr Keyword kPrefix[] = {
     {"MDSCFG,", CommandId::MdsCfg},
     {"MDSNET,", CommandId::MdsNet},
     {"MDSWIFI,", CommandId::MdsWifi},
+    {"MDSVOL,", CommandId::MdsVol},
 };
 
 std::string_view afterKeyword(std::string_view line, size_t keywordLength) {

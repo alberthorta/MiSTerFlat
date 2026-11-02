@@ -41,6 +41,7 @@ void App::begin() {
   LOGF("asset buffer %s", assetBuffer_ ? "ok" : "missing");
   presence_.setIdleTimeout(settings_.idleMinutes() * kMsPerMinute);
   presence_.start(millis());
+  touchButtons_.setBrightness(levelForContrast(settings_.contrast()));
 
   // The sketch prints "ttyrdy;" here, but no tty2oled script reads it. Over USB it stays
   // queued until the next reply and then corrupts that reply (installer.sh reads one line for
@@ -365,6 +366,14 @@ void App::handle(const proto::Command& cmd, std::string_view line) {
         wifi_.onHost(cmd.args, millis());
       }
       break;
+    case CommandId::MdsVol: {
+      std::string_view f[2];
+      int32_t level = 0, muted = 0;
+      if (proto::splitFields(cmd.args, f, 2) == 2 && proto::parseInt(f[0], level) && proto::parseInt(f[1], muted)) {
+        touchButtons_.setVolume(level, muted != 0);
+      }
+      break;
+    }
     case CommandId::MdsNet: {
       const size_t n = cmd.args.size() < sizeof(ip_) - 1 ? cmd.args.size() : sizeof(ip_) - 1;
       memcpy(ip_, cmd.args.data(), n);
@@ -552,9 +561,21 @@ void App::pollTouch() {
     wifi_.open(millis());
     return;
   }
+  if (t.pressed && strcmp(t.pressed, "bright") == 0) {
+    // This display's own setting: kept here, the host is not told.
+    settings_.setContrast(contrastForLevel(t.level));
+    settings_.setScreenBrightness(true);
+    display_.setBrightness(Settings::backlightFor(settings_.contrast()));
+    LOGF("brightness %d (contrast %u)", t.level, settings_.contrast());
+    return;
+  }
   if (t.pressed) {
     char line[24];
-    snprintf(line, sizeof(line), "MDSBTN,%s\n", t.pressed);
+    if (strcmp(t.pressed, "vol") == 0) {
+      snprintf(line, sizeof(line), "MDSBTN,vol,%d\n", t.level);
+    } else {
+      snprintf(line, sizeof(line), "MDSBTN,%s\n", t.pressed);
+    }
     transport_.write(line);
     LOGF("button %s", t.pressed);
     if (strcmp(t.pressed, "reset") == 0) {
@@ -621,6 +642,7 @@ void App::handleConfig(std::string_view args) {
     settings_.resetToDefaults();
     presence_.setIdleTimeout(0);
     display_.setBrightness(Settings::backlightFor(settings_.contrast()));
+    touchButtons_.setBrightness(levelForContrast(settings_.contrast()));
     display_.setRotation(cfg::kRotationNormal);
   } else if (n != 0) {
     transport_.write("MDSCFG;err=args\n");
@@ -630,19 +652,31 @@ void App::handleConfig(std::string_view args) {
 }
 
 void App::sendConfig() {
-  char line[80];
-  const int n = snprintf(line, sizeof(line), "MDSCFG;contrast=%u;rotate=%d;idle=%u;fade=%d;idleclock=%d\n",
+  char line[96];
+  const int n = snprintf(line, sizeof(line),
+                         "MDSCFG;contrast=%u;rotate=%d;idle=%u;fade=%d;idleclock=%d;screenbrightness=%d\n",
                          settings_.contrast(), settings_.rotated() ? 1 : 0, settings_.idleMinutes(),
-                         settings_.fade() ? 1 : 0, settings_.idleClock() ? 1 : 0);
+                         settings_.fade() ? 1 : 0, settings_.idleClock() ? 1 : 0, settings_.screenBrightness() ? 1 : 0);
   if (n > 0) transport_.write(line, n);
 }
 
 void App::setContrast(std::string_view args) {
   int32_t contrast = 0;
   if (!proto::parseInt(args, contrast)) return;
+  if (MDS_HAS_TOUCH && settings_.screenBrightness()) return;
   contrast = contrast < 0 ? 0 : (contrast > 255 ? 255 : contrast);
   settings_.setContrast(static_cast<uint8_t>(contrast));
   display_.setBrightness(Settings::backlightFor(settings_.contrast()));
+  touchButtons_.setBrightness(levelForContrast(settings_.contrast()));
+}
+
+// The brightness row has kLevelMax + 1 steps over the whole CMDCON range.
+uint8_t App::contrastForLevel(int level) {
+  return static_cast<uint8_t>(level * 255 / TouchButtons::kLevelMax);
+}
+
+int App::levelForContrast(uint8_t contrast) {
+  return (contrast * TouchButtons::kLevelMax + 127) / 255;
 }
 
 void App::setRotation(std::string_view args) {

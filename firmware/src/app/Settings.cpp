@@ -12,6 +12,7 @@ constexpr const char* kRotatedKey = "rot";
 constexpr const char* kIdleKey = "idle";
 constexpr const char* kFadeKey = "fade";
 constexpr const char* kIdleClockKey = "iclk";
+constexpr const char* kScreenBrightnessKey = "sbl";
 constexpr uint8_t kMinBacklight = 40;
 
 void put(const char* key, uint32_t value) {
@@ -31,7 +32,9 @@ void Settings::load() {
   const uint32_t idle = p.getUInt(kIdleKey, 0);
   const uint32_t fade = p.getUInt(kFadeKey, 1);
   const uint32_t idleClock = p.getUInt(kIdleClockKey, 0);
+  const uint32_t screenBrightness = p.getUInt(kScreenBrightnessKey, 0);
   p.end();
+  screenBrightness_ = screenBrightness == 1;
   fade_ = fade != 0;
   idleClock_ = idleClock == 1;
   // Stored values are trusted only within range.
@@ -72,12 +75,19 @@ void Settings::setIdleClock(bool v) {
   put(kIdleClockKey, v ? 1 : 0);
 }
 
+void Settings::setScreenBrightness(bool v) {
+  if (v == screenBrightness_) return;
+  screenBrightness_ = v;
+  put(kScreenBrightnessKey, v ? 1 : 0);
+}
+
 void Settings::resetToDefaults() {
   setContrast(kDefaultContrast);
   setRotated(false);
   setIdleMinutes(0);
   setFade(true);
   setIdleClock(false);
+  setScreenBrightness(false);
 }
 
 uint8_t Settings::backlightFor(uint8_t contrast) {

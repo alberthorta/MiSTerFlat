@@ -14,6 +14,7 @@ The display reports a tap as MDSBTN,<reset|osd|user|bt>; the daemon calls press(
   fast as the button. If the MiSTer is still up a few seconds later (Main not running), plain reboot.
 - BT: the Bluetooth pairing menu, which the OSD button opens when held for 3 s. From a keyboard
   Main opens it with F11 while the OSD is open (menu.cpp), so the OSD is opened first if needed.
+- VOLUP/VOLDOWN/VOL,<n>: the global volume (Volume below), through Main's "volume <n>" command.
 
 Standard library only: the legacy uinput API (write uinput_user_dev, then UI_DEV_CREATE).
 """
@@ -157,3 +158,73 @@ class Buttons:
             subprocess.Popen(self.reboot)
         else:
             raise ValueError("unknown button {!r}".format(name))
+
+
+VOLUME_FILE = "/media/fat/config/Volume.dat"
+MISTER_CMD = "/dev/MiSTer_cmd"
+VOLUME_MAX = 7
+# Main saves Volume.dat about 1 s after the last change (audio.cpp save_volume): until then the
+# file still has the old value, so our own last change wins for a while.
+VOLUME_TRUST_SECONDS = 3.0
+COMMAND_GAP_SECONDS = 0.15
+
+
+class Volume:
+    """The MiSTer's global volume, as Main's "volume <n>" command counts it: 0 (quietest) to 7.
+
+    Volume.dat holds Main's attenuation byte: 0 is the loudest, bit 4 is mute. Main also accepts
+    "volume mute" and "volume unmute". Keyboard volume keys would work too, but are relative and
+    need the core to have API 1.5; the command sets an exact level in any core and Main still
+    shows its volume bar on the TV.
+    """
+
+    def __init__(self, path=VOLUME_FILE, cmd=MISTER_CMD, clock=time.monotonic):
+        self.path = path
+        self.cmd = cmd
+        self.clock = clock
+        self.last = None
+        self.changed_at = None
+
+    def read(self):
+        """(level, muted)."""
+        if self.last and self.clock() - self.changed_at < VOLUME_TRUST_SECONDS:
+            return self.last
+        try:
+            with open(self.path, "rb") as f:
+                raw = f.read(1)
+        except OSError:
+            raw = b""
+        att = raw[0] if raw else 0  # Main starts at full volume without the file
+        return VOLUME_MAX - (att & 7), bool(att & 0x10)
+
+    def step(self, up):
+        """One step up or down, like Main's volume keys: out of mute, the first step only unmutes.
+        Returns the new (level, muted). Raises OSError when Main is not reading its commands."""
+        level, muted = self.read()
+        if muted:
+            self._send("volume unmute")
+        else:
+            level = max(0, min(VOLUME_MAX, level + (1 if up else -1)))
+            self._send("volume {}".format(level))
+        self.last = (level, False)
+        self.changed_at = self.clock()
+        return self.last
+
+    def set(self, level):
+        """Straight to a level (0-7), out of mute too. Returns the new (level, muted)."""
+        level = max(0, min(VOLUME_MAX, level))
+        if self.read()[1]:
+            self._send("volume unmute")
+            # Main reads one command per read() of the FIFO: two quick writes would arrive as one.
+            time.sleep(COMMAND_GAP_SECONDS)
+        self._send("volume {}".format(level))
+        self.last = (level, False)
+        self.changed_at = self.clock()
+        return self.last
+
+    def _send(self, command):
+        fd = os.open(self.cmd, os.O_WRONLY | os.O_NONBLOCK)
+        try:
+            os.write(fd, (command + "\n").encode())
+        finally:
+            os.close(fd)

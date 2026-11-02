@@ -58,6 +58,8 @@ class App : public proto::ParserListener {
   void setTime(std::string_view args);
   void showSplash();
   void setContrast(std::string_view args);
+  static uint8_t contrastForLevel(int level);
+  static int levelForContrast(uint8_t contrast);
   void setRotation(std::string_view args);
   void clearWithFill(std::string_view args);
   void sendHardwareInfo();

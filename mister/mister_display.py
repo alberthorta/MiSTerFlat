@@ -33,7 +33,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from buttons import Buttons  # noqa: E402
+from buttons import Buttons, Volume  # noqa: E402
 from mdsserial import Port  # noqa: E402
 from pictures import asset_frame, decode_picture, find_art, find_picture  # noqa: E402
 import wifi  # noqa: E402
@@ -63,6 +63,9 @@ TOUCH_BOARDS = {"HWWSTLCD2"}  # boards that send MDSBTN
 # Firmware from this version on has the Wi-Fi screen (MDSWIFI). Older firmware shows any MDS line it
 # does not know as a core name, so it never gets MDSWIFI lines.
 WIFI_SINCE = (0, 3, 0)
+VOLUME_SINCE = (0, 4, 0)  # the volume row on the touch buttons (MDSVOL)
+# Volume changed some other way (keyboard, OSD menu) shows on the display after at most this long.
+VOLUME_CHECK_SECONDS = 2.0
 HWINF_RE = re.compile(rb"(HW[0-9A-Z]{7});MDS-([0-9A-Za-z.+-]{1,32});")
 POLL_SECONDS = 0.1
 RETRY_SECONDS = 2.0
@@ -240,6 +243,10 @@ class Display:
         self.next_ip_check = 0.0
         self.ip = None
         self.buttons = Buttons()
+        self.volume = Volume()
+        self.volume_row = False  # the board has the volume row
+        self.sent_volume = None
+        self.next_volume_check = 0.0
         self.wifi_screen = False  # the board has the Wi-Fi screen
         self.wifi_dongle = None  # last state sent to it
         self.wifi_busy = False
@@ -354,6 +361,14 @@ class Display:
                 if dongle != self.wifi_dongle:
                     self.wifi_dongle = dongle
                     self.port.write("MDSWIFI,dongle,{}\n".format(int(dongle)))
+        if self.volume_row and now >= self.next_volume_check:
+            self.next_volume_check = now + VOLUME_CHECK_SECONDS
+            self.send_volume(self.volume.read())
+
+    def send_volume(self, volume):
+        if volume != self.sent_volume:
+            self.sent_volume = volume
+            self.port.write("MDSVOL,{},{}\n".format(volume[0], int(volume[1])))
 
     def heartbeat(self, now):
         """Pings the display; raises OSError if it stopped answering."""
@@ -387,6 +402,9 @@ class Display:
                 write_fw_version(version, board)
                 debug("display {} firmware {}".format(board, version))
                 self.wifi_screen = board in TOUCH_BOARDS and version_tuple(version) >= WIFI_SINCE
+                self.volume_row = board in TOUCH_BOARDS and version_tuple(version) >= VOLUME_SINCE
+                self.sent_volume = None
+                self.next_volume_check = 0.0
                 self.wifi_dongle = None
                 self.next_ip_check = 0.0  # tell it about the dongle now
                 if board in TOUCH_BOARDS:
@@ -454,6 +472,12 @@ class Display:
         """A touch button on the display (boards with a touch panel)."""
         log("display button {}".format(name))
         try:
+            if name in ("volup", "voldown"):
+                self.send_volume(self.volume.step(name == "volup"))
+                return
+            if name.startswith("vol,"):
+                self.send_volume(self.volume.set(int(name[4:])))
+                return
             self.buttons.press(name)
         except (OSError, ValueError) as e:
             log("button {} failed: {}".format(name, e))

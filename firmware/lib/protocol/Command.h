@@ -51,6 +51,7 @@ enum class CommandId : uint8_t {
   MdsNet,   // MDSNET,<ip> -> the MiSTer's address, shown on the menu screen ("" = none)
   MdsWifi,  // MDSWIFI,dongle|scanning|net|end|status,... -> the Wi-Fi screen (touch boards)
   MdsCfg,   // MDSCFG -> settings; MDSCFG,idle,<minutes>; MDSCFG,reset
+  MdsVol,   // MDSVOL,<level 0-7>,<muted 0|1> -> the MiSTer's global volume (touch volume row)
   MdsHang,  // MDSHANG (test builds only): stop feeding the watchdog
   MdsShot,  // MDSSHOT -> "MDSSHOT,<w>,<h>,<bytes>\n" + "ttyack;" + framebuffer (RGB565 big-endian)
 };
