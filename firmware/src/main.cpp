@@ -4,6 +4,7 @@
 #include "app/App.h"
 #include "app/Settings.h"
 #include "app/StartupLogo.h"
+#include "hal/PowerSwitch.h"
 #include "config.h"
 #include "transport/SerialTransport.h"
 #include "ui/DisplayManager.h"
@@ -18,7 +19,8 @@ DisplayManager display;
 SerialTransport transport;
 Settings settings;
 StartupLogo logo;
-App app(display, transport, settings, logo);
+PowerSwitch power;
+App app(display, transport, settings, logo, power);
 
 }  // namespace
 
@@ -28,6 +30,9 @@ void setup() {
 
   transport.begin();
   settings.load();
+  // First, so a relay held through a reset of this board is taken over without a gap.
+  power.begin(settings.powerOn(), settings.autoOn());
+  settings.setPowerOn(power.on());
   logo.begin();
 
   // Without a panel there is nothing to show, but the serial side keeps working.

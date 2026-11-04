@@ -26,6 +26,10 @@ constexpr int kLcdMiso = 40;  // shared with the microSD slot
 constexpr int kTouchSda = 48;  // I2C shared with the IMU
 constexpr int kTouchScl = 47;
 constexpr int kTouchInt = 46;
+// MiSTer power relay on header P1 (silkscreen "18"): a free camera pin, not a strapping pin.
+// A 5 V relay module with a high-level input switches the MiSTer's 5 V; see docs/power.md.
+constexpr int kMisterPower = 18;
+constexpr int kMisterPowerOnLevel = 1;
 }  // namespace pin
 
 namespace lcd {

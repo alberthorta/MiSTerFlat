@@ -29,6 +29,9 @@ Both are ESP32-S3R8 (16 MB flash, 8 MB PSRAM) with native USB. The screens are u
 320 wide. The layouts were made for the 170-pixel T-Display-S3; on the 240-pixel Waveshare they are
 centred vertically, and colour pictures made for 320×170 get black bars above and below.
 
+Optional, Waveshare board: a 5 V relay module makes the display the MiSTer's power button
+(standby screen, tap to power on, hold RESET to power off). See [docs/power.md](docs/power.md).
+
 Plus a USB-C data cable. In the final build: a free port on the MiSTer's internal USB hub
 (see [docs/wiring.md](docs/wiring.md)).
 

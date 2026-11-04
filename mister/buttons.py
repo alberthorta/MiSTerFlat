@@ -15,6 +15,8 @@ The display reports a tap as MDSBTN,<reset|osd|user|bt>; the daemon calls press(
 - BT: the Bluetooth pairing menu, which the OSD button opens when held for 3 s. From a keyboard
   Main opens it with F11 while the OSD is open (menu.cpp), so the OSD is opened first if needed.
 - VOLUP/VOLDOWN/VOL,<n>: the global volume (Volume below), through Main's "volume <n>" command.
+- POWEROFF: RESET held on a display with a power relay. sync, tell the display, then poweroff;
+  the display cuts the MiSTer's 5 V some seconds later (power_off below).
 
 Standard library only: the legacy uinput API (write uinput_user_dev, then UI_DEV_CREATE).
 """
@@ -118,10 +120,12 @@ def reset_combo(ini_path):
 
 class Buttons:
     def __init__(self, ini_path="/media/fat/MiSTer.ini", keyboard=None, reboot=("reboot",),
-                 osd_file=OSD_VISIBLE, sleep=time.sleep):
+                 osd_file=OSD_VISIBLE, sleep=time.sleep, poweroff=("poweroff",), sync=os.sync):
         self.ini_path = ini_path
         self.keyboard = keyboard or VirtualKeyboard()
         self.reboot = list(reboot)
+        self.poweroff = list(poweroff)
+        self.sync = sync
         self.osd_file = osd_file
         self.sleep = sleep
 
@@ -158,6 +162,13 @@ class Buttons:
             subprocess.Popen(self.reboot)
         else:
             raise ValueError("unknown button {!r}".format(name))
+
+    def power_off(self, notify):
+        """Shuts the MiSTer down for the display's power relay. notify() tells the display, after
+        the sync and before poweroff, so its countdown starts with the data already on the card."""
+        self.sync()
+        notify()
+        subprocess.Popen(self.poweroff)
 
 
 VOLUME_FILE = "/media/fat/config/Volume.dat"

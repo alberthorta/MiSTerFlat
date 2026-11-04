@@ -10,6 +10,13 @@ namespace {
 constexpr uint32_t kPollMs = 20;
 constexpr uint32_t kShownMs = 5000;
 constexpr uint32_t kConfirmMs = 3000;
+// Power off: RESET held this long. The ring only shows after kHoldShowMs, so a normal tap does not
+// flash it; a release after that is taken as "changed my mind", not as a tap.
+constexpr uint32_t kPowerHoldMs = 2000;
+constexpr uint32_t kHoldShowMs = 300;
+constexpr uint32_t kHoldDrawMs = 80;
+constexpr int kRingGap = 4;
+constexpr int kRingWidth = 4;
 // The chosen button stays lit this long, so the tap visibly did something.
 constexpr uint32_t kChosenMs = 180;
 // Fade in and out: 4 blended frames. Each frame is a full push (about 30 ms on the SPI panel), so
@@ -119,6 +126,18 @@ void drawSun(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
   }
 }
 
+// Progress ring from 12 o'clock, clockwise. Split at 3 o'clock, where fillArc's angles wrap.
+void drawRing(lgfx::LovyanGFX& g, int cx, int cy, int inner, float fraction, uint16_t c) {
+  const float end = 270 + 360 * fraction;
+  const int outer = inner + kRingWidth;
+  if (end <= 360) {
+    g.fillArc(cx, cy, outer, inner, 270, end, c);
+  } else {
+    g.fillArc(cx, cy, outer, inner, 270, 360, c);
+    g.fillArc(cx, cy, outer, inner, 0, end - 360, c);
+  }
+}
+
 void drawIcon(lgfx::LovyanGFX& g, int i, int cx, int cy, uint16_t c) {
   switch (i) {
     case 0: drawPower(g, cx, cy, c); break;
@@ -167,7 +186,25 @@ TouchButtons::Result TouchButtons::poll(uint32_t nowMs) {
     const Button b = shown_ && !closeAtMs_ ? hit(x, y) : kNone;
     if (b != held_) {
       held_ = b;
+      heldSinceMs_ = nowMs;
       draw();
+    }
+    if (powerOff_ && held_ == kReset && !powerFired_) {
+      if (nowMs - heldSinceMs_ >= kPowerHoldMs) {
+        powerFired_ = true;
+        held_ = kNone;
+        chosen_ = kReset;
+        closeAtMs_ = nowMs + kChosenMs;
+        if (closeAtMs_ == 0) closeAtMs_ = 1;
+        draw();
+        r.activity = true;
+        r.pressed = "poweroff";
+        return r;
+      }
+      if (powerHold(nowMs) > 0 && static_cast<int32_t>(nowMs - nextHoldDrawMs_) >= 0) {
+        nextHoldDrawMs_ = nowMs + kHoldDrawMs;
+        draw();
+      }
     }
     return r;
   }
@@ -181,7 +218,16 @@ TouchButtons::Result TouchButtons::release(uint32_t nowMs) {
   Result r;
   r.activity = true;
   const Button b = held_;
+  const bool holdCancelled = b == kReset && powerHold(nowMs) > 0;  // before held_ is cleared
   held_ = kNone;
+  if (powerFired_) {
+    powerFired_ = false;
+    return r;
+  }
+  if (holdCancelled) {
+    draw();  // let go before the ring was full: nothing happens
+    return r;
+  }
   // The first tap on a dark (idle) screen only wakes it.
   if (!display_.lightOn() || closeAtMs_) return r;
   if (!shown_) {
@@ -338,9 +384,19 @@ void TouchButtons::compose() {
       g.fillCircle(cx, cy, r - kRing, kFace);
       drawIcon(g, &s == &kWifiStyle ? kWifiIcon : i, cx, cy, s.colour);
     }
-    if (armed) {
-      g.setTextColor(s.colour);
-      g.drawString("Tap again", cx, cy + kRadius + kCaptionGap);
+    if (i == kReset) {
+      const float hold = powerHold(millis());
+      if (hold > 0) {
+        drawRing(g, cx, cy, r + kRingGap, hold, s.colour);
+        g.setTextColor(s.colour);
+        g.drawString("Keep holding to power off", w / 2, cy + kRadius + kCaptionGap);
+      } else if (armed && powerOff_) {
+        g.setTextColor(s.colour);
+        g.drawString("Tap again to restart, hold to power off", w / 2, cy + kRadius + kCaptionGap);
+      } else if (armed) {
+        g.setTextColor(s.colour);
+        g.drawString("Tap again", cx, cy + kRadius + kCaptionGap);
+      }
     }
   }
   if (volumeRow()) composeLevel(true, volumeY(), volume_, muted_);
@@ -417,6 +473,14 @@ void TouchButtons::setBrightness(int level) {
   if (level == brightness_) return;
   brightness_ = level;
   if (shown_ && fade_ == Fade::None && !closeAtMs_) draw();
+}
+
+float TouchButtons::powerHold(uint32_t nowMs) const {
+  if (!powerOff_ || held_ != kReset || powerFired_) return 0;
+  const uint32_t heldFor = nowMs - heldSinceMs_;
+  if (heldFor < kHoldShowMs) return 0;
+  const float f = static_cast<float>(heldFor - kHoldShowMs) / (kPowerHoldMs - kHoldShowMs);
+  return f > 1 ? 1 : f;
 }
 
 int TouchButtons::rowY() const {

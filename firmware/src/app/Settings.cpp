@@ -14,6 +14,8 @@ constexpr const char* kFadeKey = "fade";
 constexpr const char* kIdleClockKey = "iclk";
 constexpr const char* kScreenBrightnessKey = "sbl";
 constexpr const char* kClockFontKey = "cfont";
+constexpr const char* kPowerOnKey = "pwr";
+constexpr const char* kAutoOnKey = "aon";
 constexpr uint8_t kMinBacklight = 40;
 
 void put(const char* key, uint32_t value) {
@@ -35,9 +37,13 @@ void Settings::load() {
   const uint32_t idleClock = p.getUInt(kIdleClockKey, 0);
   const uint32_t screenBrightness = p.getUInt(kScreenBrightnessKey, 0);
   const uint32_t clockFont = p.getUInt(kClockFontKey, 0);
+  const uint32_t powerOn = p.getUInt(kPowerOnKey, 0);
+  const uint32_t autoOn = p.getUInt(kAutoOnKey, 0);
   p.end();
   clockFont_ = clockFont <= 255 ? static_cast<uint8_t>(clockFont) : 0;  // MenuScreen checks the range
   screenBrightness_ = screenBrightness == 1;
+  powerOn_ = powerOn == 1;
+  autoOn_ = autoOn == 1;
   fade_ = fade != 0;
   idleClock_ = idleClock == 1;
   // Stored values are trusted only within range.
@@ -90,6 +96,18 @@ void Settings::setClockFont(uint8_t v) {
   put(kClockFontKey, v);
 }
 
+void Settings::setPowerOn(bool v) {
+  if (v == powerOn_) return;
+  powerOn_ = v;
+  put(kPowerOnKey, v ? 1 : 0);
+}
+
+void Settings::setAutoOn(bool v) {
+  if (v == autoOn_) return;
+  autoOn_ = v;
+  put(kAutoOnKey, v ? 1 : 0);
+}
+
 void Settings::resetToDefaults() {
   setContrast(kDefaultContrast);
   setRotated(false);
@@ -98,6 +116,7 @@ void Settings::resetToDefaults() {
   setIdleClock(false);
   setScreenBrightness(false);
   setClockFont(0);
+  setAutoOn(false);
 }
 
 uint8_t Settings::backlightFor(uint8_t contrast) {

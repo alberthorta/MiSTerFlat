@@ -21,6 +21,10 @@ class Settings {
   // since the daemon sends its configured contrast every time it connects.
   bool screenBrightness() const { return screenBrightness_; }
   uint8_t clockFont() const { return clockFont_; }  // MenuScreen::kClockFonts index
+  // The MiSTer power relay: its state, so a reset of this board keeps it, and whether the MiSTer
+  // starts by itself when the whole box gets power (else it waits in standby for a tap).
+  bool powerOn() const { return powerOn_; }
+  bool autoOn() const { return autoOn_; }
 
   void setContrast(uint8_t v);
   void setRotated(bool v);
@@ -29,6 +33,8 @@ class Settings {
   void setIdleClock(bool v);
   void setScreenBrightness(bool v);
   void setClockFont(uint8_t v);
+  void setPowerOn(bool v);
+  void setAutoOn(bool v);
   void resetToDefaults();
 
   // CMDCON is OLED contrast (tty2oled default 100). On a backlit TFT 0 must not mean "black",
@@ -43,4 +49,6 @@ class Settings {
   bool idleClock_ = false;
   bool screenBrightness_ = false;
   uint8_t clockFont_ = 0;
+  bool powerOn_ = false;
+  bool autoOn_ = false;
 };

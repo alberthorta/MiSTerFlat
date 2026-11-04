@@ -74,6 +74,10 @@ void test_prefix_commands_and_args() {
   c = parseCommand("MDSVOL,4,0");
   TEST_ASSERT_EQUAL(CommandId::MdsVol, c.id);
   TEST_ASSERT_EQUAL_STRING("4,0", str(c.args).c_str());
+
+  c = parseCommand("MDSPOWER,halting");
+  TEST_ASSERT_EQUAL(CommandId::MdsPower, c.id);
+  TEST_ASSERT_EQUAL_STRING("halting", str(c.args).c_str());
 }
 
 void test_split_fields_keeps_commas_in_last_field() {

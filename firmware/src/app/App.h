@@ -10,6 +10,7 @@
 #include "WallClock.h"
 #include "app/Settings.h"
 #include "app/StartupLogo.h"
+#include "hal/PowerSwitch.h"
 #include "transport/SerialTransport.h"
 #include "ui/DisplayManager.h"
 #include "ui/TouchButtons.h"
@@ -19,11 +20,12 @@
 // keeps the state (current core, its picture, display settings) and decides what to draw.
 class App : public proto::ParserListener {
  public:
-  App(DisplayManager& display, SerialTransport& transport, Settings& settings, StartupLogo& logo);
+  App(DisplayManager& display, SerialTransport& transport, Settings& settings, StartupLogo& logo,
+      PowerSwitch& power);
 
   void begin();
   void loop();
-  void showStartScreen() { showSplash(); }
+  void showStartScreen();
 
   // ParserListener
   void onLine(const char* line, size_t length) override;
@@ -37,7 +39,9 @@ class App : public proto::ParserListener {
  private:
   static constexpr size_t kMaxCoreName = 63;
 
-  enum class Screen : uint8_t { Splash, Core, Menu, IdleClock, Waiting, Other };
+  enum class Screen : uint8_t { Splash, Core, Menu, IdleClock, Waiting, Standby, Other };
+  // The MiSTer power relay. Boards without one are always On.
+  enum class Power : uint8_t { On, Stopping, Off };
 
   void handle(const proto::Command& cmd, std::string_view line);
   bool handleTestCommand(std::string_view line);
@@ -66,6 +70,13 @@ class App : public proto::ParserListener {
   void sendHardwareInfo();
   void sendInfo();
   void ack();
+  void powerOn(bool byHost);
+  void requestPowerOff();
+  void onHalting();
+  void cutPower();
+  void showStandby();
+  void pollPower();
+  void pollStandbyTouch();
   bool decodeAsset(std::string_view header, const proto::AssetFrame& frame, const char** error);
   void startScreenshot();
   void pumpScreenshot(uint32_t nowMs);
@@ -74,6 +85,7 @@ class App : public proto::ParserListener {
   SerialTransport& transport_;
   Settings& settings_;
   StartupLogo& logo_;
+  PowerSwitch& power_;
   proto::ProtocolParser parser_;
   presence::Presence presence_;
   TouchButtons touchButtons_{display_};
@@ -113,6 +125,15 @@ class App : public proto::ParserListener {
   uint32_t resetTapMs_ = 0;
   void endRestartDark();
   void pollRestart();
+
+  Power powerState_ = Power::On;
+  uint32_t cutAtMs_ = 0;      // Stopping: open the relay then
+  // Switched on from standby: "Starting MiSTer" until the daemon's first ping, "Waiting for MiSTer"
+  // only after kStartGraceMs (the MiSTer boots in about 20 s).
+  bool startingUp_ = false;
+  uint32_t powerOnMs_ = 0;
+  bool standbyDown_ = false;  // a finger is on the standby screen
+  uint32_t standbyPollMs_ = 0;
 
   bool sendTtyAck_ = true;
   bool restartPending_ = false;

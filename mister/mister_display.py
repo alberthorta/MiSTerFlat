@@ -60,6 +60,9 @@ DEFAULTS = {
     "MENU_SCREEN": "clock",  # MiSTer menu: "clock" (built-in clock screen) or "picture" (tty2oled MENU logo)
     # In the MiSTer menu, show the picture of the core under the cursor (needs log_file_entry=1).
     "MENU_BROWSE": "yes",
+    # Power relay on the display (docs/power.md): "yes" switches the MiSTer on as soon as the box
+    # gets power, "no" waits in standby for a tap; "" = keep the board's (default no).
+    "POWER_AUTO_ON": "",
 }
 SLEEP_FILE = "/tmp/tty2oled_sleep"
 # Firmware version of the connected display, for misterlily_flash.py and MiSTerManager, which
@@ -294,6 +297,8 @@ class Display:
             self.port.write("MDSCFG,idleclock,{}\n".format(1 if self.cfg["IDLE_SCREEN"] == "clock" else 0))
         if self.cfg["FADE"] in ("yes", "no"):
             self.port.write("MDSCFG,fade,{}\n".format(1 if self.cfg["FADE"] == "yes" else 0))
+        if self.cfg["POWER_AUTO_ON"] in ("yes", "no"):
+            self.port.write("MDSCFG,autoon,{}\n".format(1 if self.cfg["POWER_AUTO_ON"] == "yes" else 0))
         self.send_time()
         self.ip = None
         self.next_ip_check = 0.0
@@ -510,6 +515,11 @@ class Display:
                 return
             if name.startswith("vol,"):
                 self.send_volume(self.volume.set(int(name[4:])))
+                return
+            if name == "poweroff":
+                # The display opens the power relay a while after MDSPOWER,halting; the sync
+                # comes first, so the SD card is safe even if the shutdown is slow.
+                self.buttons.power_off(lambda: self.port.write("MDSPOWER,halting\n"))
                 return
             self.buttons.press(name)
         except (OSError, ValueError) as e:

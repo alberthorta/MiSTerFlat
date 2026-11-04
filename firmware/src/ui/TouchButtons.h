@@ -13,6 +13,8 @@
 // Below them, two level rows: the MiSTer's global volume (once the host has sent it with MDSVOL)
 // and the brightness of this display. Each is an icon, -, a bar of kLevelMax + 1 steps and +; a tap
 // on the bar picks that step. These keep the buttons open, so a level can be changed several times.
+// With a MiSTer power relay (setPowerOff), holding RESET for 2 s reports "poweroff"; a ring
+// around the button fills while it is held. Letting go early does nothing.
 class TouchButtons {
  public:
   explicit TouchButtons(DisplayManager& display) : display_(display) {}
@@ -22,7 +24,7 @@ class TouchButtons {
   struct Result {
     bool activity = false;  // any tap: counts as activity (wakes an idle-dark screen)
     // "reset", "osd", "user", "bt", "wifi" (see setWifiSlot), "voldown", "volup", "vol" (a step
-    // picked on the volume bar) or "bright" (any change of the brightness row).
+    // picked on the volume bar), "bright" (any change of the brightness row) or "poweroff".
     const char* pressed = nullptr;
     int level = -1;  // "vol" and "bright": the new level
   };
@@ -30,6 +32,7 @@ class TouchButtons {
   // USER's place shows Wi-Fi set-up instead (in the MiSTer menu, with a Wi-Fi dongle). Takes
   // effect the next time the buttons open.
   void setWifiSlot(bool on) { wifiSlot_ = on; }
+  void setPowerOff(bool on) { powerOff_ = on; }
   // The MiSTer's global volume: level 0 (quietest) to kLevelMax, as Main's "volume <n>" command.
   void setVolume(int level, bool muted);
   void setBrightness(int level);
@@ -75,12 +78,18 @@ class TouchButtons {
   int brightnessY() const;
   LevelLayout levelLayout() const;
   int levelAt(int x) const;  // the bar step under x
+  // How far a hold on RESET has gone towards power off: 0 (not held, or not long yet) to 1.
+  float powerHold(uint32_t nowMs) const;
   Button hit(int x, int y) const;
 
   DisplayManager& display_;
   bool shown_ = false;
   bool resetArmed_ = false;
   bool wifiSlot_ = false;
+  bool powerOff_ = false;
+  bool powerFired_ = false;    // "poweroff" sent for the finger still on the glass
+  uint32_t heldSinceMs_ = 0;   // when held_ last changed
+  uint32_t nextHoldDrawMs_ = 0;
   bool down_ = false;
   Button held_ = kNone;    // under the finger now: drawn filled
   Button chosen_ = kNone;  // released on: stays filled until the buttons close

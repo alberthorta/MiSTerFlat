@@ -117,6 +117,10 @@ fades them out. The daemon does what the MiSTer's own buttons do:
 The virtual keyboard ("MiSTerLily buttons") is created when the touch display connects, because
 Main needs about a second to find a new input device.
 
+**Power button** (firmware 0.5.0, with a relay on GPIO 18): holding RESET for 2 s shuts the
+MiSTer down and then cuts its 5 V; a tap on the standby screen switches it on again. See
+[power.md](power.md).
+
 **After RESET** the display goes dark at once and forgets the addresses. It stays powered and keeps
 its clock while the MiSTer reboots, and a rebooted MiSTer starts in the menu, so after 2 s it shows
 the menu clock by itself. When the daemon is back (about 19 s after the reset) it sends the same

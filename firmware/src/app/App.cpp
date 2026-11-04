@@ -11,6 +11,7 @@
 #include "ui/LegacyCanvas.h"
 #include "ui/MenuScreen.h"
 #include "ui/SplashScreen.h"
+#include "ui/StandbyScreen.h"
 #include "ui/Theme.h"
 #include "util/Log.h"
 
@@ -29,11 +30,30 @@ constexpr const char* kWaitingText = "Waiting for MiSTer";
 constexpr uint32_t kRestartDarkMs = 2000;
 // The daemon is back about 19 s after the reset; "Waiting for MiSTer" only after this long.
 constexpr uint32_t kRestartGraceMs = 60000;
+// Power off: the daemon answers MDSBTN,poweroff with MDSPOWER,halting after its sync, then runs
+// poweroff. The relay opens kHaltMs after that, or kHaltReplyMs after the request if no answer
+// comes (an old daemon, a hung MiSTer). Without a daemon at all, at once (after the message).
+constexpr uint32_t kHaltMs = 15000;
+constexpr uint32_t kHaltReplyMs = 8000;
+constexpr uint32_t kNoHostCutMs = 1000;
+constexpr uint32_t kStartGraceMs = 60000;
+constexpr uint32_t kStandbyPollMs = 20;
+constexpr const char* kStartingText = "Starting MiSTer";
+constexpr const char* kStoppingText = "Shutting down";
 
 }  // namespace
 
-App::App(DisplayManager& display, SerialTransport& transport, Settings& settings, StartupLogo& logo)
-    : display_(display), transport_(transport), settings_(settings), logo_(logo), parser_(*this) {}
+App::App(DisplayManager& display, SerialTransport& transport, Settings& settings, StartupLogo& logo,
+         PowerSwitch& power)
+    : display_(display), transport_(transport), settings_(settings), logo_(logo), power_(power), parser_(*this) {}
+
+void App::showStartScreen() {
+  if (PowerSwitch::available() && !power_.on()) {
+    showStandby();
+  } else {
+    showSplash();
+  }
+}
 
 void App::begin() {
   assetBuffer_ = static_cast<uint8_t*>(heap_caps_malloc(proto::kMaxAssetBytes, MALLOC_CAP_SPIRAM));
@@ -42,6 +62,11 @@ void App::begin() {
   presence_.setIdleTimeout(settings_.idleMinutes() * kMsPerMinute);
   presence_.start(millis());
   touchButtons_.setBrightness(levelForContrast(settings_.contrast()));
+  touchButtons_.setPowerOff(PowerSwitch::available());
+  if (PowerSwitch::available() && !power_.on()) {
+    powerState_ = Power::Off;
+    display_.setBrightness(Settings::backlightFor(0));
+  }
 
   // The sketch prints "ttyrdy;" here, but no tty2oled script reads it. Over USB it stays
   // queued until the next reply and then corrupts that reply (installer.sh reads one line for
@@ -54,6 +79,8 @@ void App::loop() {
   for (int i = 0; i < kMaxReadsPerLoop; ++i) {
     const size_t n = transport_.read(buffer, sizeof(buffer));
     if (n == 0) break;
+    // Data with the relay open: the MiSTer has power some other way (no relay fitted).
+    if (powerState_ == Power::Off) powerOn(true);
     presence_.onTraffic(millis());
     parser_.feed(buffer, n, millis());
   }
@@ -65,6 +92,7 @@ void App::loop() {
     showMenu(screen_ == Screen::IdleClock);
   }
   pumpScreenshot(millis());
+  pollPower();
   if (MDS_HAS_TOUCH) {
     pollTouch();
     pollRestart();
@@ -351,8 +379,12 @@ void App::handle(const proto::Command& cmd, std::string_view line) {
       const int n = snprintf(reply, sizeof(reply), "MDSPONG;up=%lu\n", (unsigned long)millis());
       if (n > 0) transport_.write(reply, n);
       handlePresence(presence_.onHeartbeat(millis()));
+      startingUp_ = false;
       break;
     }
+    case CommandId::MdsPower:
+      if (cmd.args == "halting") onHalting();
+      break;
     case CommandId::MdsCfg:
       handleConfig(cmd.args);
       break;
@@ -539,6 +571,11 @@ void App::redrawCurrent() {
 }
 
 void App::pollTouch() {
+  if (powerState_ == Power::Off) {
+    pollStandbyTouch();
+    return;
+  }
+  if (powerState_ == Power::Stopping) return;
   if (wifi_.active()) {
     const WifiScreen::Result w = wifi_.poll(millis());
     if (w.activity) presence_.onActivity(millis());
@@ -559,6 +596,10 @@ void App::pollTouch() {
   if (t.pressed && strcmp(t.pressed, "wifi") == 0) {
     // Handled here, not by the host: the Wi-Fi screen asks the daemon for what it needs.
     wifi_.open(millis());
+    return;
+  }
+  if (t.pressed && strcmp(t.pressed, "poweroff") == 0) {
+    requestPowerOff();
     return;
   }
   if (t.pressed && strcmp(t.pressed, "bright") == 0) {
@@ -585,10 +626,12 @@ void App::pollTouch() {
 }
 
 void App::handlePresence(presence::Event event) {
+  // Shutting down or off: no MiSTer is expected, the screen stays as it is.
+  if (powerState_ != Power::On) return;
   switch (event) {
     case presence::Event::HostLost:
       LOGF("host lost");
-      if (restartGrace_) break;  // expected while the MiSTer reboots; pollRestart() handles it
+      if (restartGrace_ || startingUp_) break;  // expected while the MiSTer reboots; pollRestart() handles it
       wifi_.close();
       screen_ = Screen::Waiting;
       drawSplash(kWaitingText);
@@ -620,6 +663,7 @@ void App::handleConfig(std::string_view args) {
   // MDSCFG,idleclock,<0|1> -> when idle, a dim clock instead of backlight off
   // MDSCFG,clockfont,<n>  -> font of the time on the clock screen (MenuScreen::kClockFonts)
   // MDSCFG,brightness,<0-7> -> backlight in the steps of the touch row; CMDCON is ignored after it
+  // MDSCFG,autoon,<0|1>  -> power relay: switch the MiSTer on when the box gets power
   // MDSCFG,logo,0         -> delete the stored start-up picture
   // MDSCFG,reset          -> defaults
   std::string_view f[2];
@@ -638,6 +682,8 @@ void App::handleConfig(std::string_view args) {
              v < MenuScreen::kClockFontCount) {
     settings_.setClockFont(static_cast<uint8_t>(v));
     if (screen_ == Screen::Menu || screen_ == Screen::IdleClock) showMenu(screen_ == Screen::IdleClock);
+  } else if (n == 2 && f[0] == "autoon" && proto::parseInt(f[1], v) && (v == 0 || v == 1)) {
+    settings_.setAutoOn(v == 1);
   } else if (n == 2 && f[0] == "logo" && f[1] == "0") {
     logo_.clear();
     if (screen_ == Screen::Splash || screen_ == Screen::Waiting) {
@@ -657,13 +703,13 @@ void App::handleConfig(std::string_view args) {
 }
 
 void App::sendConfig() {
-  char line[128];
+  char line[160];
   const int n = snprintf(line, sizeof(line),
                          "MDSCFG;contrast=%u;rotate=%d;idle=%u;fade=%d;idleclock=%d;screenbrightness=%d;clockfont=%u;"
-                         "brightness=%d\n",
+                         "brightness=%d;autoon=%d\n",
                          settings_.contrast(), settings_.rotated() ? 1 : 0, settings_.idleMinutes(),
                          settings_.fade() ? 1 : 0, settings_.idleClock() ? 1 : 0, settings_.screenBrightness() ? 1 : 0,
-                         settings_.clockFont(), levelForContrast(settings_.contrast()));
+                         settings_.clockFont(), levelForContrast(settings_.contrast()), settings_.autoOn() ? 1 : 0);
   if (n > 0) transport_.write(line, n);
 }
 
@@ -724,14 +770,19 @@ void App::sendInfo() {
   const int n = snprintf(line, sizeof(line),
                          "MDSINFO;fw=%s;board=" MDS_BOARD_NAME ";psram=%u;fb=%s;uptime_ms=%lu;reset=%d;"
                          "lines=%lu;images=%lu;discards=%lu;txdrop=%lu;txstale=%lu;lastimg=%d:%u;asseterr=%s;"
-                         "host=%s;idle=%s;core=%s\n",
+                         "host=%s;idle=%s;power=%s;core=%s\n",
                          MDS_FW_VERSION, (unsigned)ESP.getPsramSize(), display_.hasFramebuffer() ? "psram" : "direct",
                          (unsigned long)millis(), (int)esp_reset_reason(), (unsigned long)linesReceived_,
                          (unsigned long)imagesReceived_, (unsigned long)discards_,
                          (unsigned long)transport_.droppedWrites(), (unsigned long)transport_.staleFlushes(),
                          (int)lastImageResult_, (unsigned)lastImageBytes_, lastAssetError_,
                          presence_.heartbeatSeen() ? (presence_.hostLost() ? "lost" : "ok") : "none",
-                         presence_.idleSleeping() ? "sleep" : "awake", coreName_);
+                         presence_.idleSleeping() ? "sleep" : "awake",
+                         !PowerSwitch::available()           ? "none"
+                         : powerState_ == Power::On          ? "on"
+                         : powerState_ == Power::Stopping    ? "stopping"
+                                                             : "off",
+                         coreName_);
   if (n > 0) transport_.write(line, static_cast<size_t>(n) < sizeof(line) ? n : sizeof(line) - 1);
 }
 
@@ -768,4 +819,113 @@ void App::pumpScreenshot(uint32_t nowMs) {
 
 void App::ack() {
   if (sendTtyAck_) transport_.write("ttyack;");
+}
+
+void App::powerOn(bool byHost) {
+  power_.set(true);
+  settings_.setPowerOn(true);
+  powerState_ = Power::On;
+  standbyDown_ = false;
+  display_.setBrightness(Settings::backlightFor(settings_.contrast()));
+  if (byHost) {
+    LOGF("power: data from the MiSTer while off, relay on");
+    showSplash();  // whatever the host sends next draws over it
+    return;
+  }
+  LOGF("power: on (touch)");
+  startingUp_ = true;
+  powerOnMs_ = millis();
+  screen_ = Screen::Splash;
+  drawSplash(kStartingText);
+}
+
+void App::requestPowerOff() {
+  wifi_.close();
+  endRestartDark();
+  restartGrace_ = startingUp_ = false;
+  powerState_ = Power::Stopping;
+  display_.setBacklightOn(true);
+  screen_ = Screen::Other;
+  drawSplash(kStoppingText);
+  if (presence_.heartbeatSeen() && !presence_.hostLost()) {
+    transport_.write("MDSBTN,poweroff\n");
+    cutAtMs_ = millis() + kHaltReplyMs;
+    LOGF("power: off requested, waiting for the MiSTer");
+  } else {
+    cutAtMs_ = millis() + kNoHostCutMs;
+    LOGF("power: off requested, no MiSTer daemon: cutting");
+  }
+}
+
+// MDSPOWER,halting: after our request, or the MiSTer shutting down by itself (the daemon sends it
+// for any poweroff it starts).
+void App::onHalting() {
+  if (!PowerSwitch::available() || powerState_ == Power::Off) return;
+  if (powerState_ == Power::On) {
+    wifi_.close();
+    endRestartDark();
+    restartGrace_ = startingUp_ = false;
+    powerState_ = Power::Stopping;
+    display_.setBacklightOn(true);
+    screen_ = Screen::Other;
+    drawSplash(kStoppingText);
+  }
+  cutAtMs_ = millis() + kHaltMs;
+  LOGF("power: MiSTer halting, cut in %lu ms", (unsigned long)kHaltMs);
+}
+
+void App::cutPower() {
+  power_.set(false);
+  settings_.setPowerOn(false);
+  powerState_ = Power::Off;
+  startingUp_ = restartGrace_ = restartDark_ = false;
+  ip_[0] = '\0';
+  setCore("");
+  pictureFormat_ = proto::ImageFormat::None;
+  assetValid_ = false;
+  display_.setBacklightOn(true);
+  display_.setBrightness(Settings::backlightFor(0));
+  showStandby();
+}
+
+void App::showStandby() {
+  screen_ = Screen::Standby;
+  if (clock_.valid()) {
+    shownMinute_ = clock_.minuteStamp(millis());
+    const wallclock::DateTime now = clock_.local(millis());
+    StandbyScreen::draw(display_, &now);
+  } else {
+    shownMinute_ = -1;
+    StandbyScreen::draw(display_, nullptr);
+  }
+}
+
+void App::pollPower() {
+  if (!PowerSwitch::available()) return;
+  const uint32_t now = millis();
+  if (powerState_ == Power::Stopping && static_cast<int32_t>(now - cutAtMs_) >= 0) cutPower();
+  if (powerState_ == Power::Off && screen_ == Screen::Standby && clock_.valid() &&
+      clock_.minuteStamp(now) != shownMinute_) {
+    showStandby();
+  }
+  if (startingUp_ && now - powerOnMs_ >= kStartGraceMs) {
+    startingUp_ = false;
+    if (screen_ == Screen::Splash) {
+      screen_ = Screen::Waiting;
+      drawSplash(kWaitingText);
+    }
+  }
+}
+
+void App::pollStandbyTouch() {
+  const uint32_t now = millis();
+  if (now - standbyPollMs_ < kStandbyPollMs) return;
+  standbyPollMs_ = now;
+  int x, y;
+  if (display_.touched(&x, &y)) {
+    standbyDown_ = true;
+    return;
+  }
+  // The finger left the glass: that is the tap.
+  if (standbyDown_) powerOn(false);
 }

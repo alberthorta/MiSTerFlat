@@ -15,6 +15,8 @@ namespace cfg {
 // Pins verified against LILYGO T-Display-S3 commit ec889e7
 // (Setup206_LilyGo_T_Display_S3.h and examples/*/pin_config.h). See docs/research.md.
 namespace pin {
+constexpr int kMisterPower = -1;  // no power relay: no touch to switch it
+constexpr int kMisterPowerOnLevel = 1;
 constexpr int kPowerOn = 15;  // Peripheral/LCD power enable, needed on battery
 constexpr int kLcdBacklight = 38;
 constexpr int kLcdReset = 5;

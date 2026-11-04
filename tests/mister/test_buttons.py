@@ -138,4 +138,12 @@ try:
     check("no reader on MiSTer_cmd raises OSError", False)
 except OSError:
     check("no reader on MiSTer_cmd raises OSError", True)
+order = []
+pb = b.Buttons(keyboard=FakeKeyboard(), poweroff=("true",), sync=lambda: order.append("sync"))
+real_popen = b.subprocess.Popen
+b.subprocess.Popen = lambda cmd: order.append(("run", tuple(cmd)))
+pb.power_off(lambda: order.append("notify"))
+b.subprocess.Popen = real_popen
+check("poweroff: sync, then tell the display, then poweroff",
+      order == ["sync", "notify", ("run", ("true",))], repr(order))
 sys.exit(1 if failures else 0)
