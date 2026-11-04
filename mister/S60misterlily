@@ -23,6 +23,12 @@ start() {
 }
 
 stop() {
+  # A poweroff from the display's power button: the daemon must outlive the shutdown scripts,
+  # init stops it at the very end (see POWEROFF_FLAG in mister_display.py).
+  if [ -e /run/misterlily_poweroff ]; then
+    echo "mister-display kept for the power relay"
+    return 0
+  fi
   if running; then
     echo "Stopping mister-display..."
     kill "$(cat "$PIDFILE")" 2>/dev/null

@@ -52,7 +52,7 @@ enum class CommandId : uint8_t {
   MdsWifi,  // MDSWIFI,dongle|scanning|net|end|status,... -> the Wi-Fi screen (touch boards)
   MdsCfg,   // MDSCFG -> settings; MDSCFG,idle,<minutes>; MDSCFG,reset
   MdsVol,   // MDSVOL,<level 0-7>,<muted 0|1> -> the MiSTer's global volume (touch volume row)
-  MdsPower, // MDSPOWER,halting -> the MiSTer is shutting down: cut its power soon (power relay)
+  MdsPower, // MDSPOWER,halting|down -> the MiSTer is shutting down / is down (power relay)
   MdsHang,  // MDSHANG (test builds only): stop feeding the watchdog
   MdsShot,  // MDSSHOT -> "MDSSHOT,<w>,<h>,<bytes>\n" + "ttyack;" + framebuffer (RGB565 big-endian)
 };

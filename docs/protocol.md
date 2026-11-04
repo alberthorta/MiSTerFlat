@@ -149,9 +149,18 @@ MDSBTN,poweroff\n
 ```
 
 The native daemon runs `sync`, answers `MDSPOWER,halting\n` and then runs `poweroff`. The display
-shows "Shutting down" and opens the relay 15 s after `MDSPOWER,halting`, or 8 s after its request
-if no answer comes. With no daemon (no ping for 15 s, or none ever) it opens it after 1 s.
-`MDSPOWER,halting` from the host at any other time starts the same countdown.
+shows "Shutting down". Before `poweroff` the daemon writes `/run/misterlily_poweroff`, so
+`S60misterlily stop` leaves it running through the init.d stop scripts and `umount -a -r`. Busybox
+init then sends SIGTERM to every process; the daemon answers it with `MDSPOWER,down\n`, and the
+display opens the relay 1.5 s later (init still syncs and kills the rest for about a second).
+
+Safety limits: 30 s after `MDSPOWER,halting` if `down` never comes, 8 s after the request if no
+answer comes at all. With no daemon (no ping for 15 s, or none ever) the relay opens after 1 s.
+`MDSPOWER,halting` or `MDSPOWER,down` from the host at any other time starts the same countdown.
+
+On a MiSTer the SD card can never be fully unmounted (the Linux root is a file on it), so the
+kernel reports the exFAT volume as "not properly unmounted" at the next boot. A plain `reboot` does
+the same; the card is mounted with `sync`, so the data is already written.
 
 While the relay is open the display shows a standby screen; a tap closes the relay. Any data from
 the host while the relay is open closes it too (the MiSTer has power some other way). `MDSINFO`

@@ -10,8 +10,18 @@ void PowerSwitch::begin(bool storedOn, bool autoOn) {
   if (!available()) return;
   const esp_reset_reason_t reason = esp_reset_reason();
   const bool coldStart = reason == ESP_RST_POWERON || reason == ESP_RST_BROWNOUT || reason == ESP_RST_UNKNOWN;
-  on_ = coldStart ? autoOn : storedOn;
-  LOGF("mister power %s (reset reason %d)", on_ ? "on" : "off", (int)reason);
+  // After a cold start no hold is left, so the pin can be read. A resistor from the MiSTer's own
+  // 3.3 V to the relay input (docs/power.md) keeps the relay closed while the MiSTer runs: a high
+  // pin here means it is on. A brownout during its start-up must not switch it off again.
+  // Without that resistor the relay input pulls the floating pin low.
+  bool latched = false;
+  if (coldStart) {
+    pinMode(cfg::pin::kMisterPower, INPUT);
+    delayMicroseconds(100);
+    latched = digitalRead(cfg::pin::kMisterPower) == cfg::pin::kMisterPowerOnLevel;
+  }
+  on_ = coldStart ? (latched || autoOn) : storedOn;
+  LOGF("mister power %s (reset reason %d, latched %d)", on_ ? "on" : "off", (int)reason, latched);
   drive();
 }
 

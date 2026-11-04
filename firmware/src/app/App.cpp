@@ -31,9 +31,12 @@ constexpr uint32_t kRestartDarkMs = 2000;
 // The daemon is back about 19 s after the reset; "Waiting for MiSTer" only after this long.
 constexpr uint32_t kRestartGraceMs = 60000;
 // Power off: the daemon answers MDSBTN,poweroff with MDSPOWER,halting after its sync, then runs
-// poweroff. The relay opens kHaltMs after that, or kHaltReplyMs after the request if no answer
-// comes (an old daemon, a hung MiSTer). Without a daemon at all, at once (after the message).
-constexpr uint32_t kHaltMs = 15000;
+// poweroff. It sends MDSPOWER,down when init stops it at the end of the shutdown, after the stop
+// scripts and umount; the relay opens kDownMs after that. kHaltMs after "halting" is only the
+// safety limit if "down" never comes. Without any answer the relay opens kHaltReplyMs after the
+// request (an old daemon, a hung MiSTer), and without a daemon at all at once.
+constexpr uint32_t kHaltMs = 30000;
+constexpr uint32_t kDownMs = 1500;
 constexpr uint32_t kHaltReplyMs = 8000;
 constexpr uint32_t kNoHostCutMs = 1000;
 constexpr uint32_t kStartGraceMs = 60000;
@@ -384,6 +387,7 @@ void App::handle(const proto::Command& cmd, std::string_view line) {
     }
     case CommandId::MdsPower:
       if (cmd.args == "halting") onHalting();
+      if (cmd.args == "down") onDown();
       break;
     case CommandId::MdsCfg:
       handleConfig(cmd.args);
@@ -872,6 +876,14 @@ void App::onHalting() {
   }
   cutAtMs_ = millis() + kHaltMs;
   LOGF("power: MiSTer halting, cut in %lu ms", (unsigned long)kHaltMs);
+}
+
+// MDSPOWER,down: the MiSTer is past umount; init still syncs and kills the rest for about a second.
+void App::onDown() {
+  if (!PowerSwitch::available() || powerState_ == Power::Off) return;
+  if (powerState_ == Power::On) onHalting();
+  cutAtMs_ = millis() + kDownMs;
+  LOGF("power: MiSTer down, cut in %lu ms", (unsigned long)kDownMs);
 }
 
 void App::cutPower() {

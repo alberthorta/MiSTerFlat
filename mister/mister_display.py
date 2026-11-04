@@ -65,6 +65,11 @@ DEFAULTS = {
     "POWER_AUTO_ON": "",
 }
 SLEEP_FILE = "/tmp/tty2oled_sleep"
+# Written before a poweroff for the display's power relay. S60misterlily stop then leaves the
+# daemon running, so it outlives the init.d stop scripts and umount, and only the SIGTERM that
+# busybox init sends to every process after them stops it. That SIGTERM is the moment the card is
+# safe: the daemon sends MDSPOWER,down and the display cuts the power shortly after.
+POWEROFF_FLAG = "/run/misterlily_poweroff"
 # Firmware version of the connected display, for misterlily_flash.py and MiSTerManager, which
 # cannot ask the board themselves while the daemon holds the port. Removed when the display goes.
 FW_FILE = "/tmp/misterlily_fw"
@@ -517,8 +522,10 @@ class Display:
                 self.send_volume(self.volume.set(int(name[4:])))
                 return
             if name == "poweroff":
-                # The display opens the power relay a while after MDSPOWER,halting; the sync
-                # comes first, so the SD card is safe even if the shutdown is slow.
+                # MDSPOWER,halting after the sync: the display shows the shutdown and starts its
+                # safety timeout. MDSPOWER,down comes at the end (see POWEROFF_FLAG).
+                with open(POWEROFF_FLAG, "w"):
+                    pass
                 self.buttons.power_off(lambda: self.port.write("MDSPOWER,halting\n"))
                 return
             self.buttons.press(name)
@@ -655,6 +662,12 @@ def main():
     try:
         run(args, display)
     except KeyboardInterrupt:
+        if os.path.exists(POWEROFF_FLAG) and display.connected():
+            try:
+                display.port.write("MDSPOWER,down\n")
+                log("shutdown done: told the display to cut the power")
+            except (OSError, termios.error):
+                pass
         display.release()
         log("stopped")
     return 0

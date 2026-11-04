@@ -73,6 +73,7 @@ class App : public proto::ParserListener {
   void powerOn(bool byHost);
   void requestPowerOff();
   void onHalting();
+  void onDown();
   void cutPower();
   void showStandby();
   void pollPower();
