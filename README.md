@@ -58,3 +58,23 @@ Then:
 - Colouring the tty2oled picture with an image model for the cores without a source.
 - Cores with no logo in the theme (EDSAC, Tamagotchi, ZXNext, ...): add them to `systems.py`
   if a logo appears in the theme, or make them by hand.
+
+## ES-DE on this computer
+
+`esde.py` shows the system or game picked in [ES-DE](https://es-de.org) on the board connected
+by USB:
+
+```sh
+python3 esde.py --install     # hooks in ~/ES-DE/scripts/<event>/misterlily.sh
+python3 esde.py --uninstall
+```
+
+Then enable *Main menu > Other settings > Custom event scripts* in ES-DE. With *Browsing custom
+events* on too, the picture changes while you scroll through systems and games.
+
+- Arcade games (mame, fbneo, neogeo): `out/art/<set>.png`, then the tty2oled picture, then the
+  game name.
+- Other systems and their games: the system picture (`SYSTEMS` in `esde.py`).
+- Start and quit of ES-DE: the clock screen.
+
+What it did goes to `out/esde.log`.
