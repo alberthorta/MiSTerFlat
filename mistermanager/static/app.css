@@ -442,3 +442,22 @@ body.offline .top-power, body.offline .nav-power svg { color: var(--muted); }
   .save .acts { flex-wrap: wrap; }
   .save .acts .btn { flex: 1 1 0; min-width: 0; padding-inline: 6px; gap: 6px; font-size: 14px; white-space: nowrap; }
 }
+
+/* Display Wi-Fi */
+.sta-error { margin: 0 16px 12px; }
+.sta-list { display: flex; flex-direction: column; }
+.sta-net {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; width: 100%;
+  min-height: 46px; padding: 10px 16px; border: 0; border-top: 1px solid var(--line); background: transparent;
+  color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.sta-net:first-child { border-top: 0; }
+.sta-net span { overflow-wrap: anywhere; }
+.sta-net small { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.sta-net:hover { background: var(--raised); }
+.sta-net.on span::after { content: " · connected"; color: var(--ok); font-size: 12.5px; }
+.sta-net.picked { background: var(--accent-soft); }
+.sta-join input { flex: 1 1 180px; min-width: 0; }
+@media (max-width: 599px) { .sta-join { flex-wrap: wrap; } .sta-join .row-text { flex-basis: 100%; } .sta-join .btn { flex: none; } }
+.sta-join input { min-height: 40px; padding: 6px 10px; border-radius: var(--r-s); border: 1px solid var(--line-strong); background: var(--raised); font-size: 16px; }
+.sta-join input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }

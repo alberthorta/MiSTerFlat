@@ -144,6 +144,63 @@ class LilyTest(unittest.TestCase):
         self.lily.power_off(flag)
         self.assertTrue(os.path.exists(flag))
 
+    def test_station(self):
+        sta = os.path.join(self.tmp.name, 'sta')
+        cmd = os.path.join(self.tmp.name, 'sta_cmd')
+        lily = Lily(self.tmp.name, self.tmp.name, fw_file=self.fw, board_file=self.board_file, sta_file=sta,
+                    sta_cmd_file=cmd)
+        self.assertIsNone(lily.station())
+        with self.assertRaises(LilyError):
+            lily.station_command('scan')
+        with open(sta, 'w') as f:
+            json.dump({'state': 'ok', 'ip': '10.0.0.9', 'rssi': -61, 'ssid': 'Casa', 'scanning': False,
+                       'networks': [{'ssid': 'Casa', 'rssi': -61, 'secure': True}], 'error': '', 'updated': 1}, f)
+        self.assertEqual(lily.station()['ip'], '10.0.0.9')
+        lily.station_command('scan')
+        lily.station_command('join', 'Casa 5G', 'secret123')
+        lily.station_command('join', 'Cafe')
+        with open(cmd) as f:
+            self.assertEqual(f.read().splitlines(), ['scan', 'join {} {}'.format('Casa 5G'.encode().hex(), 'secret123'.encode().hex()),
+                                                     'join {}'.format('Cafe'.encode().hex())])
+        self.assertEqual(os.stat(cmd).st_mode & 0o777, 0o600)
+        for bad in (('join', '', 'secret123'), ('join', 'x' * 33, ''), ('join', 'Casa', 'short'), ('reboot', '', '')):
+            with self.assertRaises(LilyError):
+                lily.station_command(*bad)
+
+    def test_station_scan_on_the_mister(self):
+        sta = os.path.join(self.tmp.name, 'sta')
+        cmd = os.path.join(self.tmp.name, 'sta_cmd')
+        with open(sta, 'w') as f:
+            json.dump({'state': 'off', 'ip': '', 'rssi': 0, 'ssid': '', 'scanning': False, 'networks': [],
+                       'error': '', 'updated': 1}, f)
+        with open(os.path.join(self.tmp.name, 'MiSTerLily', 'wifi.py'), 'w') as f:
+            f.write('MHZ = 2437\n'
+                    'def dongle_present():\n    return True\n'
+                    'def scan_24ghz():\n    return [(b"Casa", -48, True, True), (b"Cafe", -70, False, False), (b"", -60, True, False)]\n'
+                    'def link():\n    return (b"Casa", MHZ)\n'
+                    'def saved_key(ssid):\n    return "ab" * 32 if ssid == b"Casa" else None\n')
+        lily = Lily(self.tmp.name, self.tmp.name, fw_file=self.fw, board_file=self.board_file, sta_file=sta,
+                    sta_cmd_file=cmd)
+        lily.station_command('scan')
+        for _ in range(50):
+            if not lily.station()['scanning']:
+                break
+            time.sleep(0.02)
+        self.assertEqual(lily.station()['networks'], [
+            {'ssid': 'Casa', 'rssi': -48, 'secure': True, 'mister': True, 'known': True},
+            {'ssid': 'Cafe', 'rssi': -70, 'secure': False, 'mister': False, 'known': False}])
+        self.assertFalse(os.path.exists(cmd))  # the board was not asked to scan
+        self.assertEqual(lily.station()['mister'], {'ssid': 'Casa', 'ok': True, 'reason': ''})
+        # Copy: the MiSTer's network with its saved PSK; a known network joins without a password too.
+        lily.station_command('copy')
+        lily.station_command('join', 'Casa')
+        with open(cmd) as f:
+            self.assertEqual(f.read().splitlines(), ['join {} {}'.format(b'Casa'.hex(), ('ab' * 32).encode().hex())] * 2)
+        lily._wifi_mod.MHZ = 5180
+        self.assertFalse(lily.station()['mister']['ok'])
+        with self.assertRaises(LilyError):
+            lily.station_command('copy')
+
 
 if __name__ == '__main__':
     unittest.main()

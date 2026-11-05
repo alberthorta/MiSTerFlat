@@ -438,6 +438,11 @@ $('poweroff').onclick = () => powerAction('poweroff');
 let lilyTimer = null;
 const FONT_LABELS = {c64: 'Commodore 64', '7seg': 'Seven segments', big: 'Big digits', sans: 'Sans',
   orbitron: 'Orbitron', serif: 'Serif', mono: 'Typewriter', retro16: 'Retro thin'};
+const verCmp = (a, b) => {
+  const x = a.split('.').map(Number), y = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0) ? 1 : -1;
+  return 0;
+};
 const fontLabel = n => FONT_LABELS[n] || n;
 
 async function lily(refresh) {
@@ -449,8 +454,11 @@ async function lily(refresh) {
   $('lily-model').textContent = l.board ? (l.model || 'MiSTerLily display') : 'Display not connected';
   $('lily-conn').textContent = l.board ? 'Connected over USB.' : 'Check the USB cable, then press Check again.';
   $('lily-fw').textContent = l.board ? 'Installed v' + l.board : 'Installed version unknown';
-  $('lily-state').textContent = l.latest ? 'Latest release v' + l.latest + (l.latest === l.board ? ', up to date.' : '.') : (l.error || '');
-  $('lily-latest').textContent = !l.latest ? 'Update firmware' : l.latest === l.board ? 'Reinstall v' + l.latest : 'Update to v' + l.latest;
+  const cmp = l.latest && l.board ? verCmp(l.board, l.latest) : -1;
+  $('lily-state').textContent = !l.latest ? (l.error || '') : 'Latest release v' + l.latest
+    + (cmp === 0 ? ', up to date.' : cmp > 0 ? '. The installed one is newer.' : '.');
+  $('lily-latest').textContent = !l.latest ? 'Update firmware' : cmp === 0 ? 'Reinstall v' + l.latest
+    : cmp > 0 ? 'Install v' + l.latest : 'Update to v' + l.latest;
   $('lily-latest').disabled = running || !l.latest || !l.board;
   $('lily-file').disabled = running || !l.board;
   $('lily-job').hidden = !job;
@@ -467,15 +475,99 @@ async function lily(refresh) {
       sel.replaceChildren(...d.clockfonts.map((n, i) => new Option(fontLabel(n), i)));
     sel.value = d.clockfont;
   }
+  paintStation(l.station);
   if (job) {
     $('lily-progress').value = job.progress;
     $('lily-step').textContent = job.error ? 'Error: ' + job.error
       : job.done ? 'Done: the display runs v' + job.done + '.' : job.step;
   }
   clearTimeout(lilyTimer);
-  if (running) lilyTimer = setTimeout(() => lily().catch(() => {}), 1000);
+  const sta = l.station, busy = sta && (sta.scanning || sta.state === 'connecting' || staWaiting);
+  if (running || (busy && view === 'display')) lilyTimer = setTimeout(() => lily().catch(() => {}), running ? 1000 : 2000);
   return l;
 }
+
+/* Display Wi-Fi: the display board's own network, for the virtual display. */
+let staPick = null, staWaiting = false;
+const signal = rssi => rssi >= -60 ? 'strong' : rssi >= -72 ? 'good' : 'weak';
+function paintStation(s) {
+  $('sta-panel').hidden = !s;
+  if (!s) return;
+  const ok = s.state === 'ok';
+  if (s.scanning || s.networks.length) staWaiting = false;
+  $('sta-title').textContent = ok ? 'Connected to ' + s.ssid
+    : s.state === 'connecting' ? 'Joining ' + (s.ssid || 'the network') + '…' : 'Not connected';
+  $('sta-sub').textContent = ok ? s.ip + ' · signal ' + signal(s.rssi) + ' (' + s.rssi + ' dBm) · also http://misterlily.local/'
+    : 'The display joins a network of its own and shows its screen at an address of its own, also while the MiSTer is off.';
+  $('sta-open').hidden = !ok;
+  if (ok) $('sta-open').href = 'http://' + s.ip + '/';
+  $('sta-error').hidden = !s.error;
+  $('sta-error').textContent = s.error;
+  $('sta-forget').hidden = !s.ssid;
+  const m = s.mister, same = m && ok && m.ssid === s.ssid;
+  $('sta-mister').hidden = !m || same;
+  if (m && !same) {
+    $('sta-mister-title').textContent = 'The MiSTer is on ' + m.ssid;
+    $('sta-mister-sub').textContent = m.ok ? 'The display can join the same network with the password the MiSTer has saved.' : m.reason;
+    $('sta-copy').disabled = !m.ok;
+  }
+  $('sta-scan').disabled = s.scanning || staWaiting;
+  $('sta-scan').innerHTML = icon('search') + (s.scanning || staWaiting ? 'Looking…' : 'Find networks');
+  const list = $('sta-list');
+  list.hidden = !s.networks.length;
+  list.replaceChildren(...s.networks.map(n => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sta-net' + (ok && n.ssid === s.ssid ? ' on' : '') + (staPick && staPick.ssid === n.ssid ? ' picked' : '');
+    b.innerHTML = '<span>' + esc(n.ssid) + '</span><small>' + (n.mister ? 'MiSTer is on it · ' : n.known ? 'saved on the MiSTer · ' : '')
+      + (n.secure ? 'secured · ' : 'open · ') + signal(n.rssi) + '</small>';
+    b.onclick = () => staChoose(n);
+    return b;
+  }));
+}
+async function staSend(body) {
+  await api('/api/lily/wifi', body);
+  staWaiting = true;
+  setTimeout(() => lily().catch(() => {}), 1500);
+}
+function staChoose(n) {
+  staPick = n;
+  // Open, or the MiSTer has its password: join at once.
+  if (!n.secure || n.known) { staJoin(''); return; }
+  $('sta-join').hidden = false;
+  $('sta-join-name').textContent = n.ssid;
+  $('sta-pass').value = '';
+  $('sta-pass').focus();
+  for (const b of $('sta-list').children) b.classList.toggle('picked', b.querySelector('span').textContent === n.ssid);
+}
+async function staJoin(password) {
+  if (!staPick) return;
+  try {
+    await api('/api/lily/wifi', {action: 'join', ssid: staPick.ssid, password});
+    toast('Joining ' + staPick.ssid + '. It takes up to 20 s.');
+    $('sta-join').hidden = true;
+    $('sta-pass').value = '';
+    staPick = null;
+    setTimeout(() => lily().catch(() => {}), 2500);
+  } catch (e) { fail(e); }
+}
+$('sta-join').onsubmit = e => { e.preventDefault(); staJoin($('sta-pass').value); };
+$('sta-scan').onclick = () => staSend({action: 'scan'}).catch(fail);
+$('sta-copy').onclick = async () => {
+  try {
+    await api('/api/lily/wifi', {action: 'copy'});
+    toast('Joining the MiSTer\'s network. It takes up to 20 s.');
+    setTimeout(() => lily().catch(() => {}), 2500);
+  } catch (e) { fail(e); }
+};
+armed($('sta-forget'), 'Tap again to forget', async () => {
+  await api('/api/lily/wifi', {action: 'forget'});
+  toast('The display left the network.');
+  $('sta-forget').disabled = false;
+  $('sta-forget').classList.remove('armed');
+  $('sta-forget').innerHTML = icon('close') + 'Forget network';
+  setTimeout(() => lily().catch(() => {}), 2500);
+});
 
 async function lilySet(setting, value) {
   try { await api('/api/lily/display', {setting, value}); } catch (e) { fail(e); }

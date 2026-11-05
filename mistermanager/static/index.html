@@ -159,6 +159,32 @@
             <p class="help" id="lily-nodisplay">Brightness and clock font need a connected display with firmware 0.4.1 or later.</p>
           </div>
 
+          <div id="sta-panel" hidden>
+            <div class="block-head"><h2>Display Wi-Fi</h2></div>
+            <div class="group">
+              <div class="row">
+                <span class="row-text"><span id="sta-title">Not connected</span><small id="sta-sub">The display joins a network of its own and shows its screen at an address of its own, also while the MiSTer is off.</small></span>
+                <a class="btn primary" id="sta-open" target="_blank" rel="noopener" hidden><svg><use href="#i-lcd"/></svg>Virtual display</a>
+              </div>
+              <p class="banner warn sta-error" id="sta-error" hidden></p>
+              <div class="row" id="sta-mister" hidden>
+                <span class="row-text"><span id="sta-mister-title"></span><small id="sta-mister-sub"></small></span>
+                <button class="btn primary" id="sta-copy"><svg><use href="#i-check"/></svg>Use the MiSTer's Wi-Fi</button>
+              </div>
+              <div class="row actions">
+                <button class="btn" id="sta-scan"><svg><use href="#i-search"/></svg>Find networks</button>
+                <button class="btn danger-quiet" id="sta-forget" hidden><svg><use href="#i-close"/></svg>Forget network</button>
+              </div>
+              <div id="sta-list" class="sta-list" hidden></div>
+              <form class="row sta-join" id="sta-join" hidden>
+                <span class="row-text"><span id="sta-join-name"></span><small>Password of this network.</small></span>
+                <input type="password" id="sta-pass" autocomplete="off" aria-label="Wi-Fi password">
+                <button class="btn primary" id="sta-go" type="submit">Join</button>
+              </form>
+              <p class="help">This is the network of the display board itself. The Wi-Fi of the MiSTer is set on the display: Wi-Fi button in the MiSTer menu.</p>
+            </div>
+          </div>
+
           <div class="block-head"><h2>Firmware</h2></div>
           <div class="group">
             <div class="row">
