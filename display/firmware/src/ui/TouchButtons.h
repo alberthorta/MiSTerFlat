@@ -25,7 +25,8 @@ class TouchButtons {
 
   struct Result {
     bool activity = false;  // any tap: counts as activity (wakes an idle-dark screen)
-    // "reset", "osd", "user", "bt", "wifi" (see setWifiSlot), "voldown", "volup", "vol" (a step
+    // "reset", "menu" (leave the core, see setInCore), "osd", "user", "bt", "wifi" (see
+    // setWifiSlot), "voldown", "volup", "vol" (a step
     // picked on the volume bar), "bright" (any change of the brightness row), "poweroff" or
     // "systems" (see setShortcut).
     const char* pressed = nullptr;
@@ -36,6 +37,9 @@ class TouchButtons {
   // effect the next time the buttons open.
   void setWifiSlot(bool on) { wifiSlot_ = on; }
   void setPowerOff(bool on) { powerOff_ = on; }
+  // A core is running: the first button leaves it (back to the MiSTer menu, after a second tap)
+  // instead of the power button. Power off is only offered in the menu.
+  void setInCore(bool on) { inCore_ = on; }
   // While the buttons are closed, a tap inside this area reports "systems" instead of opening
   // them (the Systems button of the menu clock). w = 0: none.
   void setShortcut(int x, int y, int w, int h) {
@@ -98,7 +102,8 @@ class TouchButtons {
   bool resetArmed_ = false;
   bool wifiSlot_ = false;
   bool powerOff_ = false;
-  bool powerMode_ = false;
+  bool powerMode_ = false;  // only the large power button shows
+  bool inCore_ = false;
   int shortcutX_ = 0, shortcutY_ = 0, shortcutW_ = 0, shortcutH_ = 0;     // only the large power button shows
   bool powerFired_ = false;    // "poweroff" sent for the finger still on the glass
   uint32_t heldSinceMs_ = 0;   // when held_ last changed

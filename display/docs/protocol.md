@@ -126,6 +126,10 @@ A tap shows four buttons; a tap on one sends
 MDSBTN,<reset|osd|user|bt>\n
 ```
 
+From firmware 0.6.1, while a core runs, the first button leaves it instead (`MDSBTN,menu`, after a
+second tap); the native daemon loads `menu.rbf`. Power off (and the restart) is only offered in the
+MiSTer menu.
+
 From firmware 0.4.0, two level rows sit under the buttons, each with -, a bar of 8 steps and +.
 
 - Volume (only once the host has sent `MDSVOL`): `MDSBTN,voldown`, `MDSBTN,volup`, or

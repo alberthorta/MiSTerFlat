@@ -64,9 +64,16 @@ const Style kStyles[] = {
 // In the MiSTer menu there is no core to reset: USER becomes Wi-Fi set-up when there is a dongle.
 const Style kWifiStyle = {"wifi", theme::rgb565(0, 190, 200)};
 constexpr int kWifiIcon = 4;
+// In a core the first button leaves it.
+const Style kExitStyle = {"menu", theme::rgb565(235, 70, 60)};
+constexpr int kExitIcon = 5;
 constexpr int kUserSlot = 2;
 
-const Style& styleFor(int i, bool wifiSlot) { return i == kUserSlot && wifiSlot ? kWifiStyle : kStyles[i]; }
+const Style& styleFor(int i, bool wifiSlot, bool inCore) {
+  if (i == 0 && inCore) return kExitStyle;
+  return i == kUserSlot && wifiSlot ? kWifiStyle : kStyles[i];
+}
+int iconFor(int i, const Style& s) { return &s == &kWifiStyle ? kWifiIcon : &s == &kExitStyle ? kExitIcon : i; }
 
 constexpr uint16_t kFace = theme::rgb565(28, 28, 32);
 
@@ -105,6 +112,17 @@ void drawWifi(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
   g.fillCircle(cx, cy + 8, 3, c);
   g.fillArc(cx, cy + 10, 11, 8, 225, 315, c);
   g.fillArc(cx, cy + 10, 18, 15, 225, 315, c);
+}
+
+// A door frame open on the left, with an arrow going out of it.
+void drawExit(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
+  const float r = 1.6f;
+  g.drawWideLine(cx - 1, cy - 12, cx + 11, cy - 12, r, c);
+  g.drawWideLine(cx + 11, cy - 12, cx + 11, cy + 12, r, c);
+  g.drawWideLine(cx + 11, cy + 12, cx - 1, cy + 12, r, c);
+  g.drawWideLine(cx + 5, cy, cx - 12, cy, r, c);
+  g.drawWideLine(cx - 12, cy, cx - 6, cy - 6, r, c);
+  g.drawWideLine(cx - 12, cy, cx - 6, cy + 6, r, c);
 }
 
 void drawMinus(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) { g.fillRoundRect(cx - 8, cy - 2, 16, 4, 2, c); }
@@ -151,6 +169,7 @@ void drawIcon(lgfx::LovyanGFX& g, int i, int cx, int cy, uint16_t c) {
     case 1: drawMenu(g, cx, cy, c); break;
     case 2: drawRestart(g, cx, cy, c); break;
     case kWifiIcon: drawWifi(g, cx, cy, c); break;
+    case kExitIcon: drawExit(g, cx, cy, c); break;
     default: drawBluetooth(g, cx, cy, c); break;
   }
 }
@@ -197,7 +216,7 @@ TouchButtons::Result TouchButtons::poll(uint32_t nowMs) {
       heldSinceMs_ = nowMs;
       draw();
     }
-    if (powerOff_ && held_ == kReset && !powerFired_) {
+    if (powerOff_ && !inCore_ && held_ == kReset && !powerFired_) {
       if (nowMs - heldSinceMs_ >= kPowerHoldMs) {
         powerFired_ = true;
         held_ = kNone;
@@ -281,7 +300,7 @@ TouchButtons::Result TouchButtons::release(uint32_t nowMs) {
     draw();
     return r;
   }
-  if (b == kReset && powerOff_ && !powerMode_) {
+  if (b == kReset && powerOff_ && !inCore_ && !powerMode_) {
     powerMode_ = true;
     draw();
     return r;
@@ -293,7 +312,7 @@ TouchButtons::Result TouchButtons::release(uint32_t nowMs) {
     draw();
     return r;
   }
-  r.pressed = styleFor(b, wifiSlot_).name;
+  r.pressed = styleFor(b, wifiSlot_, inCore_).name;
   chosen_ = b;
   closeAtMs_ = nowMs + kChosenMs;
   if (closeAtMs_ == 0) closeAtMs_ = 1;
@@ -407,18 +426,18 @@ void TouchButtons::compose() {
   g.setTextSize(1);
   g.setFont(&fonts::DejaVu12);
   for (int i = 0; i < kCount; ++i) {
-    const Style& s = styleFor(i, wifiSlot_);
+    const Style& s = styleFor(i, wifiSlot_, inCore_);
     const int cx = centreX(w, i);
     const bool armed = i == kReset && resetArmed_;
     const bool lit = i == held_ || i == chosen_ || armed;
     const int r = kRadius + (i == held_ || i == chosen_ ? kHeldGrow : 0);
     if (lit) {
       g.fillCircle(cx, cy, r, s.colour);
-      drawIcon(g, &s == &kWifiStyle ? kWifiIcon : i, cx, cy, theme::kText);
+      drawIcon(g, iconFor(i, s), cx, cy, theme::kText);
     } else {
       g.fillCircle(cx, cy, r, s.colour);
       g.fillCircle(cx, cy, r - kRing, kFace);
-      drawIcon(g, &s == &kWifiStyle ? kWifiIcon : i, cx, cy, s.colour);
+      drawIcon(g, iconFor(i, s), cx, cy, s.colour);
     }
     if (i == kReset) {
       const float hold = powerHold(millis());
@@ -507,7 +526,7 @@ void TouchButtons::setBrightness(int level) {
 }
 
 float TouchButtons::powerHold(uint32_t nowMs) const {
-  if (!powerOff_ || held_ != kReset || powerFired_) return 0;
+  if (!powerOff_ || inCore_ || held_ != kReset || powerFired_) return 0;
   const uint32_t heldFor = nowMs - heldSinceMs_;
   if (heldFor < kHoldShowMs) return 0;
   const float f = static_cast<float>(heldFor - kHoldShowMs) / (kPowerHoldMs - kHoldShowMs);

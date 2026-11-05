@@ -599,6 +599,10 @@ class Display:
             if name.startswith("vol,"):
                 self.send_volume(self.volume.set(int(name[4:])))
                 return
+            if name == "menu":
+                # Leave the core: Main loads the menu core, like "Exit" in its OSD.
+                menu_systems.main_command("load_core /media/fat/menu.rbf")
+                return
             if name == "poweroff":
                 # MDSPOWER,halting after the sync: the display shows the shutdown and starts its
                 # safety timeout. MDSPOWER,down comes at the end (see POWEROFF_FLAG).

@@ -142,15 +142,20 @@ def game_cover_frame(items, index, game):
     return _frame(cover, index, game) if cover else None
 
 
+def main_command(command, fifo=CMD_FIFO):
+    """One command line for MiSTer Main (its fifo). O_NONBLOCK: when Main is not reading it, fail
+    instead of hanging the daemon."""
+    fd = os.open(fifo, os.O_WRONLY | os.O_NONBLOCK)
+    try:
+        os.write(fd, (command + "\n").encode())
+    finally:
+        os.close(fd)
+
+
 def play(items, index, game, fifo=CMD_FIFO):
     """Asks MiSTer Main to start a game. Returns its name."""
     if not 0 <= index < len(items) or not 0 <= game < len(items[index]["games"]):
         raise ValueError("no game {},{}".format(index, game))
     g = items[index]["games"][game]
-    # O_NONBLOCK: when Main is not reading the fifo, fail instead of hanging the daemon.
-    fd = os.open(fifo, os.O_WRONLY | os.O_NONBLOCK)
-    try:
-        os.write(fd, "load_core {}\n".format(g["mgl"]).encode())
-    finally:
-        os.close(fd)
+    main_command("load_core {}".format(g["mgl"]), fifo)
     return g["name"]

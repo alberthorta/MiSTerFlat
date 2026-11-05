@@ -643,6 +643,7 @@ void App::pollTouch() {
   }
   const std::string_view core(coreName_, coreNameLength_);
   touchButtons_.setWifiSlot(wifiDongle_ && core == "MENU");
+  touchButtons_.setInCore(!core.empty() && core != "MENU");
   if (screen_ == Screen::Menu && systems_.available()) {
     const MenuScreen::Rect b = MenuScreen::systemsButton(display_);
     touchButtons_.setShortcut(b.x - 8, b.y - 8, b.w + 16, b.h + 14);
