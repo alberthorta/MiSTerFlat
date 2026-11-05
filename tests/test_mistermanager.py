@@ -171,6 +171,18 @@ class LaunchTest(Card):
             ctl.launch('Arcade', {'name': 'x', 'path': '_Arcade/../menu.rbf'})
         self.assertFalse(inside('/a/b/../../etc', '/a'))
 
+    def test_now_playing_carries_art_of_our_own_launch(self):
+        from unittest import mock
+        from mistermanager.control import current
+        launch = {'system': 'NES', 'name': 'Super Mario Bros. (World)', 'path': 'games/NES/x.nes',
+                  'art': 'NES/Artwork/x.jpg', 'time': int(__import__('time').time())}
+        files = {'/tmp/CORENAME': 'NES', '/tmp/RBFNAME': 'NES', '/tmp/FULLPATH': 'games/NES/x.nes'}
+        with mock.patch('mistermanager.control._read', side_effect=lambda path: files.get(path, '')):
+            now = current(self.fat, launch)
+            self.assertEqual((now['game'], now['system'], now['art']), (launch['name'], 'NES', 'NES/Artwork/x.jpg'))
+            files['/tmp/CORENAME'] = 'MENU'
+            self.assertNotIn('art', current(self.fat, None))
+
     def test_missing_fifo_is_an_error_not_a_hang(self):
         ctl = Controller(self.fat, self.fat, fifo=os.path.join(self.fat, 'nofifo'))
         with self.assertRaises(LaunchError):
