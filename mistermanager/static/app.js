@@ -36,9 +36,9 @@ async function upload(path, file) {
   return data;
 }
 
-/* ---------- Routing: #now, #games, #games/<system>, #cores, #saves, #settings ---------- */
-const VIEWS = ['now', 'games', 'cores', 'saves', 'settings'];
-const TITLES = {now: 'Now', games: 'Games', cores: 'Core options', saves: 'Saves', settings: 'Settings'};
+/* ---------- Routing: #now, #games, #games/<system>, #cores, #saves, #display, #settings ---------- */
+const VIEWS = ['now', 'games', 'cores', 'saves', 'display', 'settings'];
+const TITLES = {now: 'Now', games: 'Games', cores: 'Core options', saves: 'Saves', display: 'Display', settings: 'Settings'};
 let view = '';
 
 function route() {
@@ -68,7 +68,8 @@ const loaders = {
   games() { games(); },
   cores(arg) { coreList(arg).catch(fail); },
   saves() { cards().catch(fail); },
-  settings() { settings().catch(fail); lily().catch(() => {}); },
+  display() { lily().catch(fail); },
+  settings() { settings().catch(fail); },
 };
 
 /* ---------- Status: top strip, hero, vitals ---------- */
@@ -395,7 +396,7 @@ $('reboot').onclick = async () => {
   try { await api('/api/reboot', {}); toast('Rebooting…'); } catch (e) { fail(e); }
 };
 
-/* ---------- Settings: MiSTerLily ---------- */
+/* ---------- Display: MiSTerLily ---------- */
 let lilyTimer = null;
 const FONT_LABELS = {c64: 'Commodore 64', '7seg': 'Seven segments', big: 'Big digits', sans: 'Sans',
   orbitron: 'Orbitron', serif: 'Serif', mono: 'Typewriter', retro16: 'Retro thin'};
@@ -404,17 +405,20 @@ const fontLabel = n => FONT_LABELS[n] || n;
 async function lily(refresh) {
   const l = await api('/api/lily' + (refresh ? '?refresh=1' : ''));
   $('lily-panel').hidden = !l.installed;
-  if (!l.installed) return;
+  $('lily-none').hidden = l.installed;
+  if (!l.installed) return l;
   const job = l.job, running = !!(job && job.running);
-  $('lily-model').textContent = l.board ? (l.model || 'Display') : 'Display not connected';
-  $('lily-state').textContent = (l.board ? 'Firmware v' + l.board + '. ' : '')
-    + (l.latest ? 'Latest release v' + l.latest + (l.latest === l.board ? ', up to date.' : '.') : (l.error || ''));
+  $('lily-model').textContent = l.board ? (l.model || 'MiSTerLily display') : 'Display not connected';
+  $('lily-conn').textContent = l.board ? 'Connected over USB.' : 'Check the USB cable, then press Check again.';
+  $('lily-fw').textContent = l.board ? 'Installed v' + l.board : 'Installed version unknown';
+  $('lily-state').textContent = l.latest ? 'Latest release v' + l.latest + (l.latest === l.board ? ', up to date.' : '.') : (l.error || '');
   $('lily-latest').textContent = !l.latest ? 'Update firmware' : l.latest === l.board ? 'Reinstall v' + l.latest : 'Update to v' + l.latest;
   $('lily-latest').disabled = running || !l.latest || !l.board;
   $('lily-file').disabled = running || !l.board;
   $('lily-job').hidden = !job;
   const d = l.display;
   $('lily-display').hidden = !d;
+  $('lily-nodisplay').hidden = !!d;
   // Not while the user moves the slider or has the list open: a refresh would undo the choice.
   if (d && document.activeElement !== $('lily-bright') && document.activeElement !== $('lily-font')) {
     $('lily-bright').max = d.brightness_max;

@@ -28,6 +28,7 @@
     <symbol id="i-display" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5 21 19H3z"/><path d="M12 9.5v4.5M12 16.8v.2"/></symbol>
     <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+    <symbol id="i-lcd" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><rect x="6" y="8.5" width="12" height="7" rx="1"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
   </defs>
 </svg>
@@ -39,6 +40,7 @@
     <a data-nav="games" href="#games"><svg><use href="#i-games"/></svg><span>Games</span></a>
     <a data-nav="cores" href="#cores"><svg><use href="#i-chip"/></svg><span>Cores</span></a>
     <a data-nav="saves" href="#saves"><svg><use href="#i-card"/></svg><span>Saves</span></a>
+    <a data-nav="display" href="#display"><svg><use href="#i-lcd"/></svg><span>Display</span></a>
     <a data-nav="settings" href="#settings"><svg><use href="#i-sliders"/></svg><span>Settings</span></a>
     <div class="nav-foot" id="nav-foot"></div>
   </nav>
@@ -126,6 +128,45 @@
         <input type="file" id="cardfile" accept=".mcd,.mcr,.sav,.gme,.vmp,.srm" hidden>
       </section>
 
+      <section class="view" id="view-display" hidden>
+        <p class="empty" id="lily-none" hidden>MiSTerLily is not installed on this MiSTer.</p>
+        <div id="lily-panel" hidden>
+          <div class="block-head"><h2>Board</h2></div>
+          <div class="group">
+            <div class="row">
+              <span class="row-text"><span id="lily-model">Display</span><small id="lily-conn"></small></span>
+            </div>
+          </div>
+
+          <div class="block-head"><h2>Screen</h2></div>
+          <div class="group">
+            <div id="lily-display" hidden>
+              <div class="row"><label class="row-text" for="lily-bright">Brightness<small>Changes at once.</small></label><div class="range"><input type="range" id="lily-bright" min="0" max="7" step="1"><output id="lily-brightval">–</output></div></div>
+              <div class="row stack"><label class="row-text" for="lily-font">Clock font<small>Used by the clock when no game is running.</small></label><select id="lily-font"></select></div>
+            </div>
+            <p class="help" id="lily-nodisplay">Brightness and clock font need a connected display with firmware 0.4.1 or later.</p>
+          </div>
+
+          <div class="block-head"><h2>Firmware</h2></div>
+          <div class="group">
+            <div class="row">
+              <span class="row-text"><span id="lily-fw">–</span><small id="lily-state"></small></span>
+              <button class="btn" id="lily-check">Check again</button>
+            </div>
+            <div class="row actions">
+              <button class="btn primary" id="lily-latest">Update firmware</button>
+              <button class="btn" id="lily-file">Flash a file…</button>
+            </div>
+            <div id="lily-job" class="job" hidden>
+              <progress id="lily-progress" max="100" value="0"></progress>
+              <p id="lily-step" class="help"></p>
+            </div>
+            <p class="help">Only the program is written: the display keeps its settings and start-up picture. It takes about 15 s. Do not unplug the display while it runs.</p>
+            <input type="file" id="lily-input" accept=".bin" hidden>
+          </div>
+        </div>
+      </section>
+
       <section class="view" id="view-settings" hidden>
         <div class="block-head"><h2>Sound</h2></div>
         <div class="group">
@@ -160,30 +201,6 @@
           <div class="row stack"><label class="row-text" for="vmode">Output</label><select id="vmode"></select></div>
           <div class="row stack"><label class="row-text" for="dvi">Signal</label><select id="dvi"></select></div>
           <p class="help">Try these if the screen goes off and on when a core loads. Both keep 1920x1080 at 60 Hz. If the screen stays black after a change, set it back here from the phone, then reload a core.</p>
-        </div>
-
-        <div id="lily-panel" hidden>
-          <div class="block-head"><h2>MiSTerLily display</h2></div>
-          <div class="group">
-            <div class="row">
-              <span class="row-text"><span id="lily-model">Display</span><small id="lily-state"></small></span>
-              <button class="btn" id="lily-check">Check again</button>
-            </div>
-            <div id="lily-display" hidden>
-              <div class="row"><label class="row-text" for="lily-bright">Brightness</label><div class="range"><input type="range" id="lily-bright" min="0" max="7" step="1"><output id="lily-brightval">–</output></div></div>
-              <div class="row stack"><label class="row-text" for="lily-font">Clock font</label><select id="lily-font"></select></div>
-            </div>
-            <div class="row actions">
-              <button class="btn primary" id="lily-latest">Update firmware</button>
-              <button class="btn" id="lily-file">Flash a file…</button>
-            </div>
-            <div id="lily-job" class="job" hidden>
-              <progress id="lily-progress" max="100" value="0"></progress>
-              <p id="lily-step" class="help"></p>
-            </div>
-            <p class="help">Only the program is written: the display keeps its settings and start-up picture. It takes about 15 s. Do not unplug the display while it runs.</p>
-            <input type="file" id="lily-input" accept=".bin" hidden>
-          </div>
         </div>
 
         <div class="block-head"><h2>Power</h2></div>

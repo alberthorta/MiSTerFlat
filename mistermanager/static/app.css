@@ -378,3 +378,7 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); border: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Display view: the panel wraps the blocks, and the help line can be the only thing in its group. */
+#lily-panel > .block-head:first-child { margin-top: 0; }
+.group > #lily-nodisplay { border-top: 0; }
