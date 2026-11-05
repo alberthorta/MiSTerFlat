@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "config.h"
+#include "net/RemoteView.h"
 #include "util/Log.h"
 
 namespace {
@@ -44,8 +45,13 @@ lgfx::LovyanGFX& DisplayManager::canvas() {
   return lcd_;
 }
 
+void DisplayManager::publish() {
+  if (framebufferOk_) remote::publish(framebufferBytes(), framebufferSize(), width(), height(), lightOn());
+}
+
 void DisplayManager::present() {
   ++frameCount_;
+  publish();
   if (fadeArmed_) {
     fadeArmed_ = false;
     presentFaded(fadeArmedMs_);
@@ -59,6 +65,7 @@ void DisplayManager::present() {
 
 void DisplayManager::presentFaded(uint32_t nowMs) {
   ++frameCount_;
+  publish();
   if (!framebufferOk_ || !awake_ || !backlightOn_) {
     finishFade();
     if (framebufferOk_ && awake_) frame_.pushSprite(0, 0);
@@ -83,6 +90,7 @@ void DisplayManager::presentFaded(uint32_t nowMs) {
 }
 
 void DisplayManager::tick(uint32_t nowMs) {
+  if (remote::wantsFrame()) publish();
   if (fade_ == Fade::None) return;
   const uint32_t t = nowMs - fadeStartMs_;
   if (fade_ == Fade::Out) {
@@ -124,6 +132,7 @@ void DisplayManager::setBacklightOn(bool on) {
   backlightOn_ = on;
   finishFade();
   if (awake_) lcd_.setBrightness(on ? brightness_ : 0);
+  publish();  // the page dims its copy too
 }
 
 void DisplayManager::setRotation(uint8_t rotation) {
@@ -137,6 +146,7 @@ void DisplayManager::sleep() {
   awake_ = false;
   lcd_.setBrightness(0);
   lcd_.sleep();
+  publish();
 }
 
 void DisplayManager::wake() {
@@ -154,6 +164,7 @@ bool DisplayManager::touched(int* x, int* y) {
     return true;
   }
   injectUntilMs_ = 0;
+  if (remote::touch(x, y)) return true;  // a finger on the virtual display
 #if MDS_HAS_TOUCH
   lgfx::touch_point_t tp;
   if (lcd_.getTouch(&tp, 1) == 0) return false;

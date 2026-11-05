@@ -40,6 +40,7 @@ from buttons import Buttons, Volume  # noqa: E402
 from mdsserial import Port  # noqa: E402
 from pictures import asset_frame, decode_picture, find_art, find_picture  # noqa: E402
 import display_settings  # noqa: E402
+import display_wifi  # noqa: E402
 import menu_browse  # noqa: E402
 import wifi  # noqa: E402
 
@@ -80,6 +81,9 @@ TOUCH_BOARDS = {"HWWSTLCD2"}  # boards that send MDSBTN
 WIFI_SINCE = (0, 3, 0)
 VOLUME_SINCE = (0, 4, 0)  # the volume row on the touch buttons (MDSVOL)
 SETTINGS_SINCE = (0, 4, 1)  # MDSCFG,brightness and MDSCFG,clockfont, for display_settings.py
+STATION_SINCE = (0, 6, 0)  # the touch board's own Wi-Fi (MDSSTA), for display_wifi.py
+# The board's Wi-Fi state (signal, address) is asked for this often.
+STATION_CHECK_SECONDS = 30.0
 # How often the display's settings are asked for, so a change on the touch screen reaches
 # /tmp/misterlily_cfg; also how long a command from /tmp/misterlily_cmd may wait.
 SETTINGS_CHECK_SECONDS = 2.0
@@ -272,6 +276,8 @@ class Display:
         self.sent_volume = None
         self.next_volume_check = 0.0
         self.settings_file = False  # the board takes MDSCFG,brightness/clockfont
+        self.station = None  # the board's own Wi-Fi state (display_wifi), when it has one
+        self.next_station_check = 0.0
         self.next_settings_check = 0.0
         self.wifi_screen = False  # the board has the Wi-Fi screen
         self.wifi_dongle = None  # last state sent to it
@@ -337,6 +343,8 @@ class Display:
         write_fw_version(None)
         display_settings.write_state(None)
         self.settings_file = False
+        display_wifi.write_state(None)
+        self.station = None
 
     def still_there(self):
         return self.port is not None and os.path.exists(self.path)
@@ -397,6 +405,16 @@ class Display:
                 self.port.write("MDSCFG,{},{}\n".format(setting, value))
                 log("display {} set to {}".format(setting, value))
             self.port.write("MDSCFG\n")  # the reply goes to /tmp/misterlily_cfg (drain)
+            if self.station is not None:
+                commands = display_wifi.take_commands(self.station)
+                for line in commands:
+                    self.port.write(line)
+                    log("display wi-fi: {}".format(line.split(",")[1].strip() if "," in line else "status"))
+                if commands:
+                    display_wifi.write_state(self.station)
+        if self.station is not None and now >= self.next_station_check:
+            self.next_station_check = now + STATION_CHECK_SECONDS
+            self.port.write("MDSSTA\n")
         if self.volume_row and now >= self.next_volume_check:
             self.next_volume_check = now + VOLUME_CHECK_SECONDS
             self.send_volume(self.volume.read())
@@ -432,6 +450,9 @@ class Display:
                     cfg = display_settings.parse_cfg(line)
                     if cfg:
                         display_settings.write_state(cfg)
+            elif line.startswith(b"MDSSTA,"):
+                if self.station is not None and display_wifi.handle_line(line, self.station):
+                    display_wifi.write_state(self.station)
             elif line.startswith(b"MDSIMG;err"):
                 log("display: " + line.decode(errors="replace"))
             elif line.startswith(b"MDSWIFI,") and self.wifi_screen:
@@ -445,6 +466,13 @@ class Display:
                 self.wifi_screen = board in TOUCH_BOARDS and version_tuple(version) >= WIFI_SINCE
                 self.volume_row = board in TOUCH_BOARDS and version_tuple(version) >= VOLUME_SINCE
                 self.settings_file = version_tuple(version) >= SETTINGS_SINCE
+                if board in TOUCH_BOARDS and version_tuple(version) >= STATION_SINCE:
+                    self.station = display_wifi.new_state()
+                    display_wifi.write_state(self.station)
+                    self.next_station_check = 0.0
+                else:
+                    self.station = None
+                    display_wifi.write_state(None)
                 self.next_settings_check = 0.0
                 self.sent_volume = None
                 self.next_volume_check = 0.0

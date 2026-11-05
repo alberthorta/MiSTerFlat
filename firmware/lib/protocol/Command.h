@@ -54,6 +54,7 @@ enum class CommandId : uint8_t {
   MdsVol,   // MDSVOL,<level 0-7>,<muted 0|1> -> the MiSTer's global volume (touch volume row)
   MdsPower, // MDSPOWER,halting|down -> the MiSTer is shutting down / is down (power relay)
   MdsHang,  // MDSHANG (test builds only): stop feeding the watchdog
+  MdsSta,   // MDSSTA[,scan|join,<ssid hex>,<password hex>|forget] -> this board's own Wi-Fi
   MdsShot,  // MDSSHOT -> "MDSSHOT,<w>,<h>,<bytes>\n" + "ttyack;" + framebuffer (RGB565 big-endian)
 };
 

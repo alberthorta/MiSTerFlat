@@ -66,6 +66,7 @@ void App::begin() {
   presence_.start(millis());
   touchButtons_.setBrightness(levelForContrast(settings_.contrast()));
   touchButtons_.setPowerOff(PowerSwitch::available());
+  station_.begin();
   if (PowerSwitch::available() && !power_.on()) {
     powerState_ = Power::Off;
     display_.setBrightness(Settings::backlightFor(0));
@@ -95,6 +96,13 @@ void App::loop() {
     showMenu(screen_ == Screen::IdleClock);
   }
   pumpScreenshot(millis());
+  station_.poll(millis());
+  if (strcmp(shownBoardIp_, station_.ip()) != 0) {
+    // The board got or lost its address: the screens that show it draw again.
+    strncpy(shownBoardIp_, station_.ip(), sizeof(shownBoardIp_) - 1);
+    if (screen_ == Screen::Menu || screen_ == Screen::IdleClock) showMenu(screen_ == Screen::IdleClock);
+    if (screen_ == Screen::Standby) showStandby();
+  }
   pollPower();
   if (MDS_HAS_TOUCH) {
     pollTouch();
@@ -395,6 +403,9 @@ void App::handle(const proto::Command& cmd, std::string_view line) {
     case CommandId::MdsLogo:
       sendLogoStatus();
       break;
+    case CommandId::MdsSta:
+      station_.onHost(cmd.args);
+      break;
     case CommandId::MdsWifi:
       if (cmd.args.substr(0, 7) == "dongle,") {
         wifiDongle_ = cmd.args.substr(7) == "1";
@@ -491,7 +502,7 @@ void App::showMenu(bool dimmed) {
   screen_ = dimmed ? Screen::IdleClock : Screen::Menu;
   shownMinute_ = clock_.minuteStamp(millis());
   if (wifi_.active()) return;  // the Wi-Fi screen is on top; redrawCurrent() brings the clock back
-  MenuScreen::draw(display_, clock_.local(millis()), ip_, dimmed, settings_.clockFont());
+  MenuScreen::draw(display_, clock_.local(millis()), ip_, dimmed, settings_.clockFont(), station_.ip());
 }
 
 void App::setTime(std::string_view args) {
@@ -774,7 +785,7 @@ void App::sendInfo() {
   const int n = snprintf(line, sizeof(line),
                          "MDSINFO;fw=%s;board=" MDS_BOARD_NAME ";psram=%u;fb=%s;uptime_ms=%lu;reset=%d;"
                          "lines=%lu;images=%lu;discards=%lu;txdrop=%lu;txstale=%lu;lastimg=%d:%u;asseterr=%s;"
-                         "host=%s;idle=%s;power=%s;core=%s\n",
+                         "host=%s;idle=%s;power=%s;sta=%s;heap=%u;core=%s\n",
                          MDS_FW_VERSION, (unsigned)ESP.getPsramSize(), display_.hasFramebuffer() ? "psram" : "direct",
                          (unsigned long)millis(), (int)esp_reset_reason(), (unsigned long)linesReceived_,
                          (unsigned long)imagesReceived_, (unsigned long)discards_,
@@ -786,7 +797,7 @@ void App::sendInfo() {
                          : powerState_ == Power::On          ? "on"
                          : powerState_ == Power::Stopping    ? "stopping"
                                                              : "off",
-                         coreName_);
+                         station_.stateName(), (unsigned)ESP.getFreeHeap(), coreName_);
   if (n > 0) transport_.write(line, static_cast<size_t>(n) < sizeof(line) ? n : sizeof(line) - 1);
 }
 
@@ -905,10 +916,10 @@ void App::showStandby() {
   if (clock_.valid()) {
     shownMinute_ = clock_.minuteStamp(millis());
     const wallclock::DateTime now = clock_.local(millis());
-    StandbyScreen::draw(display_, &now);
+    StandbyScreen::draw(display_, &now, station_.ip());
   } else {
     shownMinute_ = -1;
-    StandbyScreen::draw(display_, nullptr);
+    StandbyScreen::draw(display_, nullptr, station_.ip());
   }
 }
 

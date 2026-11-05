@@ -32,6 +32,10 @@ centred vertically, and colour pictures made for 320×170 get black bars above a
 Optional, Waveshare board: a 5 V relay module makes the display the MiSTer's power button
 (standby screen, tap to power on, hold RESET to power off). See [docs/power.md](docs/power.md).
 
+Waveshare board, firmware 0.6.0: the display joins a Wi-Fi network of its own and serves a
+virtual display, the same screen on a phone, with touch, also while the MiSTer is off. Set the
+network from MiSTerManager. See [docs/virtual-display.md](docs/virtual-display.md).
+
 Plus a USB-C data cable. In the final build: a free port on the MiSTer's internal USB hub
 (see [docs/wiring.md](docs/wiring.md)).
 

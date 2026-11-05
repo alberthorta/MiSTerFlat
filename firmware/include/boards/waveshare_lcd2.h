@@ -9,6 +9,8 @@
 #define MDS_BOARD_NAME "Waveshare LCD 2"
 #define MDS_BOARD_WAVESHARE_LCD2 1
 #define MDS_HAS_TOUCH 1
+// Its own Wi-Fi (set from MiSTerManager) and the virtual display web page: docs/virtual-display.md.
+#define MDS_HAS_STATION 1
 
 namespace cfg {
 

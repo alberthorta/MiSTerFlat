@@ -193,6 +193,25 @@ touch board that answers `CMDHWINF` with version 0.3.0 or later. SSIDs and passw
 
 The display gives up waiting after 45 s (scan) and 60 s (join).
 
+## The display's own Wi-Fi: `MDSSTA` (Waveshare board, firmware 0.6.0 and later)
+
+Not the MiSTer's Wi-Fi above: this is the network of the display board itself, for the virtual
+display (`docs/virtual-display.md`). The host sets it; the board stores it in its flash only after
+it got an address on it. SSIDs and passwords travel in hex.
+
+| Line | Direction | Meaning |
+|---|---|---|
+| `MDSSTA` | host → display | Send the status line |
+| `MDSSTA,scan` | host → display | Scan for networks (the board scans itself) |
+| `MDSSTA,join,<ssid hex>,<password hex>` | host → display | Join; empty password for an open network. A password has 8 to 63 bytes |
+| `MDSSTA,forget` | host → display | Leave the network, erase it, Wi-Fi off |
+| `MDSSTA,status,<off\|connecting\|ok\|fail>,<ip>,<dBm>,<ssid hex>` | display → host | On every change and after `MDSSTA`. `fail`: a new network gave no address in 20 s; the board then goes back to the stored one |
+| `MDSSTA,scanning` | display → host | Scan started |
+| `MDSSTA,net,<dBm>,<secure 0\|1>,<ssid hex>` | display → host | One network, strongest first, one line per name; at most 20 |
+| `MDSSTA,end,<n>` | display → host | End of the list; n is the raw scan result (access points seen, -2 = scan failed). The board tries a failed scan 3 more times first |
+
+`MDSINFO` has `sta=<none|off|connecting|ok|fail>`.
+
 ## Device behaviour
 
 - **Settings**: `CMDCON` (brightness) and `CMDROT` (rotation) are stored in flash, written only when

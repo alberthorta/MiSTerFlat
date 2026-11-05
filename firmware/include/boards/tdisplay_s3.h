@@ -9,6 +9,7 @@
 #define MDS_BOARD_NAME "T-Display-S3"
 #define MDS_BOARD_TDISPLAY_S3 1
 #define MDS_HAS_TOUCH 0
+#define MDS_HAS_STATION 0
 
 namespace cfg {
 

@@ -5,6 +5,7 @@
 """
 import os
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "mister"))
 import wifi  # noqa: E402
@@ -71,4 +72,31 @@ _, blocks = wifi.split_conf(again)
 check("re-adding a saved network replaces it", [wifi.block_ssid(b) for b in blocks] == [b"Cafe", b"Home"], again)
 check("open network: key_mgmt=NONE, priority above the others",
       "key_mgmt=NONE" in blocks[1] and wifi.block_priority(blocks[1]) == 2, again)
+# The display board has 2.4 GHz only: 5 GHz access points are left out of its list.
+DUAL = """BSS aa:bb:cc:dd:ee:01(on wlan0) -- associated
+\tfreq: 2437
+\tsignal: -50.00 dBm
+\tSSID: TuxIoT
+\tRSN:\t * Version: 1
+BSS aa:bb:cc:dd:ee:02(on wlan0)
+\tfreq: 5180
+\tsignal: -40.00 dBm
+\tSSID: horta
+\tRSN:\t * Version: 1
+BSS aa:bb:cc:dd:ee:03(on wlan0)
+\tfreq: 2412
+\tsignal: -70.00 dBm
+\tSSID: Cafe
+"""
+check("only 2.4 GHz", wifi.parse_scan(wifi.only_24ghz(DUAL)) == [(b"TuxIoT", -50, True, True), (b"Cafe", -70, False, False)],
+      str(wifi.parse_scan(wifi.only_24ghz(DUAL))))
+with tempfile.TemporaryDirectory() as tmp2:
+    conf2 = os.path.join(tmp2, "c")
+    with open(conf2, "w") as f:
+        f.write('ctrl_interface=x\nnetwork={\n\tssid="Tux"\n\tpsk="hello123"\n}\nnetwork={\n\tssid=547578496f54\n\tpsk=' + "ab" * 32
+                + '\n}\nnetwork={\n\tssid="Open"\n\tkey_mgmt=NONE\n}\n')
+    check("saved key: passphrase", wifi.saved_key(b"Tux", conf2) == "hello123")
+    check("saved key: psk", wifi.saved_key(b"TuxIoT", conf2) == "ab" * 32)
+    check("saved key: open", wifi.saved_key(b"Open", conf2) == "")
+    check("saved key: unknown", wifi.saved_key(b"nope", conf2) is None)
 sys.exit(1 if failures else 0)

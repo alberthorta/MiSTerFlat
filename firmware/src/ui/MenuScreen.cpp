@@ -112,7 +112,8 @@ const char* clockFontName(int index) {
   return (index >= 0 && index < kClockFontCount) ? kClockFonts[index].name : "";
 }
 
-void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip, bool dimmed, int clockFont) {
+void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip, bool dimmed, int clockFont,
+          const char* boardIp) {
   const ClockFont& cf = kClockFonts[(clockFont >= 0 && clockFont < kClockFontCount) ? clockFont : 0];
   const int timeH = cf.height;
   auto& g = display.canvas();
@@ -189,6 +190,10 @@ void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip,
   g.setTextDatum(lgfx::top_right);
   g.setTextColor(dimmed ? theme::rgb565(35, 35, 35) : theme::kTextFaint);
   g.drawString("v" MDS_FW_VERSION, w - 4, 2);
+  if (boardIp && boardIp[0]) {
+    g.setTextDatum(lgfx::bottom_right);
+    g.drawString(boardIp, w - 4, display.height() - 2);
+  }
   g.setTextDatum(lgfx::middle_center);
   display.present();
 }

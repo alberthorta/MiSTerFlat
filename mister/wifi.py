@@ -92,6 +92,68 @@ def scan(iface=IFACE):
     return parse_scan(out.decode("utf-8", "surrogateescape"))
 
 
+def only_24ghz(text):
+    """`iw dev <if> scan` output without the 5 GHz (and 6 GHz) access points: for the display board,
+    whose ESP32-S3 has 2.4 GHz only."""
+    out, keep = [], True
+    for line in text.splitlines():
+        if line.startswith("BSS "):
+            keep = True
+        m = re.match(r"\s*freq:\s*(\d+)", line)
+        if m and int(m.group(1)) >= 3000:
+            keep = False
+            # Drop what was already taken from this block.
+            while out and not out[-1].startswith("BSS "):
+                out.pop()
+            if out:
+                out.pop()
+            continue
+        if keep:
+            out.append(line)
+    return "\n".join(out)
+
+
+def scan_24ghz(iface=IFACE):
+    out = subprocess.run(["iw", "dev", iface, "scan"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                         timeout=40).stdout
+    return parse_scan(only_24ghz(out.decode("utf-8", "surrogateescape")))
+
+
+def link(iface=IFACE):
+    """(ssid bytes, MHz) of the network the dongle is on, or None."""
+    try:
+        text = subprocess.run(["iw", "dev", iface, "link"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                              timeout=5).stdout.decode("utf-8", "surrogateescape")
+    except (OSError, subprocess.SubprocessError):
+        return None
+    ssid = re.search(r"^\s*SSID:\s*(.*)$", text, re.M)
+    freq = re.search(r"^\s*freq:\s*(\d+)", text, re.M)
+    if not ssid:
+        return None
+    return decode_iw_ssid(ssid.group(1).strip()), int(freq.group(1)) if freq else 0
+
+
+def saved_key(ssid, conf=CONF):
+    """The key wpa_supplicant.conf has for ssid (bytes): the 64-hex PSK as wpa_supplicant takes it,
+    the passphrase of a quoted psk, "" for an open network, or None if the network is not there."""
+    try:
+        with open(conf, encoding="utf-8", errors="surrogateescape") as f:
+            text = f.read()
+    except OSError:
+        return None
+    for block in split_conf(text)[1]:
+        if block_ssid(block) != ssid:
+            continue
+        m = re.search(r'^\s*psk\s*=\s*(.+?)\s*$', block, re.M)
+        if not m:
+            return "" if re.search(r'^\s*key_mgmt\s*=\s*NONE', block, re.M) else None
+        value = m.group(1)
+        if value.startswith('"') and value.endswith('"'):
+            return value[1:-1]
+        return value if re.fullmatch(r"[0-9a-fA-F]{64}", value) else None
+    return None
+
+
 def split_conf(text):
     """(lines before the first network block, [block text]) of a wpa_supplicant.conf."""
     head, blocks, cur, depth = [], [], None, 0

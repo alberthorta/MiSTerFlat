@@ -36,6 +36,7 @@ constexpr Keyword kExact[] = {
     {"MDSLOGO", CommandId::MdsLogo},
     {"MDSCFG", CommandId::MdsCfg},
     {"MDSHANG", CommandId::MdsHang},
+    {"MDSSTA", CommandId::MdsSta},
 };
 
 // Prefix matches (newCommand.startsWith("...")), checked in the sketch's order.
@@ -58,6 +59,7 @@ constexpr Keyword kPrefix[] = {
     {"MDSWIFI,", CommandId::MdsWifi},
     {"MDSVOL,", CommandId::MdsVol},
     {"MDSPOWER,", CommandId::MdsPower},
+    {"MDSSTA,", CommandId::MdsSta},
 };
 
 std::string_view afterKeyword(std::string_view line, size_t keywordLength) {

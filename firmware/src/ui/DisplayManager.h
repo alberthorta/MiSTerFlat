@@ -36,8 +36,8 @@ class DisplayManager {
   void setBacklightOn(bool on);
 
   bool lightOn() const { return awake_ && backlightOn_; }
-  // A point on the screen (in drawing coordinates) while a finger is on it. Always false on
-  // boards without a touch panel.
+  // A point on the screen (in drawing coordinates) while a finger is on it, on the panel or on
+  // the virtual display. Always false on boards with neither.
   bool touched(int* x, int* y);
   // Test builds (MDSTAP): a finger at (x, y) for the next `ms` milliseconds.
   void injectTouch(int x, int y, uint32_t ms) {
@@ -83,6 +83,8 @@ class DisplayManager {
 
   enum class Fade : uint8_t { None, Out, In };
   void finishFade();
+  // Hands the frame to the virtual display (does nothing while no page is open).
+  void publish();
   Fade fade_ = Fade::None;
   bool fadeArmed_ = false;
   uint32_t fadeArmedMs_ = 0;

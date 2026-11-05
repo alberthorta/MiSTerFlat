@@ -7,6 +7,7 @@
 // and "Tap to power on". Drawn in dark colours; the backlight is turned down as well.
 namespace StandbyScreen {
 
-void draw(DisplayManager& display, const wallclock::DateTime* now);
+// boardIp: this board's own address, bottom right as on the menu screen ("" for none).
+void draw(DisplayManager& display, const wallclock::DateTime* now, const char* boardIp = "");
 
 }  // namespace StandbyScreen

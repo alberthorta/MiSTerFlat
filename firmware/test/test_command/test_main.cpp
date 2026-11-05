@@ -78,6 +78,15 @@ void test_prefix_commands_and_args() {
   c = parseCommand("MDSPOWER,halting");
   TEST_ASSERT_EQUAL(CommandId::MdsPower, c.id);
   TEST_ASSERT_EQUAL_STRING("halting", str(c.args).c_str());
+
+  c = parseCommand("MDSSTA");
+  TEST_ASSERT_EQUAL(CommandId::MdsSta, c.id);
+  TEST_ASSERT_EQUAL_STRING("", str(c.args).c_str());
+  c = parseCommand("MDSSTA,join,6869,");
+  TEST_ASSERT_EQUAL(CommandId::MdsSta, c.id);
+  TEST_ASSERT_EQUAL_STRING("join,6869,", str(c.args).c_str());
+  // MDSSHOT is not taken for MDSSTA, nor the other way round.
+  TEST_ASSERT_EQUAL(CommandId::MdsShot, parseCommand("MDSSHOT").id);
 }
 
 void test_split_fields_keeps_commas_in_last_field() {

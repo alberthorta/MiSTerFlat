@@ -21,7 +21,7 @@ void drawPower(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
 
 }  // namespace
 
-void draw(DisplayManager& display, const wallclock::DateTime* now) {
+void draw(DisplayManager& display, const wallclock::DateTime* now, const char* boardIp) {
   auto& g = display.canvas();
   const int w = display.width();
   const int h = display.height();
@@ -45,6 +45,14 @@ void draw(DisplayManager& display, const wallclock::DateTime* now) {
   g.setFont(&fonts::DejaVu18);
   g.setTextColor(kHintColour);
   g.drawString("Tap to power on", w / 2, y + 15);
+
+  if (boardIp && boardIp[0]) {
+    g.setFont(&fonts::Font2);
+    g.setTextDatum(lgfx::bottom_right);
+    g.setTextColor(theme::kTextFaint);
+    g.drawString(boardIp, w - 4, h - 2);
+    g.setTextDatum(lgfx::middle_center);
+  }
 
   display.present();
 }

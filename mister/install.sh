@@ -60,7 +60,7 @@ remove_block() {  # file
 mkdir -p "$DEST/art"
 if [ "$SRC" != "$DEST" ]; then
   for f in find-display.sh uninstall.sh install.sh misterlily_update.sh mister_display.py misterlily_flash.py \
-           mdsserial.py pictures.py buttons.py wifi.py menu_browse.py display_settings.py \
+           mdsserial.py pictures.py buttons.py wifi.py menu_browse.py display_settings.py display_wifi.py \
            S60misterlily; do
     cp -f "$SRC/$f" "$DEST/"
   done
