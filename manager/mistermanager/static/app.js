@@ -37,9 +37,9 @@ async function upload(path, file) {
   return data;
 }
 
-/* ---------- Routing: #now, #games, #games/<system>, #cores, #cores/<core>, #display, #settings ---------- */
-const VIEWS = ['now', 'games', 'cores', 'display', 'settings'];
-const TITLES = {now: 'Now', games: 'Games', cores: 'Cores', display: 'Display', settings: 'Settings'};
+/* ---------- Routing: #now, #games, #games/<system>, #quick, #quick/<system>, #cores, #cores/<core>, #display, #settings ---------- */
+const VIEWS = ['now', 'games', 'quick', 'cores', 'display', 'settings'];
+const TITLES = {now: 'Now', games: 'Games', quick: 'Systems', cores: 'Cores', display: 'Display', settings: 'Settings'};
 let view = '';
 
 function route() {
@@ -69,6 +69,7 @@ window.addEventListener('hashchange', route);
 const loaders = {
   now() { recent(); pads().catch(() => {}); },
   games() { games(); },
+  quick(arg) { (arg ? quickSystem(arg) : quickHome()).catch(fail); },
   cores(arg) { coreList(arg).catch(fail); },
   display() { lily().catch(fail); },
   settings() { settings().catch(fail); },
@@ -876,3 +877,203 @@ $('core-save').onclick = async () => {
 status();
 systems().catch(() => {}).then(route);
 setInterval(status, 5000);
+
+/* ---------- Systems: the quick launch games of the touch display ---------- */
+let quickKey = '', quickData = null, coverGame = null;
+const quickCover = g => '/api/quick/cover?' + new URLSearchParams({system: quickKey, game: g.id, v: g.crc});
+
+async function quickHome() {
+  quickKey = '';
+  $('quick-home').hidden = false;
+  $('quick-system').hidden = true;
+  $('title').textContent = 'Systems';
+  const list = await api('/api/quick');
+  $('quick-systems').replaceChildren(...list.map(s => {
+    const a = document.createElement('a');
+    a.className = 'row qsys';
+    a.href = '#quick/' + encodeURIComponent(s.id);
+    const count = s.count ? s.count + (s.count === 1 ? ' game' : ' games') : 'No games';
+    a.innerHTML = '<span class="row-text">' + esc(s.name) + (s.installed ? '' : '<small>Core not on the SD card</small>') + '</span>'
+      + '<span class="count' + (s.count ? ' has' : '') + '">' + count + '</span>' + icon('down').replace('<svg>', '<svg style="transform:rotate(-90deg)">');
+    return a;
+  }));
+}
+
+async function quickSystem(key) {
+  quickKey = key;
+  $('quick-home').hidden = true;
+  $('quick-system').hidden = false;
+  const [data, list] = await Promise.all([api('/api/quick/games?' + new URLSearchParams({system: key})), api('/api/quick')]);
+  if (quickKey !== key) return;
+  quickData = data;
+  const info = list.find(s => s.id === key) || {};
+  $('title').textContent = data.name;
+  $('quick-name').textContent = data.name;
+  $('quick-count').textContent = data.games.length + ' / ' + data.max;
+  $('quick-add').disabled = data.games.length >= data.max;
+  $('quick-nocore').hidden = info.installed !== false;
+  const box = $('quick-games');
+  if (!data.games.length) {
+    box.innerHTML = '<p class="help">No games yet. Add a few with “Add game”: they show on the display in this order.</p>';
+    return;
+  }
+  box.replaceChildren(...data.games.map((g, i) => {
+    const row = document.createElement('div');
+    row.className = 'qgame';
+    row.innerHTML = '<button class="qthumb" type="button" aria-label="Cover of ' + esc(g.name) + '">'
+      + (g.cover ? '<img alt="" src="' + quickCover(g) + '">' : icon('image')) + '</button>'
+      + '<div class="qtext"><h3>' + esc(g.name) + '</h3><p' + (g.missing ? ' class="warn">The file is not on the SD card any more' : '>'
+      + esc(g.path.split('/').pop())) + '</p></div><div class="qacts"></div>';
+    row.querySelector('.qthumb').onclick = () => openCover(g);
+    const acts = row.querySelector('.qacts');
+    const btn = (name, label, fn, disabled) => {
+      const b = document.createElement('button');
+      b.className = 'icon-btn';
+      b.type = 'button';
+      b.setAttribute('aria-label', label);
+      b.innerHTML = icon(name);
+      b.disabled = !!disabled;
+      if (fn) b.onclick = fn;
+      acts.append(b);
+      return b;
+    };
+    btn('up', 'Move up', () => quickMove(g, -1), i === 0);
+    btn('down', 'Move down', () => quickMove(g, 1), i === data.games.length - 1);
+    const del = btn('close', 'Remove ' + g.name);
+    armed(del, '', async () => {
+      await api('/api/quick/remove', {system: key, game: g.id});
+      toast(g.name + ' removed');
+      quickSystem(key);
+    });
+    del.addEventListener('click', () => { if (del.classList.contains('armed')) del.innerHTML = icon('check'); });
+    return row;
+  }));
+}
+
+async function quickMove(g, delta) {
+  try {
+    await api('/api/quick/move', {system: quickKey, game: g.id, delta});
+    quickSystem(quickKey);
+  } catch (e) { fail(e); }
+}
+
+// Add: the games of this system on the SD card, searched like the Games page.
+let addTimer = null;
+$('quick-add').onclick = () => {
+  $('qadd-sub').textContent = quickData ? quickData.name : '';
+  $('qadd-q').value = '';
+  $('qadd').showModal();
+  quickAddList();
+  $('qadd-q').focus();
+};
+$('qadd-close').onclick = () => $('qadd').close();
+$('qadd').onclick = ev => { if (ev.target === $('qadd')) $('qadd').close(); };
+$('qadd-q').oninput = () => { clearTimeout(addTimer); addTimer = setTimeout(quickAddList, 200); };
+
+async function quickAddList() {
+  if (!quickData) return;
+  const q = $('qadd-q').value.trim();
+  const list = await api('/api/games?' + new URLSearchParams({system: quickData.system, q})).catch(() => []);
+  if ($('qadd-q').value.trim() !== q) return;
+  const have = new Set(quickData.games.map(g => g.path));
+  const box = $('qadd-list');
+  if (!list.length) { box.innerHTML = '<p class="help">' + (q ? 'No game matches.' : 'No games of this system on the SD card.') + '</p>'; return; }
+  box.replaceChildren(...list.slice(0, 200).map(g => {
+    const b = document.createElement('button');
+    b.className = 'qadd-item';
+    b.type = 'button';
+    b.disabled = have.has(g.path);
+    b.innerHTML = '<span class="qthumb">' + (g.art ? '<img loading="lazy" alt="" src="' + artUrl(g.art) + '">' : '') + '</span>'
+      + '<span>' + esc(g.name) + '</span>' + (b.disabled ? '<small>In the list</small>' : '');
+    b.onclick = () => quickAdd(g, b);
+    return b;
+  }));
+}
+
+async function quickAdd(g, b) {
+  b.disabled = true;
+  try {
+    const entry = await api('/api/quick/add', {system: quickKey, path: g.path});
+    $('qadd').close();
+    toast(entry.name + ' added');
+    // The artwork update_all put on the SD card is the first cover, when there is one.
+    if (g.art) await saveCover(entry, artUrl(g.art)).catch(() => {});
+    quickSystem(quickKey);
+  } catch (e) { fail(e); b.disabled = false; }
+}
+
+// Covers: 240x320 JPEG made here. A picture close to 3:4 fills the cover; a wide one (a SNES box,
+// a screenshot) fits inside it on black.
+async function makeCover(src) {
+  const img = new Image();
+  img.src = src;
+  await img.decode();
+  const c = document.createElement('canvas');
+  c.width = 240; c.height = 320;
+  const g = c.getContext('2d');
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, 240, 320);
+  const r = img.naturalWidth / img.naturalHeight;
+  let w, h;
+  if (Math.abs(r / 0.75 - 1) < 0.18) {
+    if (r > 0.75) { h = 320; w = 320 * r; } else { w = 240; h = 240 / r; }
+  } else if (r > 0.75) { w = 240; h = 240 / r; } else { h = 320; w = 320 * r; }
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(img, (240 - w) / 2, (320 - h) / 2, w, h);
+  return new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.88));
+}
+
+async function saveCover(g, src) {
+  const blob = await makeCover(src);
+  await upload('/api/quick/cover?' + new URLSearchParams({system: quickKey, game: g.id}), blob);
+}
+
+function openCover(g) {
+  coverGame = g;
+  $('qcover-title').textContent = g.name;
+  $('qcover-now').innerHTML = g.cover ? '<img alt="" src="' + quickCover(g) + '">' : '';
+  $('qcover-sd').hidden = !g.art;
+  $('qcover-remove').hidden = !g.cover;
+  $('qcover-note').hidden = true;
+  $('qcover-grid').replaceChildren();
+  $('qcover').showModal();
+}
+$('qcover-close').onclick = () => $('qcover').close();
+$('qcover').onclick = ev => { if (ev.target === $('qcover')) $('qcover').close(); };
+
+async function coverDone(promise, what) {
+  try {
+    await promise;
+    $('qcover').close();
+    toast(what);
+    quickSystem(quickKey);
+  } catch (e) { fail(e); }
+}
+$('qcover-sd').onclick = () => coverDone(saveCover(coverGame, artUrl(coverGame.art)), 'Cover saved');
+$('qcover-upload').onclick = () => { $('quick-file').value = ''; $('quick-file').click(); };
+$('quick-file').onchange = () => {
+  const file = $('quick-file').files[0];
+  if (!file || !coverGame) return;
+  const url = URL.createObjectURL(file);
+  coverDone(saveCover(coverGame, url).finally(() => URL.revokeObjectURL(url)), 'Cover saved');
+};
+$('qcover-remove').onclick = () => coverDone(api('/api/quick/cover/delete', {system: quickKey, game: coverGame.id}), 'Cover removed');
+$('qcover-search').onclick = async () => {
+  const b = $('qcover-search'), note = $('qcover-note');
+  b.disabled = true;
+  note.hidden = false;
+  note.textContent = 'Searching the libretro thumbnails… The first search of a system takes a few seconds.';
+  try {
+    const {names} = await api('/api/quick/boxart/search?' + new URLSearchParams({system: quickKey, game: coverGame.id}));
+    if (!names.length) { note.textContent = 'No box art found for this name. Upload a picture instead.'; return; }
+    note.textContent = 'Pick one:';
+    $('qcover-grid').replaceChildren(...names.map(name => {
+      const src = '/api/quick/boxart?' + new URLSearchParams({system: quickKey, name});
+      const pick = document.createElement('button');
+      pick.type = 'button';
+      pick.innerHTML = '<img loading="lazy" alt="" src="' + src + '"><span>' + esc(name) + '</span>';
+      pick.onclick = () => coverDone(saveCover(coverGame, src), 'Cover saved');
+      return pick;
+    }));
+  } catch (e) { note.textContent = e.message; } finally { b.disabled = false; }
+};

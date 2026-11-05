@@ -22,9 +22,12 @@ same network to:
   Now, on by default; see `mistermanager/motion.py`);
 - update the firmware of a [MiSTerLily](../display) display, to the
   latest release or from a `.bin` file (Settings; see `mistermanager/lily.py`).
+- pick the games of the quick launch on the MiSTerLily touch display (Systems): up to 20 games
+  for each of its systems, in your order, each with a cover from the SD card's artwork, the
+  libretro thumbnails or your own picture (see `mistermanager/quick.py`).
 
 It is one Python program with no extra packages. The MiSTer already has Python 3.9. The page
-is five views (Now, Games, Cores, Saves, Settings) in `mistermanager/static`: plain HTML, CSS and
+is six views (Now, Games, Systems, Cores, Display, Settings) in `mistermanager/static`: plain HTML, CSS and
 JS, no build step, no files from the internet. Each view has its own address, for example
 `#games/NES` or `#cores/SNES`.
 

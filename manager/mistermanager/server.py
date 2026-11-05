@@ -19,6 +19,7 @@ from .lily import MAX_FIRMWARE, Lily, LilyError
 from .memcards import CARD_SIZE, CardError, MemoryCards, psx_game_folders
 from .saves import MAX_SAVE, SaveError, Saves, merge_cores
 from .motion import DEVICES, MotionBlocker, controllers
+from .quick import MAX_COVER, QuickError, QuickLaunch
 from .settings import Settings, SettingsError
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
@@ -38,6 +39,7 @@ class App:
         self.saves = Saves(fat, state_dir)
         self.motion = MotionBlocker(os.path.join(state_dir, 'controllers.json'))
         self.lily = Lily(fat, state_dir)
+        self.quick = QuickLaunch(fat, self.library, state_dir)
 
 
 def make_handler(app: App):
@@ -132,6 +134,8 @@ def make_handler(app: App):
                     self._json({'error': str(e)}, 404)
             elif url.path == '/api/settings/options':
                 self._json(app.settings.options())
+            elif url.path.startswith('/api/quick'):
+                self._quick_get(url.path, q)
             elif url.path.startswith('/art/'):
                 name = unquote(url.path[len('/art/'):])
                 if os.path.splitext(name)[1].lower() not in IMAGE_EXTS:
@@ -150,6 +154,8 @@ def make_handler(app: App):
                 return self._upload_save(url, length)
             if url.path == '/api/lily/upload':
                 return self._upload_firmware(length)
+            if url.path == '/api/quick/cover':
+                return self._upload_cover(url, length)
             if length > MAX_BODY:
                 return self._json({'error': 'body too large'}, 413)
             try:
@@ -204,6 +210,17 @@ def make_handler(app: App):
                 elif url.path == '/api/saves/delete':
                     app.saves.delete(str(body.get('kind', '')), str(body.get('core', '')), str(body.get('file', '')))
                     self._json({'ok': True})
+                elif url.path == '/api/quick/add':
+                    self._json(app.quick.add(str(body.get('system', '')), str(body.get('path', ''))))
+                elif url.path == '/api/quick/remove':
+                    app.quick.remove(str(body.get('system', '')), str(body.get('game', '')))
+                    self._json({'ok': True})
+                elif url.path == '/api/quick/move':
+                    app.quick.move(str(body.get('system', '')), str(body.get('game', '')), int(body.get('delta', 0)))
+                    self._json({'ok': True})
+                elif url.path == '/api/quick/cover/delete':
+                    app.quick.clear_cover(str(body.get('system', '')), str(body.get('game', '')))
+                    self._json({'ok': True})
                 elif url.path == '/api/poweroff':
                     app.lily.power_off()
                     self._json({'ok': True})
@@ -214,7 +231,8 @@ def make_handler(app: App):
                     threading.Timer(1.0, lambda: subprocess.run(['reboot'])).start()
                 else:
                     self._json({'error': 'not found'}, 404)
-            except (LaunchError, SettingsError, CoreOptionsError, LilyError, SaveError, OSError, ValueError) as e:
+            except (LaunchError, SettingsError, CoreOptionsError, LilyError, SaveError, QuickError, OSError,
+                    ValueError) as e:
                 self._json({'error': str(e)}, 409)
 
         def _download(self, name: str, data: bytes):
@@ -261,6 +279,37 @@ def make_handler(app: App):
             except (LilyError, OSError) as e:
                 return self._json({'error': str(e)}, 409)
             self._json({'ok': True})
+
+        def _quick_get(self, path: str, q: dict):
+            try:
+                if path == '/api/quick':
+                    self._json(app.quick.summary())
+                elif path == '/api/quick/games':
+                    self._json(app.quick.games(q.get('system', '')))
+                elif path == '/api/quick/cover':
+                    full = app.quick.cover(q.get('system', ''), q.get('game', ''))
+                    if not full:
+                        return self._json({'error': 'no cover'}, 404)
+                    self._file(os.path.dirname(full), os.path.basename(full))
+                elif path == '/api/quick/boxart/search':
+                    self._json({'names': app.quick.boxart_search(q.get('system', ''), q.get('game', ''))})
+                elif path == '/api/quick/boxart':
+                    self._send(200, app.quick.boxart(q.get('system', ''), q.get('name', '')), 'image/png')
+                else:
+                    self._json({'error': 'not found'}, 404)
+            except QuickError as e:
+                self._json({'error': str(e)}, 409)
+
+        def _upload_cover(self, url, length: int):
+            if not 0 < length <= MAX_COVER:
+                return self._json({'error': 'picture is empty or too large'}, 413)
+            q = {k: v[-1] for k, v in parse_qs(url.query).items()}
+            data = self.rfile.read(length)
+            try:
+                crc = app.quick.set_cover(q.get('system', ''), q.get('game', ''), data)
+            except (QuickError, OSError) as e:
+                return self._json({'error': str(e)}, 409)
+            self._json({'ok': True, 'crc': crc})
 
         def _file(self, root: str, name: str, cache: bool = False):
             full = os.path.realpath(os.path.join(root, name))

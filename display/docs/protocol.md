@@ -212,23 +212,33 @@ it got an address on it. SSIDs and passwords travel in hex.
 
 `MDSINFO` has `sta=<none|off|connecting|ok|fail>`.
 
-## System picker: `MDSSYS` (touch board, firmware 0.6.1 and later)
+## Quick launch: `MDSSYS` (touch board, firmware 0.6.1 and later)
 
-In the MiSTer menu, the clock screen has a Systems button at the bottom once the host sent a list.
-It opens a cover flow: drag to move, tap a side cover to bring it to the middle, tap the middle one
-to load its core. The back button (top left) or 10 s without a touch goes back to the clock. The
-native daemon does the host side (`mister/menu_systems.py`).
+In the MiSTer menu, the clock screen has a Systems button at the bottom once the host sent at least
+one system. It opens a cover flow of the systems; a tap on the middle one opens a cover flow of its
+games, and a tap on the middle game starts it. Drag to move, tap a side cover to bring it to the
+middle. The back button (top left) goes from the games to the systems and from there to the clock;
+10 s without a touch goes back to the clock.
+
+The games come from the Systems page of MiSTerManager, which keeps them in
+`/media/fat/MiSTerLily/quick` (a `games.json`, one `.mgl` and one 240×320 cover per game). The
+native daemon reads that folder (`mister/menu_systems.py`). It offers only systems whose `.rbf` is in
+`_Console` and that have at least one game, and sends the list again within 3 s of a change.
 
 | Line | Direction | Meaning |
 |---|---|---|
-| `MDSSYS,clear` | host → display | Empty the list (no Systems button) |
+| `MDSSYS,clear` | host → display | Empty the list (no Systems button). Closes the picker if it is open |
 | `MDSSYS,item,<i>,<crc32>,<name>` | host → display | System `i` (0, 1, ... in order, at most 12). `crc32` of its cover, `00000000` for none |
-| `MDSSYS,img,<i>` | display → host | Send the cover of system `i`. Asked when the picker opens, only for covers the display does not have with that crc |
-| `MDSSYSIMG,<bytes>,<crc32>,<png\|jpg>,<i>` + file | host → display | The cover, framed like `MDSIMG` (320×240 picture; kept at 200×150 in PSRAM). No reply |
-| `MDSSYS,load,<i>` | display → host | Load the core of system `i` |
+| `MDSSYS,img,<i>` | display → host | Send the cover of system `i` (only covers the display does not have with that crc) |
+| `MDSSYS,games,<i>` | display → host | Send the games of system `i` |
+| `MDSSYS,games,<i>,<n>` | host → display | The list of system `i` follows: `n` games (at most 20) |
+| `MDSSYS,game,<i>,<j>,<crc32>,<name>` | host → display | Game `j` of system `i`, in order |
+| `MDSSYS,gimg,<i>,<j>` | display → host | Send the cover of game `j` of system `i` |
+| `MDSSYSIMG,<bytes>,<crc32>,<png\|jpg>,<i>[,<j>]` + file | host → display | A cover, framed like `MDSIMG`: a system's (320×240, kept at 200×150) or, with `j`, a game's (240×320, kept at 126×168). No reply |
+| `MDSSYS,play,<i>,<j>` | display → host | Start game `j` of system `i` |
 
-The daemon sends the list after `CMDHWINF` shows a touch board with firmware 0.6.1 or later. It
-offers only systems whose `.rbf` is in `_Console`.
+The daemon sends the systems after `CMDHWINF` shows a touch board with firmware 0.6.1 or later.
+Game covers are kept for one system at a time.
 
 ## Device behaviour
 

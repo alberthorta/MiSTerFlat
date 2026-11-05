@@ -4,6 +4,7 @@
     python3 tests/mister/test_menu_systems.py
 """
 import binascii
+import json
 import os
 import sys
 import tempfile
@@ -40,28 +41,48 @@ check("rbf name is case-insensitive", m.find_rbf(cores, "gameboy") is not None)
 check("no rbf without a date", m.find_rbf(cores, "MegaDrive") is None)
 check("no folder", m.find_rbf(os.path.join(base, "none"), "SNES") is None)
 
-items = m.build(art, cores)
-check("only installed cores, in order", [i["core"] for i in items] == ["GAMEBOY", "SNES", "PSX"], str(items))
-check("crc of the cover", items[1]["crc"] == binascii.crc32(b"\x89PNG snes") & 0xFFFFFFFF)
-check("no cover: crc 0", items[0]["crc"] == 0 and items[0]["art"] is None)
+quick = os.path.join(base, "quick")
+check("no games.json: no systems", m.build(art, cores, quick) == [])
+mgl = os.path.join(quick, "SNES", "1.mgl")
+write(mgl, b"<mistergamedescription/>")
+write(os.path.join(quick, "SNES", "1.jpg"), b"\xff\xd8 cover")
+write(os.path.join(quick, "PSX", "2.mgl"))
+write(os.path.join(quick, "games.json"), json.dumps({"version": 1, "systems": {
+    "SNES": [{"id": "1", "name": "Super Mario World", "mgl": mgl, "cover": "SNES/1.jpg", "crc": 77},
+             {"id": "9", "name": "Gone", "mgl": os.path.join(quick, "SNES", "9.mgl"), "cover": None, "crc": 0}],
+    "PSX": [{"id": "2", "name": "Ridge Racer", "mgl": os.path.join(quick, "PSX", "2.mgl"), "cover": None, "crc": 0}],
+    "GAMEBOY": [],
+    "NES": [{"id": "3", "name": "No core", "mgl": mgl}]}}).encode())
+stamp = m.quick_stamp(quick)
+check("stamp", stamp is not None)
+
+items = m.build(art, cores, quick)
+check("only systems with a core and games, in order", [i["core"] for i in items] == ["SNES", "PSX"], str(items))
+check("missing .mgl dropped", [g["name"] for g in items[0]["games"]] == ["Super Mario World"])
+check("crc of the system cover", items[0]["crc"] == binascii.crc32(b"\x89PNG snes") & 0xFFFFFFFF)
 
 lines = m.list_lines(items)
-check("list lines", lines[0] == "MDSSYS,clear\n" and lines[2] == "MDSSYS,item,1,{:08x},Super Nintendo\n".format(items[1]["crc"]),
+check("list lines", lines[0] == "MDSSYS,clear\n" and lines[1] == "MDSSYS,item,0,{:08x},Super Nintendo\n".format(items[0]["crc"]),
       str(lines))
+check("game lines", m.game_lines(items, 0) == ["MDSSYS,games,0,1\n", "MDSSYS,game,0,0,0000004d,Super Mario World\n"],
+      str(m.game_lines(items, 0)))
+check("unknown system: empty list", m.game_lines(items, 5) == ["MDSSYS,games,5,0\n"])
 
-frame = m.cover_frame(items, 2)
+frame = m.cover_frame(items, 1)
 head, _, data = frame.partition(b"\n")
-check("cover frame", head == "MDSSYSIMG,{},{:08x},jpg,2".format(len(data), items[2]["crc"]).encode() and data == b"\xff\xd8 psx",
-      repr(head))
-check("no cover frame", m.cover_frame(items, 0) is None and m.cover_frame(items, 9) is None)
+check("system cover frame", head == "MDSSYSIMG,{},{:08x},jpg,1".format(len(data), items[1]["crc"]).encode()
+      and data == b"\xff\xd8 psx", repr(head))
+head, _, data = m.game_cover_frame(items, 0, 0).partition(b"\n")
+check("game cover frame", head.startswith(b"MDSSYSIMG,") and head.endswith(b",jpg,0,0") and data == b"\xff\xd8 cover", repr(head))
+check("no cover frames", m.game_cover_frame(items, 1, 0) is None and m.game_cover_frame(items, 0, 4) is None)
 
 fifo = os.path.join(base, "cmd")
 os.mkfifo(fifo)
 reader = os.open(fifo, os.O_RDONLY | os.O_NONBLOCK)
-m.load(items, 1, fifo)
-check("load_core", os.read(reader, 200) == "load_core {}\n".format(items[1]["rbf"]).encode())
+check("play returns the name", m.play(items, 0, 0, fifo) == "Super Mario World")
+check("load_core with the mgl", os.read(reader, 300) == "load_core {}\n".format(mgl).encode())
 try:
-    m.load(items, 7, fifo)
+    m.play(items, 1, 3, fifo)
     check("bad index", False)
 except ValueError:
     check("bad index", True)

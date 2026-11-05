@@ -189,15 +189,17 @@ void App::onAsset(const proto::AssetFrame& frame) {
     return;
   }
   if (header.substr(0, 10) == "MDSSYSIMG,") {
-    // MDSSYSIMG,<bytes>,<crc32 hex>,<png|jpg>,<index>. The frame came into the picture buffer.
+    // MDSSYSIMG,<bytes>,<crc32 hex>,<png|jpg>,<system>[,<game>]. The frame came into the picture
+    // buffer, so the core picture there is gone.
     assetValid_ = false;
-    std::string_view f[4];
-    int32_t index = -1;
-    if (frame.result == proto::AssetResult::Ok && proto::splitFields(header.substr(10), f, 4) == 4 &&
-        proto::parseInt(f[3], index) && checkCrc(f[1], frame.data, frame.length)) {
+    std::string_view f[5];
+    int32_t system = -1, game = -1;
+    const size_t n = frame.result == proto::AssetResult::Ok ? proto::splitFields(header.substr(10), f, 5) : 0;
+    if ((n == 4 || n == 5) && proto::parseInt(f[3], system) && (n == 4 || proto::parseInt(f[4], game)) &&
+        checkCrc(f[1], frame.data, frame.length)) {
       uint32_t crc = 0;
       for (char c : f[1]) crc = crc << 4 | static_cast<uint32_t>(c <= '9' ? c - '0' : (c | 0x20) - 'a' + 10);
-      systems_.onCover(index, crc, f[2] == "png", frame.data, frame.length);
+      systems_.onCover(system, game, crc, f[2] == "png", frame.data, frame.length);
     }
     ack();
     return;

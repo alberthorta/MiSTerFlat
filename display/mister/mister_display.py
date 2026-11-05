@@ -83,6 +83,7 @@ WIFI_SINCE = (0, 3, 0)
 VOLUME_SINCE = (0, 4, 0)  # the volume row on the touch buttons (MDSVOL)
 SETTINGS_SINCE = (0, 4, 1)  # MDSCFG,brightness and MDSCFG,clockfont, for display_settings.py
 SYSTEMS_SINCE = (0, 6, 1)  # the system picker of the touch board (MDSSYS), see menu_systems.py
+SYSTEMS_CHECK_SECONDS = 3  # how soon a change on MiSTerManager's Systems page reaches the display
 STATION_SINCE = (0, 6, 0)  # the touch board's own Wi-Fi (MDSSTA), for display_wifi.py
 # The board's Wi-Fi state (signal, address) is asked for this often.
 STATION_CHECK_SECONDS = 30.0
@@ -283,6 +284,8 @@ class Display:
         self.next_settings_check = 0.0
         self.wifi_screen = False  # the board has the Wi-Fi screen
         self.systems = None  # the system picker's list (menu_systems.build), when the board has one
+        self.systems_stamp = None  # of MiSTerManager's games.json when the list was sent
+        self.next_systems_check = 0.0
         self.wifi_dongle = None  # last state sent to it
         self.wifi_busy = False
         # Lines from the Wi-Fi worker thread; only the main loop writes to the port.
@@ -418,6 +421,10 @@ class Display:
         if self.station is not None and now >= self.next_station_check:
             self.next_station_check = now + STATION_CHECK_SECONDS
             self.port.write("MDSSTA\n")
+        if self.systems is not None and now >= self.next_systems_check:
+            self.next_systems_check = now + SYSTEMS_CHECK_SECONDS
+            if menu_systems.quick_stamp() != self.systems_stamp:
+                self.send_systems()
         if self.volume_row and now >= self.next_volume_check:
             self.next_volume_check = now + VOLUME_CHECK_SECONDS
             self.send_volume(self.volume.read())
@@ -479,10 +486,7 @@ class Display:
                     self.station = None
                     display_wifi.write_state(None)
                 if board in TOUCH_BOARDS and version_tuple(version) >= SYSTEMS_SINCE:
-                    self.systems = menu_systems.build(self.cfg["ART_DIR"])
-                    for out in menu_systems.list_lines(self.systems):
-                        self.port.write(out)
-                    debug("system picker: {}".format(", ".join(s["core"] for s in self.systems) or "none"))
+                    self.send_systems()
                 else:
                     self.systems = None
                 self.next_settings_check = 0.0
@@ -519,19 +523,37 @@ class Display:
         self.wifi_busy = True
         threading.Thread(target=target, daemon=True).start()
 
+    def send_systems(self):
+        """The picker's systems: only those with games in MiSTerManager's list."""
+        self.systems_stamp = menu_systems.quick_stamp()
+        self.systems = menu_systems.build(self.cfg["ART_DIR"])
+        for out in menu_systems.list_lines(self.systems):
+            self.port.write(out)
+        debug("system picker: {}".format(", ".join("{} ({})".format(s["core"], len(s["games"]))
+                                                   for s in self.systems) or "none"))
+
     def systems_request(self, request):
-        """MDSSYS,img,<i> (send that cover) or MDSSYS,load,<i> (load that core) from the picker."""
-        kind, _, index = request.partition(",")
-        if not index.isdigit():
+        """From the picker: img,<i> (a system's cover), games,<i> (its games), gimg,<i>,<j> (a
+        game's cover), play,<i>,<j> (start that game)."""
+        kind, _, rest = request.partition(",")
+        try:
+            args = [int(a) for a in rest.split(",")]
+        except ValueError:
             return
         try:
-            if kind == "img":
-                frame = menu_systems.cover_frame(self.systems, int(index))
+            if kind == "img" and len(args) == 1:
+                frame = menu_systems.cover_frame(self.systems, args[0])
                 if frame:
                     self.port.write(frame)
-            elif kind == "load":
-                rbf = menu_systems.load(self.systems, int(index))
-                log("system picker: loading {}".format(os.path.basename(rbf)))
+            elif kind == "games" and len(args) == 1:
+                for out in menu_systems.game_lines(self.systems, args[0]):
+                    self.port.write(out)
+            elif kind == "gimg" and len(args) == 2:
+                frame = menu_systems.game_cover_frame(self.systems, args[0], args[1])
+                if frame:
+                    self.port.write(frame)
+            elif kind == "play" and len(args) == 2:
+                log("system picker: starting {}".format(menu_systems.play(self.systems, args[0], args[1])))
         except (OSError, ValueError) as e:
             log("system picker: {} failed: {}".format(request, e))
 
