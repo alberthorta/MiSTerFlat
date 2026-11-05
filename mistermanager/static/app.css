@@ -117,8 +117,8 @@ main { flex: 1; width: 100%; min-width: 0; max-width: 1120px; margin: 0 auto; pa
     position: sticky; top: 0; height: 100dvh; flex-direction: column; gap: 2px;
     padding: 20px 12px; border-top: 0; border-right: 1px solid var(--line);
   }
-  .nav .brand { display: flex; padding: 4px 10px 22px; font-size: 18px; }
-  .nav .brand .mark { width: 24px; height: 24px; }
+  .nav .brand { display: flex; padding: 2px 6px 22px; }
+  .nav .brand .logo { width: 176px; height: auto; }
   .nav a[data-nav] {
     flex: none; flex-direction: row; justify-content: flex-start; gap: 12px;
     min-height: 44px; padding: 0 12px; font-size: 15px; color: var(--text-2);
@@ -419,3 +419,7 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); border: 0; }
 .top-power, .nav-power svg { color: var(--ok); }
 body.offline .top-power, body.offline .nav-power svg { color: var(--muted); }
 @media (min-width: 900px) { .nav-power:hover svg { color: var(--danger); } }
+
+/* Logo F: chrome pixel letters with speed stripes. MANAGER takes the text colour. */
+.brand .logo { display: block; color: var(--text); fill: none; stroke: none; }
+.top .brand .logo { width: auto; height: 22px; }
