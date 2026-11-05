@@ -9,33 +9,39 @@ static const char kRemotePage[] = R"HTML(<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b0d11">
+<meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="MiSTer Manager Display">
 <title>MiSTer Manager Display</title>
 <style>
-:root { color-scheme: dark; --bg: #0b0d11; --bezel: #1a1d24; --edge: #2a2f3a; --text: #d9dde4; --muted: #7d8594; --ok: #3ccf8e; --warn: #f5a623; }
+:root { color-scheme: dark; --bg: #000; --text: #d9dde4; --muted: #7d8594; --ok: #3ccf8e; --warn: #f5a623; --ar: 4 / 3; }
 * { box-sizing: border-box; }
-html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text);
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); overflow: hidden;
   font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.bezel { width: 100%; max-width: min(720px, calc((100vh - 120px) * 4 / 3)); padding: 14px; background: var(--bezel);
-  border: 1px solid var(--edge); border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04); }
-.screen { position: relative; aspect-ratio: 4 / 3; background: #000; border-radius: 4px; overflow: hidden; }
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* The screen fills the space inside the safe area and keeps its shape: black bands at the
+   sides or at the top and bottom, whichever the window needs. */
+.stage { position: fixed; top: env(safe-area-inset-top, 0px); right: env(safe-area-inset-right, 0px);
+  bottom: env(safe-area-inset-bottom, 0px); left: env(safe-area-inset-left, 0px);
+  display: flex; align-items: center; justify-content: center; container-type: size; }
+.screen { position: relative; aspect-ratio: var(--ar); width: min(100cqw, 100cqh * var(--ar)); background: #000; }
 canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; touch-action: none; cursor: pointer; transition: opacity .3s; }
 .asleep canvas { opacity: .25; }
 .note { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
   padding: 16px; color: var(--muted); pointer-events: none; }
 .note[hidden] { display: none; }
-.bar { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.bar { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 8px); left: calc(env(safe-area-inset-left, 0px) + 8px);
+  display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 10px; background: rgba(0,0,0,.6);
+  color: var(--muted); font-size: 12px; pointer-events: none; transition: opacity .6s; }
+.live.bar { opacity: 0; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
 .live .dot { background: var(--ok); }
 </style>
 </head>
 <body>
-<div class="bezel"><div class="screen" id="screen">
+<div class="stage"><div class="screen" id="screen">
   <canvas id="c" width="320" height="240" aria-label="MiSTerLily display"></canvas>
   <div class="note" id="note">Connecting…</div>
 </div></div>
@@ -54,7 +60,10 @@ function draw(buf) {
   const b = new Uint8Array(buf);
   if (b[0] !== 70) return;
   const light = b[1] & 1, w = b[2] | b[3] << 8, h = b[4] | b[5] << 8;
-  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; img = null; }
+  if (c.width !== w || c.height !== h) {
+    c.width = w; c.height = h; img = null;
+    document.documentElement.style.setProperty('--ar', w + ' / ' + h);
+  }
   if (!img) img = g.createImageData(w, h);
   const px = img.data;
   let i = 6, o = 0;
