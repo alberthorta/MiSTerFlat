@@ -17,6 +17,7 @@ from .control import Controller, LaunchError, Stats, current
 from .library import Library
 from .lily import MAX_FIRMWARE, Lily, LilyError
 from .memcards import CARD_SIZE, CardError, MemoryCards, psx_game_folders
+from .saves import MAX_SAVE, SaveError, Saves, merge_cores
 from .motion import DEVICES, MotionBlocker, controllers
 from .settings import Settings, SettingsError
 
@@ -34,6 +35,7 @@ class App:
         self.settings = Settings(fat, state_dir, fifo)
         self.cores = CoreOptions(fat, state_dir)
         self.cards = MemoryCards(fat, state_dir)
+        self.saves = Saves(fat, state_dir)
         self.motion = MotionBlocker(os.path.join(state_dir, 'controllers.json'))
         self.lily = Lily(fat, state_dir)
 
@@ -105,18 +107,24 @@ def make_handler(app: App):
                     data = app.cards.read(name)
                 except CardError as e:
                     return self._json({'error': str(e)}, 404)
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/octet-stream')
-                self.send_header('Content-Length', str(len(data)))
                 # .mcd is the name most PC tools (MemcardRex, emulators) expect for this format.
-                quoted = quote(name[:-4] + '.mcd')
-                self.send_header('Content-Disposition', f"attachment; filename*=UTF-8''{quoted}")
-                self.end_headers()
-                self.wfile.write(data)
+                self._download(name[:-4] + '.mcd', data)
             elif url.path == '/api/lily':
                 self._json(app.lily.info(refresh=q.get('refresh') == '1'))
             elif url.path == '/api/cores':
-                self._json(app.cores.installed())
+                self._json(merge_cores(app.cores.installed(), app.saves.folders()))
+            elif url.path == '/api/saves':
+                try:
+                    self._json(app.saves.list(q.get('core', '')))
+                except SaveError as e:
+                    self._json({'error': str(e)}, 404)
+            elif url.path == '/api/saves/download':
+                try:
+                    name = q.get('file', '')
+                    data = app.saves.read(q.get('kind', ''), q.get('core', ''), name)
+                except (SaveError, OSError) as e:
+                    return self._json({'error': str(e)}, 404)
+                self._download(name, data)
             elif url.path == '/api/cores/options':
                 try:
                     self._json(app.cores.get(q.get('core', '')))
@@ -138,6 +146,8 @@ def make_handler(app: App):
             length = int(self.headers.get('Content-Length') or 0)
             if url.path == '/api/psx/cards/upload':
                 return self._upload_card(url, length)
+            if url.path == '/api/saves/upload':
+                return self._upload_save(url, length)
             if url.path == '/api/lily/upload':
                 return self._upload_firmware(length)
             if length > MAX_BODY:
@@ -187,6 +197,9 @@ def make_handler(app: App):
                 elif url.path == '/api/lily/flash':
                     app.lily.flash_latest()
                     self._json({'ok': True})
+                elif url.path == '/api/saves/delete':
+                    app.saves.delete(str(body.get('kind', '')), str(body.get('core', '')), str(body.get('file', '')))
+                    self._json({'ok': True})
                 elif url.path == '/api/poweroff':
                     app.lily.power_off()
                     self._json({'ok': True})
@@ -197,8 +210,27 @@ def make_handler(app: App):
                     threading.Timer(1.0, lambda: subprocess.run(['reboot'])).start()
                 else:
                     self._json({'error': 'not found'}, 404)
-            except (LaunchError, SettingsError, CoreOptionsError, LilyError, OSError, ValueError) as e:
+            except (LaunchError, SettingsError, CoreOptionsError, LilyError, SaveError, OSError, ValueError) as e:
                 self._json({'error': str(e)}, 409)
+
+        def _download(self, name: str, data: bytes):
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/octet-stream')
+            self.send_header('Content-Length', str(len(data)))
+            self.send_header('Content-Disposition', f"attachment; filename*=UTF-8''{quote(name)}")
+            self.end_headers()
+            self.wfile.write(data)
+
+        def _upload_save(self, url, length: int):
+            if not 0 < length <= MAX_SAVE:
+                return self._json({'error': 'file is empty or too large'}, 413)
+            q = {k: v[-1] for k, v in parse_qs(url.query).items()}
+            data = self.rfile.read(length)
+            try:
+                app.saves.replace(q.get('core', ''), q.get('file', ''), data)
+            except (SaveError, OSError) as e:
+                return self._json({'error': str(e)}, 409)
+            self._json({'ok': True})
 
         def _upload_card(self, url, length: int):
             if not 0 < length <= CARD_SIZE + 4096:

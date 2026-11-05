@@ -423,3 +423,22 @@ body.offline .top-power, body.offline .nav-power svg { color: var(--muted); }
 /* Logo F: chrome pixel letters with speed stripes. MANAGER takes the text colour. */
 .brand .logo { display: block; color: var(--text); fill: none; stroke: none; }
 .top .brand .logo { width: auto; height: 22px; }
+/* Delete: quiet until the first tap arms it. */
+.btn.danger-quiet:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 50%, var(--line)); }
+.btn.danger-quiet.armed { background: var(--danger); border-color: var(--danger); color: #fff; }
+#coresaves .stack-list > .help { padding: 0; }
+
+/* Core page tabs */
+.seg { display: flex; gap: 4px; margin-top: 16px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-m); }
+.seg button { flex: 1; min-height: 38px; border: 0; border-radius: var(--r-s); background: transparent; color: var(--text-2); font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; }
+.seg button span { color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+.seg button[aria-selected="true"] { background: var(--raised); color: var(--text); box-shadow: 0 1px 0 var(--line); }
+.seg button[aria-selected="true"] span { color: var(--accent-ink); }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (min-width: 900px) { .seg { max-width: 360px; } }
+.off-tab { display: none !important; }
+#coresaves > .banner:first-child, #coresaves > .block-head:first-child { margin-top: 20px; }
+@media (max-width: 599px) {
+  .save .acts { flex-wrap: wrap; }
+  .save .acts .btn { flex: 1 1 0; min-width: 0; padding-inline: 6px; gap: 6px; font-size: 14px; white-space: nowrap; }
+}

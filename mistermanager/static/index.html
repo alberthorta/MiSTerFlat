@@ -48,7 +48,6 @@
     <a data-nav="now" href="#now"><svg><use href="#i-home"/></svg><span>Now</span></a>
     <a data-nav="games" href="#games"><svg><use href="#i-games"/></svg><span>Games</span></a>
     <a data-nav="cores" href="#cores"><svg><use href="#i-chip"/></svg><span>Cores</span></a>
-    <a data-nav="saves" href="#saves"><svg><use href="#i-card"/></svg><span>Saves</span></a>
     <a data-nav="display" href="#display"><svg><use href="#i-lcd"/></svg><span>Display</span></a>
     <a data-nav="settings" href="#settings"><svg><use href="#i-sliders"/></svg><span>Settings</span></a>
     <button class="nav-power" id="nav-power" type="button"><svg><use href="#i-power"/></svg><span>Power</span></button>
@@ -128,22 +127,18 @@
             <select id="core"></select>
           </div>
         </div>
+        <div class="seg" id="coretabs" role="tablist" aria-label="Core page" hidden>
+          <button type="button" role="tab" id="tab-options" data-tab="options" aria-selected="true">Options</button>
+          <button type="button" role="tab" id="tab-saves" data-tab="saves" aria-selected="false">Saves<span id="tab-savecount"></span></button>
+        </div>
         <p class="banner warn" id="corerun" hidden><svg><use href="#i-alert"/></svg><span>This core is running now. Do not use “Save settings” in its OSD, or it will overwrite what you save here.</span></p>
         <div id="coreopts"></div>
+        <div id="coresaves"></div>
+        <input type="file" id="cardfile" accept=".mcd,.mcr,.sav,.gme,.vmp,.srm" hidden>
+        <input type="file" id="savefile" hidden>
         <div class="savebar" id="coresave" hidden><span id="corecount">No changes</span><button class="btn primary" id="core-save">Save options</button></div>
       </section>
 
-      <section class="view" id="view-saves" hidden>
-        <p class="banner warn" id="cardwarn" hidden><svg><use href="#i-alert"/></svg><span>The PlayStation core is running. It reads a card only when a disc loads. After an upload, let the page reload the game and do not open the OSD before that.</span></p>
-        <div class="block-head"><h2>PlayStation memory cards</h2></div>
-        <div id="cards" class="stack-list"></div>
-        <details class="more">
-          <summary>How cards work</summary>
-          <p>One card per game folder in <code>saves/PSX</code>. Download gives a <code>.mcd</code> file that PC tools and emulators read. Upload takes <code>.mcd</code>, <code>.mcr</code>, <code>.sav</code>, <code>.gme</code> or <code>.vmp</code>; the old card is backed up first.</p>
-          <p>In the game, save to the card in slot 1. MiSTer writes the card to the SD when you use “Save Memory Card” in the OSD, or on its own with Autosave. With “Save to SDCard: On Open OSD” the core writes its own copy when you open the OSD.</p>
-        </details>
-        <input type="file" id="cardfile" accept=".mcd,.mcr,.sav,.gme,.vmp,.srm" hidden>
-      </section>
 
       <section class="view" id="view-display" hidden>
         <p class="empty" id="lily-none" hidden>MiSTerLily is not installed on this MiSTer.</p>

@@ -8,6 +8,7 @@ const fmtUptime = s => {
   const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
   return d ? d + 'd ' + h + 'h' : h ? h + 'h ' + m + 'm' : m + ' min';
 };
+const fmtSize = b => b >= 1048576 ? (b / 1048576).toFixed(1).replace(/\.0$/, '') + ' MB' : b >= 1024 ? Math.round(b / 1024) + ' KB' : b + ' bytes';
 const fmtDate = t => new Date(t * 1000).toLocaleString([], {dateStyle: 'medium', timeStyle: 'short'});
 const artUrl = art => '/art/' + art.split('/').map(encodeURIComponent).join('/');
 const icon = name => '<svg><use href="#i-' + name + '"/></svg>';
@@ -36,12 +37,14 @@ async function upload(path, file) {
   return data;
 }
 
-/* ---------- Routing: #now, #games, #games/<system>, #cores, #saves, #display, #settings ---------- */
-const VIEWS = ['now', 'games', 'cores', 'saves', 'display', 'settings'];
-const TITLES = {now: 'Now', games: 'Games', cores: 'Core options', saves: 'Saves', display: 'Display', settings: 'Settings'};
+/* ---------- Routing: #now, #games, #games/<system>, #cores, #cores/<core>, #display, #settings ---------- */
+const VIEWS = ['now', 'games', 'cores', 'display', 'settings'];
+const TITLES = {now: 'Now', games: 'Games', cores: 'Cores', display: 'Display', settings: 'Settings'};
 let view = '';
 
 function route() {
+  // Saves used to be a section of its own; old links land on the PlayStation core.
+  if (location.hash === '#saves') { location.replace('#cores/PSX'); return; }
   const [name, arg] = location.hash.replace(/^#/, '').split('/');
   const next = VIEWS.includes(name) ? name : 'now';
   if (next === 'games') {
@@ -67,7 +70,6 @@ const loaders = {
   now() { recent(); pads().catch(() => {}); },
   games() { games(); },
   cores(arg) { coreList(arg).catch(fail); },
-  saves() { cards().catch(fail); },
   display() { lily().catch(fail); },
   settings() { settings().catch(fail); },
 };
@@ -502,40 +504,145 @@ $('lily-check').onclick = async () => {
   b.disabled = false; b.textContent = 'Check again';
 };
 
-/* ---------- Saves: PlayStation memory cards ---------- */
-let uploadTarget = null;
-
-async function cards() {
-  const c = await api('/api/psx/cards');
-  $('cardwarn').hidden = !c.psx_running;
-  if (!c.cards.length) { $('cards').innerHTML = '<p class="empty">No PlayStation games in the library.</p>'; return; }
-  $('cards').replaceChildren(...c.cards.map(cardInfo => {
-    const div = document.createElement('div');
-    div.className = 'save';
-    const n = cardInfo.saves.length;
-    const state = !cardInfo.exists ? 'No card yet. Upload one, or the core makes it the first time you save.'
-      : cardInfo.error ? cardInfo.error : n ? n + (n === 1 ? ' save' : ' saves') : 'Card is empty.';
-    const list = n ? '<ul>' + cardInfo.saves.map(s => '<li><span>' + esc(s.title || s.code) + '</span><code>' + esc(s.code) + ', '
-      + s.blocks + ' block' + (s.blocks > 1 ? 's' : '') + '</code></li>').join('') + '</ul>' : '';
-    div.innerHTML = '<h3>' + esc(cardInfo.game) + '</h3><p class="state' + (n ? ' has' : '') + '">' + esc(state) + '</p>' + list
-      + (cardInfo.exists ? '<p class="file">' + esc(cardInfo.file) + ', ' + fmtDate(cardInfo.modified) + '</p>' : '')
-      + '<div class="acts"></div>';
-    const acts = div.querySelector('.acts');
-    if (cardInfo.exists) {
-      const a = document.createElement('a');
-      a.className = 'btn';
-      a.href = '/api/psx/cards/download?' + new URLSearchParams({file: cardInfo.file});
-      a.innerHTML = icon('download') + 'Download';
-      acts.append(a);
+/* ---------- Cores: saves and save states ---------- */
+// Delete asks for a second tap on the same button, like the power sheet.
+function armed(btn, label, action) {
+  const idle = btn.innerHTML;
+  let timer = null;
+  btn.onclick = async () => {
+    if (!btn.classList.contains('armed')) {
+      btn.classList.add('armed');
+      btn.textContent = label;
+      timer = setTimeout(() => { btn.classList.remove('armed'); btn.innerHTML = idle; }, 4000);
+      return;
     }
-    const up = document.createElement('button');
-    up.className = 'btn';
-    up.innerHTML = icon('upload') + (cardInfo.exists ? 'Replace…' : 'Upload…');
-    up.onclick = () => { uploadTarget = cardInfo; $('cardfile').value = ''; $('cardfile').click(); };
-    acts.append(up);
-    return div;
-  }));
+    clearTimeout(timer);
+    btn.disabled = true;
+    try { await action(); } catch (e) { fail(e); btn.disabled = false; btn.classList.remove('armed'); btn.innerHTML = idle; }
+  };
 }
+function saveItem(title, lines, list) {
+  const div = document.createElement('div');
+  div.className = 'save';
+  div.innerHTML = '<h3>' + esc(title) + '</h3>' + lines.map(l => '<p class="' + l[0] + '">' + esc(l[1]) + '</p>').join('')
+    + (list || '') + '<div class="acts"></div>';
+  return div;
+}
+function dlButton(href) {
+  const a = document.createElement('a');
+  a.className = 'btn';
+  a.href = href;
+  a.innerHTML = icon('download') + 'Download';
+  return a;
+}
+function delButton(core, kind, file, what) {
+  const b = document.createElement('button');
+  b.className = 'btn danger-quiet';
+  b.innerHTML = icon('close') + 'Delete';
+  armed(b, 'Tap again to delete', async () => {
+    await api('/api/saves/delete', {core, kind, file});
+    toast(what + ' deleted. A backup is kept.');
+    coreSaves();
+  });
+  return b;
+}
+const savesHref = (core, kind, file) => '/api/saves/download?' + new URLSearchParams({core, kind, file});
+
+let uploadTarget = null, saveTarget = null;
+
+async function coreSaves() {
+  const item = coreItem(), box = $('coresaves');
+  if (!item || !item.folder) { box.replaceChildren(); return; }
+  const core = item.folder;
+  const [s, c] = await Promise.all([api('/api/saves?' + new URLSearchParams({core})).catch(() => null),
+    core === 'PSX' ? api('/api/psx/cards') : null]);
+  if (coreItem() !== item) return;  // another core was picked meanwhile
+  const frag = document.createDocumentFragment();
+  const head = (title, n) => {
+    const d = document.createElement('div');
+    d.className = 'block-head';
+    d.innerHTML = '<h2>' + esc(title) + '</h2>' + (n ? '<span class="list-count">' + n + '</span>' : '');
+    return d;
+  };
+  if (s && s.running) {
+    const p = document.createElement('p');
+    p.className = 'banner warn';
+    p.innerHTML = icon('alert') + '<span>' + (core === 'PSX'
+      ? 'The PlayStation core is running. It reads a card only when a disc loads. After an upload, let the page reload the game and do not open the OSD before that.'
+      : 'This core is running and can write its saves again at any time. Load another core before you replace or delete a save.') + '</span>';
+    frag.append(p);
+  }
+
+  const list = document.createElement('div');
+  list.className = 'stack-list';
+  if (c) {
+    frag.append(head('Memory cards', c.cards.filter(x => x.exists).length));
+    for (const card of c.cards) {
+      const n = card.saves.length;
+      const state = !card.exists ? 'No card yet. Upload one, or the core makes it the first time you save.'
+        : card.error ? card.error : n ? n + (n === 1 ? ' save' : ' saves') : 'Card is empty.';
+      const inner = n ? '<ul>' + card.saves.map(x => '<li><span>' + esc(x.title || x.code) + '</span><code>' + esc(x.code) + ', '
+        + x.blocks + ' block' + (x.blocks > 1 ? 's' : '') + '</code></li>').join('') + '</ul>' : '';
+      const lines = [['state' + (n ? ' has' : ''), state]];
+      if (card.exists) lines.push(['file', card.file + ' · ' + fmtDate(card.modified)]);
+      const div = saveItem(card.game, lines, inner);
+      const acts = div.querySelector('.acts');
+      if (card.exists) acts.append(dlButton('/api/psx/cards/download?' + new URLSearchParams({file: card.file})));
+      const up = document.createElement('button');
+      up.className = 'btn';
+      up.innerHTML = icon('upload') + (card.exists ? 'Replace…' : 'Upload…');
+      up.onclick = () => { uploadTarget = card; $('cardfile').value = ''; $('cardfile').click(); };
+      acts.append(up);
+      if (card.exists) acts.append(delButton('PSX', 'saves', card.file, 'Card'));
+      list.append(div);
+    }
+    const more = document.createElement('details');
+    more.className = 'more';
+    more.innerHTML = '<summary>How cards work</summary><p>One card per game folder in <code>saves/PSX</code>. Download gives a <code>.mcd</code> file that PC tools and emulators read. Upload takes <code>.mcd</code>, <code>.mcr</code>, <code>.sav</code>, <code>.gme</code> or <code>.vmp</code>; the old card is backed up first.</p>'
+      + '<p>In the game, save to the card in slot 1. MiSTer writes the card to the SD when you use “Save Memory Card” in the OSD, or on its own with Autosave.</p>';
+    frag.append(list, more);
+  } else if (s) {
+    frag.append(head('Saves', s.saves.length));
+    for (const x of s.saves) {
+      const div = saveItem(x.game, [['file', x.file + ' · ' + fmtSize(x.size) + ' · ' + fmtDate(x.modified)]]);
+      const up = document.createElement('button');
+      up.className = 'btn';
+      up.innerHTML = icon('upload') + 'Replace…';
+      up.onclick = () => { saveTarget = x; $('savefile').value = ''; $('savefile').click(); };
+      div.querySelector('.acts').append(dlButton(savesHref(core, 'saves', x.file)), up, delButton(core, 'saves', x.file, 'Save'));
+      list.append(div);
+    }
+    if (!s.saves.length) list.innerHTML = '<p class="help">No saves yet. The core makes one the first time a game saves.</p>';
+    frag.append(list);
+  }
+
+  if (s && s.states.length) {
+    frag.append(head('Save states', s.states.length));
+    const states = document.createElement('div');
+    states.className = 'stack-list';
+    for (const x of s.states) {
+      const div = saveItem(x.game, [['file', (x.slot ? 'Slot ' + x.slot + ' · ' : '') + fmtSize(x.size) + ' · ' + fmtDate(x.modified)]]);
+      div.querySelector('.acts').append(dlButton(savesHref(core, 'states', x.file)), delButton(core, 'states', x.file, 'Save state'));
+      states.append(div);
+    }
+    const note = document.createElement('p');
+    note.className = 'more';
+    note.textContent = 'A save state only works with the same core version that made it, so there is no upload here.';
+    frag.append(states, note);
+  }
+  box.replaceChildren(frag);
+}
+
+$('savefile').onchange = async () => {
+  const file = $('savefile').files[0], item = coreItem();
+  if (!file || !saveTarget || !item) return;
+  if (!confirm('Replace the save of ' + saveTarget.game + ' with ' + file.name + '? The current save is backed up.')) return;
+  try {
+    await upload('/api/saves/upload?' + new URLSearchParams({core: item.folder, file: saveTarget.file}), file);
+    toast('Save replaced. A backup is kept.');
+    coreSaves();
+  } catch (e) { fail(e); }
+};
 
 $('cardfile').onchange = async () => {
   const file = $('cardfile').files[0];
@@ -548,30 +655,69 @@ $('cardfile').onchange = async () => {
       const r2 = await api('/api/psx/reload', {});
       toast('Reloading ' + r2.game);
     }
-    cards();
+    coreSaves();
   } catch (e) { fail(e); }
 };
 
 /* ---------- Cores: OSD options ---------- */
-let coreData = null;
+let coreData = null, coreItems = {}, coreTab = 'options';
+const coreItem = () => coreItems[$('core').value];
+// Options and Saves are two tabs: a core can have 50 options, and its saves must not sit under them.
+function coreTabs() {
+  const item = coreItem();
+  const hasOpts = !!(item && item.options), hasSaves = !!(item && item.folder);
+  const tab = !hasOpts ? 'saves' : !hasSaves ? 'options' : coreTab;
+  $('coretabs').hidden = !(hasOpts && hasSaves);
+  const n = item ? item.saves + item.states : 0;
+  $('tab-savecount').textContent = n ? ' ' + n : '';
+  for (const b of $('coretabs').querySelectorAll('button')) b.setAttribute('aria-selected', b.dataset.tab === tab);
+  $('coreopts').hidden = tab !== 'options';
+  $('coresaves').hidden = tab !== 'saves';
+  $('corerun').classList.toggle('off-tab', tab !== 'options');
+  $('coresave').classList.toggle('off-tab', tab !== 'options');
+}
+$('coretabs').onclick = e => {
+  const b = e.target.closest('button[data-tab]');
+  if (!b) return;
+  coreTab = b.dataset.tab;
+  coreTabs();
+};
+function coreLabel(c) {
+  const n = c.saves + c.states;
+  return c.id + (n ? ' · ' + n + (n === 1 ? ' save' : ' saves') : '');
+}
 
 async function coreList(wanted) {
   const list = await api('/api/cores');
+  coreItems = Object.fromEntries(list.map(c => [c.id, c]));
   const sel = $('core'), keep = wanted || sel.value;
-  sel.replaceChildren(new Option('Pick a core…', ''), ...list.map(c => new Option(c.id, c.id)));
+  sel.replaceChildren(new Option('Pick a core…', ''), ...list.map(c => new Option(coreLabel(c), c.id)));
   sel.value = list.some(c => c.id === keep) ? keep : '';
   if (sel.value) coreShow();
   else {
     $('coreopts').replaceChildren();
+    $('coresaves').replaceChildren();
+    $('coretabs').hidden = true;
     $('coresave').hidden = true;
     $('corerun').hidden = true;
-    $('corenote').textContent = list.length + ' cores. The options are the ones of the core\'s OSD menu.';
+    $('corenote').textContent = list.length + ' cores. Each one has its OSD options and its saves.';
   }
 }
 
 async function coreShow() {
   const id = $('core').value;
-  if (!id) { $('coreopts').replaceChildren(); $('coresave').hidden = true; $('corerun').hidden = true; return; }
+  if (!id) { $('coreopts').replaceChildren(); $('coresaves').replaceChildren(); $('coretabs').hidden = true; $('coresave').hidden = true; $('corerun').hidden = true; return; }
+  coreSaves().catch(fail);
+  coreTabs();
+  const item = coreItem();
+  if (item && !item.options) {
+    coreData = null;
+    $('corenote').textContent = 'This core has no options here, only its saves.';
+    $('corerun').hidden = true;
+    $('coreopts').replaceChildren();
+    $('coresave').hidden = true;
+    return;
+  }
   coreData = await api('/api/cores/options?' + new URLSearchParams({core: id}));
   $('corenote').textContent = 'Saved in config/' + coreData.cfg + (coreData.saved ? '' : ' (not saved yet: defaults shown)')
     + '. Applies the next time the core loads.';
