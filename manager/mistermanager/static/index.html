@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>MiSTer Manager</title>
+<link rel="stylesheet" href="/app.css">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="MiSTer">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-mark" viewBox="0 0 7 7"><path d="M0 0h1v7H0zM6 0h1v7H6zM1 1h1v1H1zM5 1h1v1H5zM2 2h1v1H2zM4 2h1v1H4zM3 3h1v1H3z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h4.5v-6h4v6h4.5V10"/></symbol>
+    <symbol id="i-games" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-chip" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M14 3v5h5M8 14h8M8 17.5h5"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h9"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 19h14"/></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></symbol>
+    <symbol id="i-pad" viewBox="0 0 24 24"><path d="M7 7h10a5 5 0 0 1 5 5v1.5a3.5 3.5 0 0 1-6.3 2.1L15 15H9l-.7.6A3.5 3.5 0 0 1 2 13.5V12a5 5 0 0 1 5-5z"/><path d="M7.5 10v4M5.5 12h4"/><circle cx="16" cy="11" r=".9" fill="currentColor" stroke="none"/><circle cx="18.5" cy="13" r=".9" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-display" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5 21 19H3z"/><path d="M12 9.5v4.5M12 16.8v.2"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+    <symbol id="i-lcd" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><rect x="6" y="8.5" width="12" height="7" rx="1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <nav class="nav" aria-label="Sections">
+    <a class="brand" href="#now"><svg class="logo" viewBox="0 0 291 90" role="img" aria-label="MiSTer Manager" shape-rendering="crispEdges"><defs>
+    <linearGradient id="mmfg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".46" stop-color="#b9c4d4"/>
+      <stop offset=".5" stop-color="#3a4256"/><stop offset=".62" stop-color="#7d8aa1"/>
+      <stop offset="1" stop-color="#eef3fa"/></linearGradient>
+    <filter id="mmfo" x="-5%" y="-10%" width="110%" height="130%"><feMorphology operator="dilate" radius="2.2"/></filter>
+  </defs><g transform="translate(16 0) skewX(-12)"><rect x="0" y="6" width="8" height="49" fill="#ff4b3e"/><rect x="13" y="6" width="8" height="49" fill="#f5a623"/><rect x="26" y="6" width="8" height="49" fill="#ffd84a"/><rect x="39" y="6" width="8" height="49" fill="#22c3b4"/><g filter="url(#mmfo)"><rect x="62" y="6" width="7" height="7" fill="#12152a"/><rect x="90" y="6" width="7" height="7" fill="#12152a"/><rect x="62" y="13" width="14" height="7" fill="#12152a"/><rect x="83" y="13" width="14" height="7" fill="#12152a"/><rect x="62" y="20" width="7" height="7" fill="#12152a"/><rect x="76" y="20" width="7" height="7" fill="#12152a"/><rect x="90" y="20" width="7" height="7" fill="#12152a"/><rect x="62" y="27" width="7" height="7" fill="#12152a"/><rect x="76" y="27" width="7" height="7" fill="#12152a"/><rect x="90" y="27" width="7" height="7" fill="#12152a"/><rect x="62" y="34" width="7" height="7" fill="#12152a"/><rect x="90" y="34" width="7" height="7" fill="#12152a"/><rect x="62" y="41" width="7" height="7" fill="#12152a"/><rect x="90" y="41" width="7" height="7" fill="#12152a"/><rect x="62" y="48" width="7" height="7" fill="#12152a"/><rect x="90" y="48" width="7" height="7" fill="#12152a"/><rect x="104" y="6" width="7" height="7" fill="#12152a"/><rect x="104" y="20" width="7" height="7" fill="#12152a"/><rect x="104" y="27" width="7" height="7" fill="#12152a"/><rect x="104" y="34" width="7" height="7" fill="#12152a"/><rect x="104" y="41" width="7" height="7" fill="#12152a"/><rect x="104" y="48" width="7" height="7" fill="#12152a"/><rect x="125" y="6" width="28" height="7" fill="#12152a"/><rect x="118" y="13" width="7" height="7" fill="#12152a"/><rect x="118" y="20" width="7" height="7" fill="#12152a"/><rect x="125" y="27" width="21" height="7" fill="#12152a"/><rect x="146" y="34" width="7" height="7" fill="#12152a"/><rect x="146" y="41" width="7" height="7" fill="#12152a"/><rect x="118" y="48" width="28" height="7" fill="#12152a"/><rect x="160" y="6" width="35" height="7" fill="#12152a"/><rect x="174" y="13" width="7" height="7" fill="#12152a"/><rect x="174" y="20" width="7" height="7" fill="#12152a"/><rect x="174" y="27" width="7" height="7" fill="#12152a"/><rect x="174" y="34" width="7" height="7" fill="#12152a"/><rect x="174" y="41" width="7" height="7" fill="#12152a"/><rect x="174" y="48" width="7" height="7" fill="#12152a"/><rect x="209" y="20" width="14" height="7" fill="#12152a"/><rect x="202" y="27" width="7" height="7" fill="#12152a"/><rect x="223" y="27" width="7" height="7" fill="#12152a"/><rect x="202" y="34" width="28" height="7" fill="#12152a"/><rect x="202" y="41" width="7" height="7" fill="#12152a"/><rect x="209" y="48" width="21" height="7" fill="#12152a"/><rect x="237" y="20" width="7" height="7" fill="#12152a"/><rect x="251" y="20" width="14" height="7" fill="#12152a"/><rect x="237" y="27" width="14" height="7" fill="#12152a"/><rect x="237" y="34" width="7" height="7" fill="#12152a"/><rect x="237" y="41" width="7" height="7" fill="#12152a"/><rect x="237" y="48" width="7" height="7" fill="#12152a"/></g><rect x="62" y="6" width="7" height="7" fill="url(#mmfg)"/><rect x="90" y="6" width="7" height="7" fill="url(#mmfg)"/><rect x="62" y="13" width="14" height="7" fill="url(#mmfg)"/><rect x="83" y="13" width="14" height="7" fill="url(#mmfg)"/><rect x="62" y="20" width="7" height="7" fill="url(#mmfg)"/><rect x="76" y="20" width="7" height="7" fill="url(#mmfg)"/><rect x="90" y="20" width="7" height="7" fill="url(#mmfg)"/><rect x="62" y="27" width="7" height="7" fill="url(#mmfg)"/><rect x="76" y="27" width="7" height="7" fill="url(#mmfg)"/><rect x="90" y="27" width="7" height="7" fill="url(#mmfg)"/><rect x="62" y="34" width="7" height="7" fill="url(#mmfg)"/><rect x="90" y="34" width="7" height="7" fill="url(#mmfg)"/><rect x="62" y="41" width="7" height="7" fill="url(#mmfg)"/><rect x="90" y="41" width="7" height="7" fill="url(#mmfg)"/><rect x="62" y="48" width="7" height="7" fill="url(#mmfg)"/><rect x="90" y="48" width="7" height="7" fill="url(#mmfg)"/><rect x="104" y="6" width="7" height="7" fill="url(#mmfg)"/><rect x="104" y="20" width="7" height="7" fill="url(#mmfg)"/><rect x="104" y="27" width="7" height="7" fill="url(#mmfg)"/><rect x="104" y="34" width="7" height="7" fill="url(#mmfg)"/><rect x="104" y="41" width="7" height="7" fill="url(#mmfg)"/><rect x="104" y="48" width="7" height="7" fill="url(#mmfg)"/><rect x="125" y="6" width="28" height="7" fill="url(#mmfg)"/><rect x="118" y="13" width="7" height="7" fill="url(#mmfg)"/><rect x="118" y="20" width="7" height="7" fill="url(#mmfg)"/><rect x="125" y="27" width="21" height="7" fill="url(#mmfg)"/><rect x="146" y="34" width="7" height="7" fill="url(#mmfg)"/><rect x="146" y="41" width="7" height="7" fill="url(#mmfg)"/><rect x="118" y="48" width="28" height="7" fill="url(#mmfg)"/><rect x="160" y="6" width="35" height="7" fill="url(#mmfg)"/><rect x="174" y="13" width="7" height="7" fill="url(#mmfg)"/><rect x="174" y="20" width="7" height="7" fill="url(#mmfg)"/><rect x="174" y="27" width="7" height="7" fill="url(#mmfg)"/><rect x="174" y="34" width="7" height="7" fill="url(#mmfg)"/><rect x="174" y="41" width="7" height="7" fill="url(#mmfg)"/><rect x="174" y="48" width="7" height="7" fill="url(#mmfg)"/><rect x="209" y="20" width="14" height="7" fill="url(#mmfg)"/><rect x="202" y="27" width="7" height="7" fill="url(#mmfg)"/><rect x="223" y="27" width="7" height="7" fill="url(#mmfg)"/><rect x="202" y="34" width="28" height="7" fill="url(#mmfg)"/><rect x="202" y="41" width="7" height="7" fill="url(#mmfg)"/><rect x="209" y="48" width="21" height="7" fill="url(#mmfg)"/><rect x="237" y="20" width="7" height="7" fill="url(#mmfg)"/><rect x="251" y="20" width="14" height="7" fill="url(#mmfg)"/><rect x="237" y="27" width="14" height="7" fill="url(#mmfg)"/><rect x="237" y="34" width="7" height="7" fill="url(#mmfg)"/><rect x="237" y="41" width="7" height="7" fill="url(#mmfg)"/><rect x="237" y="48" width="7" height="7" fill="url(#mmfg)"/><rect x="64" y="68" width="2.4" height="2.4" fill="currentColor"/><rect x="73.6" y="68" width="2.4" height="2.4" fill="currentColor"/><rect x="64" y="70.4" width="4.8" height="2.4" fill="currentColor"/><rect x="71.2" y="70.4" width="4.8" height="2.4" fill="currentColor"/><rect x="64" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="68.8" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="73.6" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="64" y="75.2" width="2.4" height="2.4" fill="currentColor"/><rect x="68.8" y="75.2" width="2.4" height="2.4" fill="currentColor"/><rect x="73.6" y="75.2" width="2.4" height="2.4" fill="currentColor"/><rect x="64" y="77.6" width="2.4" height="2.4" fill="currentColor"/><rect x="73.6" y="77.6" width="2.4" height="2.4" fill="currentColor"/><rect x="64" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="73.6" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="64" y="82.4" width="2.4" height="2.4" fill="currentColor"/><rect x="73.6" y="82.4" width="2.4" height="2.4" fill="currentColor"/><rect x="83.2" y="68" width="7.199999999999999" height="2.4" fill="currentColor"/><rect x="80.8" y="70.4" width="2.4" height="2.4" fill="currentColor"/><rect x="90.39999999999999" y="70.4" width="2.4" height="2.4" fill="currentColor"/><rect x="80.8" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="90.39999999999999" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="80.8" y="75.2" width="12" height="2.4" fill="currentColor"/><rect x="80.8" y="77.6" width="2.4" height="2.4" fill="currentColor"/><rect x="90.39999999999999" y="77.6" width="2.4" height="2.4" fill="currentColor"/><rect x="80.8" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="90.39999999999999" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="80.8" y="82.4" width="2.4" height="2.4" fill="currentColor"/><rect x="90.39999999999999" y="82.4" width="2.4" height="2.4" fill="currentColor"/><rect x="97.6" y="68" width="2.4" height="2.4" fill="currentColor"/><rect x="107.19999999999999" y="68" width="2.4" height="2.4" fill="currentColor"/><rect x="97.6" y="70.4" width="4.8" height="2.4" fill="currentColor"/><rect x="107.19999999999999" y="70.4" width="2.4" height="2.4" fill="currentColor"/><rect x="97.6" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="102.39999999999999" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="107.19999999999999" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="97.6" y="75.2" width="2.4" height="2.4" fill="currentColor"/><rect x="102.39999999999999" y="75.2" width="2.4" height="2.4" fill="currentColor"/><rect x="107.19999999999999" y="75.2" width="2.4" height="2.4" fill="currentColor"/><rect x="97.6" y="77.6" width="2.4" height="2.4" fill="currentColor"/><rect x="104.8" y="77.6" width="4.8" height="2.4" fill="currentColor"/><rect x="97.6" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="107.19999999999999" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="97.6" y="82.4" width="2.4" height="2.4" fill="currentColor"/><rect x="107.19999999999999" y="82.4" width="2.4" height="2.4" fill="currentColor"/><rect x="116.8" y="68" width="7.199999999999999" height="2.4" fill="currentColor"/><rect x="114.39999999999999" y="70.4" width="2.4" height="2.4" fill="currentColor"/><rect x="123.99999999999999" y="70.4" width="2.4" height="2.4" fill="currentColor"/><rect x="114.39999999999999" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="123.99999999999999" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="114.39999999999999" y="75.2" width="12" height="2.4" fill="currentColor"/><rect x="114.39999999999999" y="77.6" width="2.4" height="2.4" fill="currentColor"/><rect x="123.99999999999999" y="77.6" width="2.4" height="2.4" fill="currentColor"/><rect x="114.39999999999999" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="123.99999999999999" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="114.39999999999999" y="82.4" width="2.4" height="2.4" fill="currentColor"/><rect x="123.99999999999999" y="82.4" width="2.4" height="2.4" fill="currentColor"/><rect x="133.6" y="68" width="9.6" height="2.4" fill="currentColor"/><rect x="131.2" y="70.4" width="2.4" height="2.4" fill="currentColor"/><rect x="131.2" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="131.2" y="75.2" width="2.4" height="2.4" fill="currentColor"/><rect x="136" y="75.2" width="7.199999999999999" height="2.4" fill="currentColor"/><rect x="131.2" y="77.6" width="2.4" height="2.4" fill="currentColor"/><rect x="140.79999999999998" y="77.6" width="2.4" height="2.4" fill="currentColor"/><rect x="131.2" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="140.79999999999998" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="133.6" y="82.4" width="7.199999999999999" height="2.4" fill="currentColor"/><rect x="148" y="68" width="12" height="2.4" fill="currentColor"/><rect x="148" y="70.4" width="2.4" height="2.4" fill="currentColor"/><rect x="148" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="148" y="75.2" width="9.6" height="2.4" fill="currentColor"/><rect x="148" y="77.6" width="2.4" height="2.4" fill="currentColor"/><rect x="148" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="148" y="82.4" width="12" height="2.4" fill="currentColor"/><rect x="164.8" y="68" width="9.6" height="2.4" fill="currentColor"/><rect x="164.8" y="70.4" width="2.4" height="2.4" fill="currentColor"/><rect x="174.4" y="70.4" width="2.4" height="2.4" fill="currentColor"/><rect x="164.8" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="174.4" y="72.8" width="2.4" height="2.4" fill="currentColor"/><rect x="164.8" y="75.2" width="9.6" height="2.4" fill="currentColor"/><rect x="164.8" y="77.6" width="2.4" height="2.4" fill="currentColor"/><rect x="169.60000000000002" y="77.6" width="2.4" height="2.4" fill="currentColor"/><rect x="164.8" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="172" y="80" width="2.4" height="2.4" fill="currentColor"/><rect x="164.8" y="82.4" width="2.4" height="2.4" fill="currentColor"/><rect x="174.4" y="82.4" width="2.4" height="2.4" fill="currentColor"/></g></svg></a>
+    <a data-nav="now" href="#now"><svg><use href="#i-home"/></svg><span>Now</span></a>
+    <a data-nav="games" href="#games"><svg><use href="#i-games"/></svg><span>Games</span></a>
+    <a data-nav="cores" href="#cores"><svg><use href="#i-chip"/></svg><span>Cores</span></a>
+    <a data-nav="display" href="#display"><svg><use href="#i-lcd"/></svg><span>Display</span></a>
+    <a data-nav="settings" href="#settings"><svg><use href="#i-sliders"/></svg><span>Settings</span></a>
+    <button class="nav-power" id="nav-power" type="button"><svg><use href="#i-power"/></svg><span>Power</span></button>
+    <div class="nav-foot" id="nav-foot"></div>
+  </nav>
+
+  <div class="page">
+    <header class="top">
+      <a class="brand" href="#now"><svg class="logo" viewBox="0 0 291 61" role="img" aria-label="MiSTer Manager" shape-rendering="crispEdges"><defs>
+    <linearGradient id="mmcg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".46" stop-color="#b9c4d4"/>
+      <stop offset=".5" stop-color="#3a4256"/><stop offset=".62" stop-color="#7d8aa1"/>
+      <stop offset="1" stop-color="#eef3fa"/></linearGradient>
+    <filter id="mmco" x="-5%" y="-10%" width="110%" height="130%"><feMorphology operator="dilate" radius="2.2"/></filter>
+  </defs><g transform="translate(16 0) skewX(-12)"><rect x="0" y="6" width="8" height="49" fill="#ff4b3e"/><rect x="13" y="6" width="8" height="49" fill="#f5a623"/><rect x="26" y="6" width="8" height="49" fill="#ffd84a"/><rect x="39" y="6" width="8" height="49" fill="#22c3b4"/><g filter="url(#mmco)"><rect x="62" y="6" width="7" height="7" fill="#12152a"/><rect x="90" y="6" width="7" height="7" fill="#12152a"/><rect x="62" y="13" width="14" height="7" fill="#12152a"/><rect x="83" y="13" width="14" height="7" fill="#12152a"/><rect x="62" y="20" width="7" height="7" fill="#12152a"/><rect x="76" y="20" width="7" height="7" fill="#12152a"/><rect x="90" y="20" width="7" height="7" fill="#12152a"/><rect x="62" y="27" width="7" height="7" fill="#12152a"/><rect x="76" y="27" width="7" height="7" fill="#12152a"/><rect x="90" y="27" width="7" height="7" fill="#12152a"/><rect x="62" y="34" width="7" height="7" fill="#12152a"/><rect x="90" y="34" width="7" height="7" fill="#12152a"/><rect x="62" y="41" width="7" height="7" fill="#12152a"/><rect x="90" y="41" width="7" height="7" fill="#12152a"/><rect x="62" y="48" width="7" height="7" fill="#12152a"/><rect x="90" y="48" width="7" height="7" fill="#12152a"/><rect x="104" y="6" width="7" height="7" fill="#12152a"/><rect x="104" y="20" width="7" height="7" fill="#12152a"/><rect x="104" y="27" width="7" height="7" fill="#12152a"/><rect x="104" y="34" width="7" height="7" fill="#12152a"/><rect x="104" y="41" width="7" height="7" fill="#12152a"/><rect x="104" y="48" width="7" height="7" fill="#12152a"/><rect x="125" y="6" width="28" height="7" fill="#12152a"/><rect x="118" y="13" width="7" height="7" fill="#12152a"/><rect x="118" y="20" width="7" height="7" fill="#12152a"/><rect x="125" y="27" width="21" height="7" fill="#12152a"/><rect x="146" y="34" width="7" height="7" fill="#12152a"/><rect x="146" y="41" width="7" height="7" fill="#12152a"/><rect x="118" y="48" width="28" height="7" fill="#12152a"/><rect x="160" y="6" width="35" height="7" fill="#12152a"/><rect x="174" y="13" width="7" height="7" fill="#12152a"/><rect x="174" y="20" width="7" height="7" fill="#12152a"/><rect x="174" y="27" width="7" height="7" fill="#12152a"/><rect x="174" y="34" width="7" height="7" fill="#12152a"/><rect x="174" y="41" width="7" height="7" fill="#12152a"/><rect x="174" y="48" width="7" height="7" fill="#12152a"/><rect x="209" y="20" width="14" height="7" fill="#12152a"/><rect x="202" y="27" width="7" height="7" fill="#12152a"/><rect x="223" y="27" width="7" height="7" fill="#12152a"/><rect x="202" y="34" width="28" height="7" fill="#12152a"/><rect x="202" y="41" width="7" height="7" fill="#12152a"/><rect x="209" y="48" width="21" height="7" fill="#12152a"/><rect x="237" y="20" width="7" height="7" fill="#12152a"/><rect x="251" y="20" width="14" height="7" fill="#12152a"/><rect x="237" y="27" width="14" height="7" fill="#12152a"/><rect x="237" y="34" width="7" height="7" fill="#12152a"/><rect x="237" y="41" width="7" height="7" fill="#12152a"/><rect x="237" y="48" width="7" height="7" fill="#12152a"/></g><rect x="62" y="6" width="7" height="7" fill="url(#mmcg)"/><rect x="90" y="6" width="7" height="7" fill="url(#mmcg)"/><rect x="62" y="13" width="14" height="7" fill="url(#mmcg)"/><rect x="83" y="13" width="14" height="7" fill="url(#mmcg)"/><rect x="62" y="20" width="7" height="7" fill="url(#mmcg)"/><rect x="76" y="20" width="7" height="7" fill="url(#mmcg)"/><rect x="90" y="20" width="7" height="7" fill="url(#mmcg)"/><rect x="62" y="27" width="7" height="7" fill="url(#mmcg)"/><rect x="76" y="27" width="7" height="7" fill="url(#mmcg)"/><rect x="90" y="27" width="7" height="7" fill="url(#mmcg)"/><rect x="62" y="34" width="7" height="7" fill="url(#mmcg)"/><rect x="90" y="34" width="7" height="7" fill="url(#mmcg)"/><rect x="62" y="41" width="7" height="7" fill="url(#mmcg)"/><rect x="90" y="41" width="7" height="7" fill="url(#mmcg)"/><rect x="62" y="48" width="7" height="7" fill="url(#mmcg)"/><rect x="90" y="48" width="7" height="7" fill="url(#mmcg)"/><rect x="104" y="6" width="7" height="7" fill="url(#mmcg)"/><rect x="104" y="20" width="7" height="7" fill="url(#mmcg)"/><rect x="104" y="27" width="7" height="7" fill="url(#mmcg)"/><rect x="104" y="34" width="7" height="7" fill="url(#mmcg)"/><rect x="104" y="41" width="7" height="7" fill="url(#mmcg)"/><rect x="104" y="48" width="7" height="7" fill="url(#mmcg)"/><rect x="125" y="6" width="28" height="7" fill="url(#mmcg)"/><rect x="118" y="13" width="7" height="7" fill="url(#mmcg)"/><rect x="118" y="20" width="7" height="7" fill="url(#mmcg)"/><rect x="125" y="27" width="21" height="7" fill="url(#mmcg)"/><rect x="146" y="34" width="7" height="7" fill="url(#mmcg)"/><rect x="146" y="41" width="7" height="7" fill="url(#mmcg)"/><rect x="118" y="48" width="28" height="7" fill="url(#mmcg)"/><rect x="160" y="6" width="35" height="7" fill="url(#mmcg)"/><rect x="174" y="13" width="7" height="7" fill="url(#mmcg)"/><rect x="174" y="20" width="7" height="7" fill="url(#mmcg)"/><rect x="174" y="27" width="7" height="7" fill="url(#mmcg)"/><rect x="174" y="34" width="7" height="7" fill="url(#mmcg)"/><rect x="174" y="41" width="7" height="7" fill="url(#mmcg)"/><rect x="174" y="48" width="7" height="7" fill="url(#mmcg)"/><rect x="209" y="20" width="14" height="7" fill="url(#mmcg)"/><rect x="202" y="27" width="7" height="7" fill="url(#mmcg)"/><rect x="223" y="27" width="7" height="7" fill="url(#mmcg)"/><rect x="202" y="34" width="28" height="7" fill="url(#mmcg)"/><rect x="202" y="41" width="7" height="7" fill="url(#mmcg)"/><rect x="209" y="48" width="21" height="7" fill="url(#mmcg)"/><rect x="237" y="20" width="7" height="7" fill="url(#mmcg)"/><rect x="251" y="20" width="14" height="7" fill="url(#mmcg)"/><rect x="237" y="27" width="14" height="7" fill="url(#mmcg)"/><rect x="237" y="34" width="7" height="7" fill="url(#mmcg)"/><rect x="237" y="41" width="7" height="7" fill="url(#mmcg)"/><rect x="237" y="48" width="7" height="7" fill="url(#mmcg)"/></g></svg></a>
+      <h1 id="title">Now</h1>
+      <a class="now-strip" id="now-strip" href="#now"><span class="dot" id="dot"></span><span id="now-text">…</span></a>
+      <button class="icon-btn top-power" id="top-power" type="button" aria-label="Power"><svg><use href="#i-power"/></svg></button>
+    </header>
+
+    <main>
+      <section class="view" id="view-now">
+        <div class="hero" id="hero">
+          <div class="hero-bg" id="hero-bg"></div>
+          <div class="hero-cover" id="hero-cover"><svg class="mark-big"><use href="#i-mark"/></svg></div>
+          <div class="hero-text">
+            <p class="hero-kicker" id="hero-kicker">Connecting</p>
+            <h2 class="hero-title" id="hero-title">…</h2>
+            <div class="hero-actions" id="hero-actions"></div>
+          </div>
+        </div>
+
+        <div class="vitals" id="vitals"></div>
+
+        <section class="block" id="recentbox" hidden>
+          <div class="block-head"><h2>Recent</h2></div>
+          <div class="strip" id="recent"></div>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>Controllers</h2></div>
+          <div class="group">
+            <div id="pads"></div>
+            <label class="row switch-row">
+              <span class="row-text">Ignore motion sensors of PlayStation pads<small>DualShock 4 and DualSense pads report their tilt like a stick, so the character can move on its own. Buttons, sticks and touchpad still work.</small></span>
+              <span class="switch"><input type="checkbox" id="motion" role="switch"><span class="knob"></span></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>Library</h2></div>
+          <div class="group">
+            <div class="row">
+              <span class="row-text" id="library-text">Game index<small id="library-sub">Built at start from the SD card.</small></span>
+              <button class="btn" id="rescan"><svg><use href="#i-refresh"/></svg>Rescan</button>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="view-games" hidden>
+        <div class="toolbar">
+          <label class="search"><svg><use href="#i-search"/></svg><input type="search" id="q" placeholder="Search all games" autocomplete="off" aria-label="Search games"></label>
+          <button class="chip" id="alt" aria-pressed="false" title="Also show alternative versions, hacks and translations">Other versions</button>
+        </div>
+        <div class="systems-wrap"><div class="systems" id="systems" role="tablist" aria-label="System"></div></div>
+        <div class="list-head"><h2 id="listtitle">Games</h2><span class="list-count" id="listcount"></span></div>
+        <div class="grid" id="games"></div>
+        <p class="empty" id="hint">Pick a system or type a name.</p>
+      </section>
+
+      <section class="view" id="view-cores" hidden>
+        <div class="group">
+          <div class="row stack">
+            <label class="row-text" for="core">Core<small id="corenote">The options are the ones of the core's OSD menu.</small></label>
+            <select id="core"></select>
+          </div>
+        </div>
+        <div class="seg" id="coretabs" role="tablist" aria-label="Core page" hidden>
+          <button type="button" role="tab" id="tab-options" data-tab="options" aria-selected="true">Options</button>
+          <button type="button" role="tab" id="tab-saves" data-tab="saves" aria-selected="false">Saves<span id="tab-savecount"></span></button>
+        </div>
+        <p class="banner warn" id="corerun" hidden><svg><use href="#i-alert"/></svg><span>This core is running now. Do not use “Save settings” in its OSD, or it will overwrite what you save here.</span></p>
+        <div id="coreopts"></div>
+        <div id="coresaves"></div>
+        <input type="file" id="cardfile" accept=".mcd,.mcr,.sav,.gme,.vmp,.srm" hidden>
+        <input type="file" id="savefile" hidden>
+        <div class="savebar" id="coresave" hidden><span id="corecount">No changes</span><button class="btn primary" id="core-save">Save options</button></div>
+      </section>
+
+
+      <section class="view" id="view-display" hidden>
+        <p class="empty" id="lily-none" hidden>MiSTerLily is not installed on this MiSTer.</p>
+        <div id="lily-panel" hidden>
+          <div class="block-head"><h2>Board</h2></div>
+          <div class="group">
+            <div class="row">
+              <span class="row-text"><span id="lily-model">Display</span><small id="lily-conn"></small></span>
+            </div>
+          </div>
+
+          <div class="block-head"><h2>Screen</h2></div>
+          <div class="group">
+            <div id="lily-display" hidden>
+              <div class="row"><label class="row-text" for="lily-bright">Brightness<small>Changes at once.</small></label><div class="range"><input type="range" id="lily-bright" min="0" max="7" step="1"><output id="lily-brightval">–</output></div></div>
+              <div class="row stack"><label class="row-text" for="lily-font">Clock font<small>Used by the clock when no game is running.</small></label><select id="lily-font"></select></div>
+            </div>
+            <p class="help" id="lily-nodisplay">Brightness and clock font need a connected display with firmware 0.4.1 or later.</p>
+          </div>
+
+          <div id="sta-panel" hidden>
+            <div class="block-head"><h2>Display Wi-Fi</h2></div>
+            <div class="group">
+              <div class="row">
+                <span class="row-text"><span id="sta-title">Not connected</span><small id="sta-sub">The display joins a network of its own and shows its screen at an address of its own, also while the MiSTer is off.</small></span>
+                <a class="btn primary" id="sta-open" target="_blank" rel="noopener" hidden><svg><use href="#i-lcd"/></svg>Virtual display</a>
+              </div>
+              <p class="banner warn sta-error" id="sta-error" hidden></p>
+              <div class="row" id="sta-mister" hidden>
+                <span class="row-text"><span id="sta-mister-title"></span><small id="sta-mister-sub"></small></span>
+                <button class="btn primary" id="sta-copy"><svg><use href="#i-check"/></svg>Use the MiSTer's Wi-Fi</button>
+              </div>
+              <div class="row actions">
+                <button class="btn" id="sta-scan"><svg><use href="#i-search"/></svg>Find networks</button>
+                <button class="btn danger-quiet" id="sta-forget" hidden><svg><use href="#i-close"/></svg>Forget network</button>
+              </div>
+              <div id="sta-list" class="sta-list" hidden></div>
+              <form class="row sta-join" id="sta-join" hidden>
+                <span class="row-text"><span id="sta-join-name"></span><small>Password of this network.</small></span>
+                <input type="password" id="sta-pass" autocomplete="off" aria-label="Wi-Fi password">
+                <button class="btn primary" id="sta-go" type="submit">Join</button>
+              </form>
+              <p class="help">This is the network of the display board itself. The Wi-Fi of the MiSTer is set on the display: Wi-Fi button in the MiSTer menu.</p>
+            </div>
+          </div>
+
+          <div class="block-head"><h2>Firmware</h2></div>
+          <div class="group">
+            <div class="row">
+              <span class="row-text"><span id="lily-fw">–</span><small id="lily-state"></small></span>
+              <button class="btn" id="lily-check">Check again</button>
+            </div>
+            <div class="row actions">
+              <button class="btn primary" id="lily-latest">Update firmware</button>
+              <button class="btn" id="lily-file">Flash a file…</button>
+            </div>
+            <div id="lily-job" class="job" hidden>
+              <progress id="lily-progress" max="100" value="0"></progress>
+              <p id="lily-step" class="help"></p>
+            </div>
+            <p class="help">Only the program is written: the display keeps its settings and start-up picture. It takes about 15 s. Do not unplug the display while it runs.</p>
+            <input type="file" id="lily-input" accept=".bin" hidden>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-settings" hidden>
+        <div class="block-head"><h2>Sound</h2></div>
+        <div class="group">
+          <div class="row">
+            <span class="row-text">Volume<small>Main output, HDMI and analog. Changes at once.</small></span>
+            <div class="range"><input type="range" id="vol" min="0" max="7" step="1" aria-label="Volume"><output id="volval">–</output></div>
+            <button class="btn" id="mute">Mute</button>
+          </div>
+        </div>
+
+        <div class="block-head"><h2>Video</h2></div>
+        <div class="group">
+          <div class="row stack"><label class="row-text" for="vscale">Scaling</label><select id="vscale"></select></div>
+          <div class="row stack"><label class="row-text" for="p-MiSTer">Preset for all cores</label><select id="p-MiSTer" data-section="MiSTer"></select></div>
+          <div class="row stack"><label class="row-text" for="p-arcade">Preset for arcade</label><select id="p-arcade" data-section="arcade" data-empty="Same as all cores"></select></div>
+          <div class="row stack"><label class="row-text" for="p-arcade_vertical">Preset for vertical arcade</label><select id="p-arcade_vertical" data-section="arcade_vertical" data-empty="Same as all cores"></select></div>
+          <p class="help">Saved in MiSTer.ini with a backup. Applies when the next core loads. Games with their own saved video settings keep them.</p>
+        </div>
+
+        <div class="group" id="custombox" hidden>
+          <div class="row stack"><label class="row-text" for="cp-name">Custom preset<small>Presets/Custom. The “Vertical” copy is updated too, with the filters swapped and the mask rotated.</small></label><select id="cp-name"></select></div>
+          <div class="row stack"><label class="row-text" for="cp-hfilter">Sharpness (horizontal)</label><select id="cp-hfilter"></select></div>
+          <div class="row stack"><label class="row-text" for="cp-vfilter">Scanlines (vertical)<small>SLA_Dk_XXX_Br_YYY: Dk is how dark the lines are, Br how much bright parts fill them.</small></label><select id="cp-vfilter"></select></div>
+          <div class="row stack"><label class="row-text" for="cp-gamma">Gamma</label><select id="cp-gamma"></select></div>
+          <div class="row stack"><label class="row-text" for="cp-mask">Shadow mask</label><select id="cp-mask"></select></div>
+          <div class="row stack"><label class="row-text" for="cp-maskmode">Mask mode</label><select id="cp-maskmode"></select></div>
+          <div class="row actions"><button class="btn primary" id="cp-save">Save preset</button></div>
+        </div>
+
+        <div class="block-head"><h2>HDMI</h2></div>
+        <div class="group">
+          <div class="row stack"><label class="row-text" for="vmode">Output</label><select id="vmode"></select></div>
+          <div class="row stack"><label class="row-text" for="dvi">Signal</label><select id="dvi"></select></div>
+          <p class="help">Try these if the screen goes off and on when a core loads. Both keep 1920x1080 at 60 Hz. If the screen stays black after a change, set it back here from the phone, then reload a core.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<dialog class="sheet" id="sheet">
+  <div class="sheet-body">
+    <div class="sheet-cover" id="sheet-cover"></div>
+    <div class="sheet-text">
+      <h2 id="sheet-name"></h2>
+      <p class="sheet-sub" id="sheet-sub"></p>
+    </div>
+    <button class="icon-btn sheet-close" id="sheet-close" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+  </div>
+  <div class="sheet-actions">
+    <button class="btn primary big" id="sheet-play"><svg><use href="#i-play"/></svg>Play</button>
+  </div>
+</dialog>
+
+<dialog class="sheet" id="power" aria-labelledby="power-title">
+  <div class="sheet-body">
+    <div class="sheet-text">
+      <h2 id="power-title" tabindex="-1">Power</h2>
+      <p class="sheet-sub">A running game stops.</p>
+    </div>
+    <button class="icon-btn sheet-close" id="power-close" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+  </div>
+  <div class="power-opts">
+    <button class="power-opt" id="reboot" type="button">
+      <svg><use href="#i-refresh"/></svg>
+      <span class="row-text">Reboot<small>The page comes back in about a minute.</small></span>
+    </button>
+    <button class="power-opt danger" id="poweroff" type="button" hidden>
+      <svg><use href="#i-power"/></svg>
+      <span class="row-text">Power off<small>Linux shuts down, then the display cuts the power. Tap the display to switch on again.</small></span>
+    </button>
+  </div>
+  <p class="power-confirm" id="power-confirm" hidden></p>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="/app.js"></script>
+</body>
+</html>
