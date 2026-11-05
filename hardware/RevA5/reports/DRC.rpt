@@ -1,0 +1,50 @@
+** Drc report for MisterFlat_RevA5.kicad_pcb **
+** Created on 2026-10-20T21:59:01 **
+** Report includes: Errors, Warnings, Exclusions **
+
+** Found 8 DRC violations **
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: restricciones de configuración de placa para serigrafía; warning
+    @(216.0000 mm, 108.2000 mm): Segmento en Edge.Cuts
+    @(197.3400 mm, 108.2900 mm): Segmento de J9 en F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: restricciones de configuración de placa para serigrafía; warning
+    @(216.0000 mm, 108.2000 mm): Segmento en Edge.Cuts
+    @(210.6600 mm, 100.1800 mm): Segmento de J9 en F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: restricciones de configuración de placa para serigrafía; warning
+    @(19.0000 mm, 105.0000 mm): Segmento en Edge.Cuts
+    @(-2.2050 mm, 87.1500 mm): Segmento de J21 en F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: restricciones de configuración de placa para serigrafía; warning
+    @(19.0000 mm, 105.0000 mm): Segmento en Edge.Cuts
+    @(13.3150 mm, 87.1500 mm): Segmento de J21 en F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: restricciones de configuración de placa para serigrafía; warning
+    @(-4.0000 mm, 20.0000 mm): Segmento en Edge.Cuts
+    @(-2.2050 mm, 37.8500 mm): Segmento de J20 en F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: restricciones de configuración de placa para serigrafía; warning
+    @(-4.0000 mm, 20.0000 mm): Segmento en Edge.Cuts
+    @(13.3150 mm, 37.8500 mm): Segmento de J20 en F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: restricciones de configuración de placa para serigrafía; warning
+    @(-4.0000 mm, 20.0000 mm): Segmento en Edge.Cuts
+    @(97.4200 mm, 27.5200 mm): Segmento de J22 en F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: restricciones de configuración de placa para serigrafía; warning
+    @(-4.0000 mm, 20.0000 mm): Segmento en Edge.Cuts
+    @(110.7400 mm, 19.4100 mm): Segmento de J22 en F.Silkscreen
+
+** Found 0 unconnected pads **
+
+** Found 0 Footprint errors **
+
+** Ignored checks **
+    - Footprint has no courtyard defined
+    - Track endpoint not centered on via
+    - Tuning profile track geometries
+    - Footprint doesn't match symbol's footprint filters
+    - Footprint component type doesn't match footprint pads
+
+** End of Report **

@@ -5,7 +5,7 @@ Waveshare ESP32-S3-Touch-LCD-2 (2" 320×240 touch TFT). When MiSTer loads a core
 that system's logo and name. On the touch board, a tap gives the MiSTer's RESET, OSD and USER
 buttons, plus Bluetooth pairing, and in the MiSTer menu a Wi-Fi set-up with an on-screen keyboard.
 
-Website: **https://alberthorta.github.io/MiSTerLily/** · How all the parts work together:
+Website: **https://alberthorta.github.io/MiSTerFlat/** · How all the parts work together:
 **[docs/how-it-works.md](docs/how-it-works.md)**
 
 It speaks the serial protocol of [MiSTer_tty2oled](https://github.com/venice1200/MiSTer_tty2oled),
@@ -122,7 +122,7 @@ python3 tests/fixtures/make_art.py                         # rebuild the colour 
 ## Installing on the MiSTer
 
 See [docs/mister-install.md](docs/mister-install.md). Quickest: download `misterlily_install.sh` from
-the [latest release](https://github.com/alberthorta/MiSTerLily/releases/latest) (or build it with
+the [latest release](https://github.com/alberthorta/MiSTerFlat/releases/latest) (or build it with
 `python3 tools/make_mister_installer.py`), copy it to `/media/fat/Scripts/` (or to the `Scripts`
 folder of a fresh Mr. Fusion card) and run it once from the MiSTer Scripts menu. Then run `misterlily_update` from the
 same menu: it downloads the tty2oled logo library and keeps MiSTerLily up to date from this repository. Colour pictures go to `/media/fat/MiSTerLily/art/<core>.png`.

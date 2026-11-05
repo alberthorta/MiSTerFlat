@@ -20,11 +20,11 @@ program run directly by the system.
 
 `misterlily_install.sh` is a single script with everything inside (daemon, scripts, default config,
 start-up picture). Download it from the latest release on GitHub
-(github.com/alberthorta/MiSTerLily/releases), or build it with `python3 tools/make_mister_installer.py`
+(github.com/alberthorta/MiSTerFlat/releases), or build it with `python3 tools/make_mister_installer.py`
 (writes `dist/misterlily_install.sh`). Copy it to
 `/media/fat/Scripts/` and run it once from the MiSTer Scripts menu. Then run **`misterlily_update`**
 (also in the Scripts menu now): it downloads the tty2oled logo library and, later, updates
-MiSTerLily from GitHub (github.com/alberthorta/MiSTerLily, branch `main`). That is all you need;
+MiSTerLily from GitHub (github.com/alberthorta/MiSTerFlat, folder `display`, branch `main`). That is all you need;
 the tty2oled updater is not required. It does steps 1 and 3 below,
 also before tty2oled is installed: it writes `TTY2OLED_UPDATE="no"` and a `_S60tty2oled` marker,
 so a later tty2oled install (for its logos) never installs a second daemon or flashes the board.

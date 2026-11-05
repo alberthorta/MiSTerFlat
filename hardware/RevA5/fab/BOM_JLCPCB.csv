@@ -1,0 +1,20 @@
+Comment,Designator,Footprint,LCSC Part #,Suggested part / note
+47uF 16V,C1,CP_Radial_D5.0mm_P2.00mm,,"47uF 16V electrolytic, 5 mm diameter, 2.0 mm pitch"
+100nF,C2,C_Disc_D3.0mm_W1.6mm_P2.50mm,,"100nF ceramic, 2.5 mm pitch"
+I/O J12 2x20 male,J1,PinHeader_2x20_P2.54mm_Vertical,,"Wurth 61304021121 (2x20 male, straight)"
+Cyclone J12 2x20 female,J2,PinSocket_2x20_P2.54mm_Vertical,,"Wurth 61304021821 (2x20 female, 8.5 mm)"
+RJ45 NET OUT (rear),J20,RJ45_Amphenol_54602-x08_Horizontal,,Amphenol 54602-908 (no magnetics)
+RJ45 NET IN (from Cyclone),J21,RJ45_Amphenol_54602-x08_Horizontal,,Amphenol 54602-908 (no magnetics)
+USB-A rear (cable to J23),J22,USB_A_Molex_67643_Horizontal,,Molex 67643-0910
+"Rear USB 1x4 90deg male (VIN, D-, D+, GND)",J23,PinHeader_1x04_P2.54mm_Horizontal,,"Wurth 61300411021 (1x4 male, right angle)"
+Front panel IDC 2x6,J24,IDC-Header_2x06_P2.54mm_Vertical,,"2x6 boxed IDC header, 2.54 mm, straight (e.g. Wurth 61201221621)"
+I/O J10 2x20 male,J3,PinHeader_2x20_P2.54mm_Vertical,,"Wurth 61304021121 (2x20 male, straight)"
+Cyclone J10 2x20 female,J4,PinSocket_2x20_P2.54mm_Vertical,,"Wurth 61304021821 (2x20 female, 8.5 mm)"
+Cyclone JP6 2x2 female,J5,PinSocket_2x02_P2.54mm_Vertical,,"Wurth 61300421821 (2x2 female, 8.5 mm)"
+I/O USB 2x2 male (PROVISIONAL),J6,PinHeader_2x02_P2.54mm_Vertical,,Wurth 61300421121 (2x2 male)
+USB AUX 1x4 90deg male,J7,PinHeader_1x04_P2.54mm_Horizontal,,"Wurth 61300411021 (1x4 male, right angle)"
+USB DISPLAY 1x4 90deg male,J8,PinHeader_1x04_P2.54mm_Horizontal,,"Wurth 61300411021 (1x4 male, right angle)"
+USB-A Wi-Fi/BT,J9,USB_A_Molex_67643_Horizontal,,Molex 67643-0910
+10k,"R1,R2,R3",R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical,,"1/4 W metal film, mounted standing"
+1k,"R4,R5,R6",R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical,,"1/4 W metal film, mounted standing"
+Adafruit 5997 CH334F 4-port hub,U1,Adafruit_5997_CH334F_Socketed,,2x 1x8 + 1x4 female 2.54 mm sockets (module bought from Adafruit)

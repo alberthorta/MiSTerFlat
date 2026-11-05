@@ -1,9 +1,11 @@
-# Builds the firmware of every board for a version tag and publishes it as a GitHub release, one
+# MiSTerLily (display/). Builds the firmware of every board for a version tag and publishes it as a GitHub release, one
 # misterlily-<version>-<env>.bin per board, plus the one-file MiSTer installer
 # (misterlily_install.sh). misterlily_flash.py (and MiSTerManager through it) flashes the .bin for
 # the connected board.
 #
-#   1. set MDS_FW_VERSION in firmware/include/config.h, commit
+# Tags v* are MiSTerLily releases only: the updaters on the MiSTer read the latest release.
+#
+#   1. set MDS_FW_VERSION in display/firmware/include/config.h, commit
 #   2. git tag v0.2.0 && git push origin v0.2.0
 name: Release firmware
 
@@ -13,6 +15,10 @@ on:
 
 permissions:
   contents: write
+
+defaults:
+  run:
+    working-directory: display
 
 jobs:
   release:
@@ -29,7 +35,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: platformio-${{ hashFiles('firmware/platformio.ini') }}
+          key: platformio-${{ hashFiles('display/firmware/platformio.ini') }}
 
       - name: Tag matches the firmware version
         run: |

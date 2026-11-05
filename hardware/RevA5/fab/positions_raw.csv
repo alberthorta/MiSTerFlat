@@ -1,0 +1,24 @@
+Ref,Val,Package,PosX,PosY,Rot,Side
+"C1","47uF 16V","CP_Radial_D5.0mm_P2.00mm",197.500000,-86.000000,0.000000,top
+"C2","100nF","C_Disc_D3.0mm_W1.6mm_P2.50mm",204.000000,-86.000000,0.000000,top
+"J1","I/O J12 2x20 male","PinHeader_2x20_P2.54mm_Vertical",84.517000,-43.290000,0.000000,top
+"J2","Cyclone J12 2x20 female","PinSocket_2x20_P2.54mm_Vertical",123.643000,-43.290000,0.000000,top
+"J3","I/O J10 2x20 male","PinHeader_2x20_P2.54mm_Vertical",24.063000,-91.550000,180.000000,top
+"J4","Cyclone J10 2x20 female","PinSocket_2x20_P2.54mm_Vertical",184.097000,-91.550000,180.000000,top
+"J5","Cyclone JP6 2x2 female","PinSocket_2x02_P2.54mm_Vertical",123.643000,-116.950000,-90.000000,top
+"J6","I/O USB 2x2 male (PROVISIONAL)","PinHeader_2x02_P2.54mm_Vertical",84.517000,-116.950000,90.000000,top
+"J7","USB AUX 1x4 90deg male","PinHeader_1x04_P2.54mm_Horizontal",195.000000,-60.000000,0.000000,top
+"J8","USB DISPLAY 1x4 90deg male","PinHeader_1x04_P2.54mm_Horizontal",195.000000,-72.000000,0.000000,top
+"J9","USB-A Wi-Fi/BT","USB_A_Molex_67643_Horizontal",200.500000,-95.710000,0.000000,top
+"J20","RJ45 NET OUT (rear)","RJ45_Amphenol_54602-x08_Horizontal",10.000000,-33.970000,180.000000,top
+"J21","RJ45 NET IN (from Cyclone)","RJ45_Amphenol_54602-x08_Horizontal",1.110000,-91.030000,0.000000,top
+"J22","USB-A rear (cable to J23)","USB_A_Molex_67643_Horizontal",107.580000,-31.990000,180.000000,top
+"J23","Rear USB 1x4 90deg male (VIN, D-, D+, GND)","PinHeader_1x04_P2.54mm_Horizontal",107.890000,-36.700000,-90.000000,top
+"J24","Front panel IDC 2x6","IDC-Header_2x06_P2.54mm_Vertical",110.430000,-117.500000,-90.000000,top
+"R1","10k","R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical",97.210000,-108.600000,0.000000,top
+"R2","10k","R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical",102.810000,-108.600000,0.000000,top
+"R3","10k","R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical",108.410000,-108.600000,0.000000,top
+"R4","1k","R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical",97.210000,-111.750000,0.000000,top
+"R5","1k","R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical",102.810000,-111.750000,0.000000,top
+"R6","1k","R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical",108.410000,-111.750000,0.000000,top
+"U1","Adafruit 5997 CH334F 4-port hub","Adafruit_5997_CH334F_Socketed",202.500000,-41.240000,0.000000,top

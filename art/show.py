@@ -168,8 +168,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("patterns", nargs="*", metavar="CORE", help="core names or patterns (default: all)")
     ap.add_argument("--port", help="serial device (default: first /dev/cu.usbmodem*)")
-    ap.add_argument("--misterlily", default=os.path.join(os.path.dirname(HERE), "MISTerLily"),
-                    help="MiSTerLily repo (default: ../MISTerLily)")
+    ap.add_argument("--misterlily", default=os.path.join(os.path.dirname(HERE), "display"),
+                    help="MiSTerLily repo (default: ../display)")
     ap.add_argument("--interval", type=float, default=3.0, help="seconds per picture in a slideshow")
     ap.add_argument("--shuffle", action="store_true", help="random order")
     ap.add_argument("--loop", action="store_true", help="repeat until Ctrl-C")

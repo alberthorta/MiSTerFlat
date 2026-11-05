@@ -37,7 +37,7 @@ sys.path.insert(0, HERE)
 from mdsserial import BOARDS  # noqa: E402
 from mister_display import BOARD_FILE, FW_FILE, find_device, read_config  # noqa: E402
 
-REPO = "alberthorta/MiSTerLily"
+REPO = "alberthorta/MiSTerFlat"
 TOOLS_DIR = os.path.join(HERE, "tools")
 TOOLS = {
     "esptool.py": ("https://raw.githubusercontent.com/espressif/esptool/v3.3.3/esptool.py",

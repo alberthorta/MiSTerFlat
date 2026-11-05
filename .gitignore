@@ -1,0 +1,12 @@
+.DS_Store
+__pycache__/
+*.pyc
+.vscode/
+
+# KiCad local state and backups
+*.kicad_prl
+*-backups/
+fp-info-cache
+
+# The original hardware brief and vendor package: kept on my disk, not published.
+hardware/handoff/

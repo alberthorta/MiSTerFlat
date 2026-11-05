@@ -9,7 +9,9 @@
 #
 # Needs network. Test hook: MDS_FAT (default /media/fat).
 
-REPO="alberthorta/MiSTerLily"
+REPO="alberthorta/MiSTerFlat"
+# MiSTerLily is the display/ folder of the MiSTerFlat repository.
+SUBDIR="display"
 BRANCH="main"
 PICTURES_URL="https://www.tty2tft.de/MiSTer_tty2oled_pictures.7z"
 FAT="${MDS_FAT:-/media/fat}"
@@ -29,8 +31,9 @@ echo "================="
 
 # 1. MiSTerLily itself
 echo "Checking MiSTerLily on GitHub ($REPO)..."
-latest="$("${CURL[@]}" "https://api.github.com/repos/$REPO/commits/$BRANCH" 2>/dev/null |
-  sed -n 's/^  "sha": "\([0-9a-f]\{40\}\)",$/\1/p' | head -n 1)"
+# The last commit that changed the display: a change to another part of the repository is no update.
+latest="$("${CURL[@]}" "https://api.github.com/repos/$REPO/commits?sha=$BRANCH&path=$SUBDIR&per_page=1" 2>/dev/null |
+  sed -n 's/^    "sha": "\([0-9a-f]\{40\}\)",$/\1/p' | head -n 1)"
 current="$(cat "$DEST/VERSION" 2>/dev/null)"
 if [ -z "$latest" ]; then
   echo "  could not reach GitHub, MiSTerLily not updated"
@@ -41,7 +44,7 @@ else
   echo "  updating ${current:0:7} -> ${latest:0:7}"
   if "${CURL[@]}" "https://codeload.github.com/$REPO/tar.gz/$latest" -o "$TMP/src.tar.gz" &&
      tar -xzf "$TMP/src.tar.gz" -C "$TMP"; then
-    src="$(ls -d "$TMP"/*/mister 2>/dev/null | head -n 1)"
+    src="$(ls -d "$TMP"/*/"$SUBDIR"/mister 2>/dev/null | head -n 1)"
     echo "$latest" >"$src/VERSION"
     if bash "$src/install.sh" --no-start >"$TMP/install.log" 2>&1; then
       art="$DEST/art"

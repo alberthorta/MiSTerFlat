@@ -291,8 +291,8 @@ label{{margin-right:12px}} body.hide-missing .missing{{display:none}}
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pics", help="unpacked tty2oled pictures (default: download to cache/)")
-    ap.add_argument("--misterlily", default=os.path.join(os.path.dirname(HERE), "MISTerLily"),
-                    help="MiSTerLily repo, for tools/convert_asset.py (default: ../MISTerLily)")
+    ap.add_argument("--misterlily", default=os.path.join(os.path.dirname(HERE), "display"),
+                    help="MiSTerLily repo, for tools/convert_asset.py (default: ../display)")
     ap.add_argument("--only", nargs="+", metavar="CORE", help="only these cores")
     ap.add_argument("--force", action="store_true", help="rebuild pictures already in out/art")
     ap.add_argument("--no-arcade", action="store_true", help="skip arcade cores")

@@ -1,0 +1,8 @@
+"Refs","Value","Footprint","Qty","DNP"
+"D1","LED USER","LED_THT:LED_D3.0mm","1",""
+"D2","LED DISK","LED_THT:LED_D3.0mm","1",""
+"D3","LED POWER","LED_THT:LED_D3.0mm","1",""
+"J1","IDC 2x6 to backplane J24","Connector_IDC:IDC-Header_2x06_P2.54mm_Vertical","1",""
+"SW1","RESET","Button_Switch_THT:SW_PUSH_6mm_H13mm","1",""
+"SW2","OSD","Button_Switch_THT:SW_PUSH_6mm_H13mm","1",""
+"SW3","USER","Button_Switch_THT:SW_PUSH_6mm_H13mm","1",""

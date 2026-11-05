@@ -1,6 +1,6 @@
 # misterlily-art
 
-Personal script that makes colour pictures for [MiSTerLily](https://github.com/alberthorta/MiSTerLily)
+Personal script that makes colour pictures for [MiSTerLily](../display)
 from the names of the tty2oled pictures. The pictures are logos and marquees owned by other
 people, so they are for my own MiSTer only and are not in this repo.
 
@@ -16,7 +16,7 @@ people, so they are for my own MiSTer only and are not in this repo.
 
 - Python 3 with Pillow and py7zr: `python3 -m pip install Pillow py7zr`
 - `rsvg-convert` for the SVG logos: `brew install librsvg`
-- The MiSTerLily repo next to this one (`../MISTerLily`), for `tools/convert_asset.py`.
+- The MiSTerLily folder of this repository (`../display`), for `tools/convert_asset.py`.
   Another place: `--misterlily PATH`.
 
 ## Use
@@ -35,7 +35,7 @@ Then:
 
 1. Open `out/review.html`: each core shows the tty2oled picture and the colour one.
 2. Delete the pictures you do not like from `out/art/`. To replace one, put your own
-   `<CORE>.png` there (`../MISTerLily/tools/convert_asset.py` makes it 320x170).
+   `<CORE>.png` there (`../display/tools/convert_asset.py` makes it 320x170).
    The next run keeps files that are already there.
    Or review them on the board itself, connected to this computer by USB:
 

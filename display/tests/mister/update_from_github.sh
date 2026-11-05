@@ -22,7 +22,7 @@ echo 0000000000000000000000000000000000000000 >"$FAT/MiSTerLily/VERSION"
 echo "== update, run 1"
 bash "$FAT/Scripts/misterlily_update.sh" 2>&1 | tee /tmp/update1.log | sed 's/^/   | /'
 check "run 1 exit 0" "[ ${PIPESTATUS[0]} -eq 0 ]"
-latest="$(curl -fsSL https://api.github.com/repos/alberthorta/MiSTerLily/commits/main | sed -n 's/^  "sha": "\([0-9a-f]\{40\}\)",$/\1/p' | head -n 1)"
+latest="$(curl -fsSL "https://api.github.com/repos/alberthorta/MiSTerFlat/commits?sha=main&path=display&per_page=1" | sed -n 's/^    "sha": "\([0-9a-f]\{40\}\)",$/\1/p' | head -n 1)"
 check "updated to GitHub main ($latest)" "[ \"\$(cat $FAT/MiSTerLily/VERSION)\" = \"$latest\" ]"
 check "config.ini kept" "grep -q 'CONTRAST=\"77\"' $FAT/MiSTerLily/config.ini"
 check "art kept" "[ -e $FAT/MiSTerLily/art/MYCORE.png ] && [ -e $FAT/MiSTerLily/art/STARTUP.png ]"

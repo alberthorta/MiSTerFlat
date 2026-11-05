@@ -27,7 +27,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 ART = os.path.join(HERE, "out", "art")
 PICS = os.path.join(HERE, "cache", "tty2oled")
-MISTERLILY = os.path.join(os.path.dirname(HERE), "MISTerLily")
+MISTERLILY = os.path.join(os.path.dirname(HERE), "display")
 STATE = os.path.join(HERE, "out", ".esde")
 LOG = os.path.join(HERE, "out", "esde.log")
 ESDE_SCRIPTS = os.path.expanduser("~/ES-DE/scripts")
