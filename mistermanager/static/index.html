@@ -2,592 +2,217 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
 <title>MiSTer Manager</title>
-<style>
-:root {
-  --bg: #f4f2ee; --panel: #ffffff; --text: #1d1b19; --muted: #6b665f; --line: #e2ddd5;
-  --accent: #c2410c; --accent-text: #ffffff; --cover: #e9e4dc;
-}
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #151413; --panel: #1f1d1b; --text: #eeeae4; --muted: #a29b91; --line: #34312d;
-          --accent: #fb923c; --accent-text: #1a1009; --cover: #2a2724; }
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text);
-       font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-header { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--line); }
-.top { padding: 10px 16px; display: flex; align-items: center; gap: 12px; max-width: 1200px; margin: 0 auto; }
-.top h1 { font-size: 16px; margin: 0; letter-spacing: .02em; }
-.now { flex: 1; min-width: 0; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.now b { color: var(--text); font-weight: 600; }
-.search { padding: 0 16px 10px; max-width: 1200px; margin: 0 auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.search input[type=search] { flex: 1; min-width: 160px; font: inherit; padding: 9px 12px; border-radius: 10px;
-                             border: 1px solid var(--line); background: var(--bg); color: var(--text); }
-.search label { color: var(--muted); font-size: 13px; display: flex; gap: 4px; align-items: center; }
-button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--text);
-         border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
-button:disabled { opacity: .5; cursor: default; }
-main { max-width: 1200px; margin: 0 auto; padding: 16px; }
-.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 8px; }
-.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
-.stat span { display: block; color: var(--muted); font-size: 12px; }
-.stat strong { font-size: 15px; font-variant-numeric: tabular-nums; }
-details.info > summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
-.systems { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
-.systems button { font-size: 13px; padding: 5px 10px; }
-.systems button.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
-.systems small { opacity: .7; margin-left: 4px; }
-h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 8px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-@media (max-width: 420px) { .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
-        display: flex; flex-direction: column; }
-.cover { aspect-ratio: 3 / 4; background: var(--cover); display: flex; align-items: center; justify-content: center;
-         color: var(--muted); font-size: 12px; text-align: center; padding: 8px; position: relative; }
-.cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-.card .body { padding: 8px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
-.card .name { font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; flex: 1; }
-.card .sub { color: var(--muted); font-size: 11px; }
-.card button { width: 100%; }
-.hint { color: var(--muted); font-size: 13px; padding: 12px 0; }
-.tabs { display: flex; gap: 4px; }
-.tabs button.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 14px; }
-.panel h3 { margin: 0 0 10px; font-size: 15px; }
-.field { display: grid; grid-template-columns: minmax(110px, 160px) 1fr; gap: 6px 10px; align-items: center; margin-bottom: 8px; }
-@media (max-width: 520px) { .field { grid-template-columns: 1fr; } }
-.field label { color: var(--muted); font-size: 13px; }
-select { font: inherit; width: 100%; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line);
-         background: var(--bg); color: var(--text); min-width: 0; }
-.vol { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.vol input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
-.note { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
-.row { display: flex; gap: 8px; flex-wrap: wrap; }
-progress { width: 100%; margin-top: 10px; accent-color: var(--accent); }
-.pads { display: grid; gap: 8px; margin-bottom: 10px; }
-.pad { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
-.pad b { font-weight: 600; }
-.pad .meta { color: var(--muted); font-size: 12px; }
-label.check { display: flex; gap: 6px; align-items: center; font-size: 14px; }
-#toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--text); color: var(--bg);
-         padding: 8px 14px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
-#toast.show { opacity: 1; }
-</style>
+<link rel="stylesheet" href="/app.css">
 </head>
 <body>
-<header>
-  <div class="top">
-    <h1>MiSTer</h1>
-    <div class="now" id="now">…</div>
-    <div class="tabs"><button id="tab-games" class="on">Games</button><button id="tab-saves">Saves</button><button id="tab-cores">Cores</button><button id="tab-settings">Settings</button></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-mark" viewBox="0 0 7 7"><path d="M0 0h1v7H0zM6 0h1v7H6zM1 1h1v1H1zM5 1h1v1H5zM2 2h1v1H2zM4 2h1v1H4zM3 3h1v1H3z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h4.5v-6h4v6h4.5V10"/></symbol>
+    <symbol id="i-games" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-chip" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M14 3v5h5M8 14h8M8 17.5h5"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h9"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 19h14"/></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></symbol>
+    <symbol id="i-pad" viewBox="0 0 24 24"><path d="M7 7h10a5 5 0 0 1 5 5v1.5a3.5 3.5 0 0 1-6.3 2.1L15 15H9l-.7.6A3.5 3.5 0 0 1 2 13.5V12a5 5 0 0 1 5-5z"/><path d="M7.5 10v4M5.5 12h4"/><circle cx="16" cy="11" r=".9" fill="currentColor" stroke="none"/><circle cx="18.5" cy="13" r=".9" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-display" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5 21 19H3z"/><path d="M12 9.5v4.5M12 16.8v.2"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <nav class="nav" aria-label="Sections">
+    <a class="brand" href="#now"><svg class="mark"><use href="#i-mark"/></svg><span>MiSTer</span></a>
+    <a data-nav="now" href="#now"><svg><use href="#i-home"/></svg><span>Now</span></a>
+    <a data-nav="games" href="#games"><svg><use href="#i-games"/></svg><span>Games</span></a>
+    <a data-nav="cores" href="#cores"><svg><use href="#i-chip"/></svg><span>Cores</span></a>
+    <a data-nav="saves" href="#saves"><svg><use href="#i-card"/></svg><span>Saves</span></a>
+    <a data-nav="settings" href="#settings"><svg><use href="#i-sliders"/></svg><span>Settings</span></a>
+    <div class="nav-foot" id="nav-foot"></div>
+  </nav>
+
+  <div class="page">
+    <header class="top">
+      <a class="brand" href="#now"><svg class="mark"><use href="#i-mark"/></svg><span>MiSTer</span></a>
+      <h1 id="title">Now</h1>
+      <a class="now-strip" id="now-strip" href="#now"><span class="dot" id="dot"></span><span id="now-text">…</span></a>
+    </header>
+
+    <main>
+      <section class="view" id="view-now">
+        <div class="hero" id="hero">
+          <div class="hero-bg" id="hero-bg"></div>
+          <div class="hero-cover" id="hero-cover"><svg class="mark-big"><use href="#i-mark"/></svg></div>
+          <div class="hero-text">
+            <p class="hero-kicker" id="hero-kicker">Connecting</p>
+            <h2 class="hero-title" id="hero-title">…</h2>
+            <div class="hero-actions" id="hero-actions"></div>
+          </div>
+        </div>
+
+        <div class="vitals" id="vitals"></div>
+
+        <section class="block" id="recentbox" hidden>
+          <div class="block-head"><h2>Recent</h2></div>
+          <div class="strip" id="recent"></div>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>Controllers</h2></div>
+          <div class="group">
+            <div id="pads"></div>
+            <label class="row switch-row">
+              <span class="row-text">Ignore motion sensors of PlayStation pads<small>DualShock 4 and DualSense pads report their tilt like a stick, so the character can move on its own. Buttons, sticks and touchpad still work.</small></span>
+              <span class="switch"><input type="checkbox" id="motion" role="switch"><span class="knob"></span></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>Library</h2></div>
+          <div class="group">
+            <div class="row">
+              <span class="row-text" id="library-text">Game index<small id="library-sub">Built at start from the SD card.</small></span>
+              <button class="btn" id="rescan"><svg><use href="#i-refresh"/></svg>Rescan</button>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="view" id="view-games" hidden>
+        <div class="toolbar">
+          <label class="search"><svg><use href="#i-search"/></svg><input type="search" id="q" placeholder="Search all games" autocomplete="off" aria-label="Search games"></label>
+          <button class="chip" id="alt" aria-pressed="false" title="Also show alternative versions, hacks and translations">Other versions</button>
+        </div>
+        <div class="systems-wrap"><div class="systems" id="systems" role="tablist" aria-label="System"></div></div>
+        <div class="list-head"><h2 id="listtitle">Games</h2><span class="list-count" id="listcount"></span></div>
+        <div class="grid" id="games"></div>
+        <p class="empty" id="hint">Pick a system or type a name.</p>
+      </section>
+
+      <section class="view" id="view-cores" hidden>
+        <div class="group">
+          <div class="row stack">
+            <label class="row-text" for="core">Core<small id="corenote">The options are the ones of the core's OSD menu.</small></label>
+            <select id="core"></select>
+          </div>
+        </div>
+        <p class="banner warn" id="corerun" hidden><svg><use href="#i-alert"/></svg><span>This core is running now. Do not use “Save settings” in its OSD, or it will overwrite what you save here.</span></p>
+        <div id="coreopts"></div>
+        <div class="savebar" id="coresave" hidden><span id="corecount">No changes</span><button class="btn primary" id="core-save">Save options</button></div>
+      </section>
+
+      <section class="view" id="view-saves" hidden>
+        <p class="banner warn" id="cardwarn" hidden><svg><use href="#i-alert"/></svg><span>The PlayStation core is running. It reads a card only when a disc loads. After an upload, let the page reload the game and do not open the OSD before that.</span></p>
+        <div class="block-head"><h2>PlayStation memory cards</h2></div>
+        <div id="cards" class="stack-list"></div>
+        <details class="more">
+          <summary>How cards work</summary>
+          <p>One card per game folder in <code>saves/PSX</code>. Download gives a <code>.mcd</code> file that PC tools and emulators read. Upload takes <code>.mcd</code>, <code>.mcr</code>, <code>.sav</code>, <code>.gme</code> or <code>.vmp</code>; the old card is backed up first.</p>
+          <p>In the game, save to the card in slot 1. MiSTer writes the card to the SD when you use “Save Memory Card” in the OSD, or on its own with Autosave. With “Save to SDCard: On Open OSD” the core writes its own copy when you open the OSD.</p>
+        </details>
+        <input type="file" id="cardfile" accept=".mcd,.mcr,.sav,.gme,.vmp,.srm" hidden>
+      </section>
+
+      <section class="view" id="view-settings" hidden>
+        <div class="block-head"><h2>Sound</h2></div>
+        <div class="group">
+          <div class="row">
+            <span class="row-text">Volume<small>Main output, HDMI and analog. Changes at once.</small></span>
+            <div class="range"><input type="range" id="vol" min="0" max="7" step="1" aria-label="Volume"><output id="volval">–</output></div>
+            <button class="btn" id="mute">Mute</button>
+          </div>
+        </div>
+
+        <div class="block-head"><h2>Video</h2></div>
+        <div class="group">
+          <div class="row stack"><label class="row-text" for="vscale">Scaling</label><select id="vscale"></select></div>
+          <div class="row stack"><label class="row-text" for="p-MiSTer">Preset for all cores</label><select id="p-MiSTer" data-section="MiSTer"></select></div>
+          <div class="row stack"><label class="row-text" for="p-arcade">Preset for arcade</label><select id="p-arcade" data-section="arcade" data-empty="Same as all cores"></select></div>
+          <div class="row stack"><label class="row-text" for="p-arcade_vertical">Preset for vertical arcade</label><select id="p-arcade_vertical" data-section="arcade_vertical" data-empty="Same as all cores"></select></div>
+          <p class="help">Saved in MiSTer.ini with a backup. Applies when the next core loads. Games with their own saved video settings keep them.</p>
+        </div>
+
+        <div class="group" id="custombox" hidden>
+          <div class="row stack"><label class="row-text" for="cp-name">Custom preset<small>Presets/Custom. The “Vertical” copy is updated too, with the filters swapped and the mask rotated.</small></label><select id="cp-name"></select></div>
+          <div class="row stack"><label class="row-text" for="cp-hfilter">Sharpness (horizontal)</label><select id="cp-hfilter"></select></div>
+          <div class="row stack"><label class="row-text" for="cp-vfilter">Scanlines (vertical)<small>SLA_Dk_XXX_Br_YYY: Dk is how dark the lines are, Br how much bright parts fill them.</small></label><select id="cp-vfilter"></select></div>
+          <div class="row stack"><label class="row-text" for="cp-gamma">Gamma</label><select id="cp-gamma"></select></div>
+          <div class="row stack"><label class="row-text" for="cp-mask">Shadow mask</label><select id="cp-mask"></select></div>
+          <div class="row stack"><label class="row-text" for="cp-maskmode">Mask mode</label><select id="cp-maskmode"></select></div>
+          <div class="row actions"><button class="btn primary" id="cp-save">Save preset</button></div>
+        </div>
+
+        <div class="block-head"><h2>HDMI</h2></div>
+        <div class="group">
+          <div class="row stack"><label class="row-text" for="vmode">Output</label><select id="vmode"></select></div>
+          <div class="row stack"><label class="row-text" for="dvi">Signal</label><select id="dvi"></select></div>
+          <p class="help">Try these if the screen goes off and on when a core loads. Both keep 1920x1080 at 60 Hz. If the screen stays black after a change, set it back here from the phone, then reload a core.</p>
+        </div>
+
+        <div id="lily-panel" hidden>
+          <div class="block-head"><h2>MiSTerLily display</h2></div>
+          <div class="group">
+            <div class="row">
+              <span class="row-text"><span id="lily-model">Display</span><small id="lily-state"></small></span>
+              <button class="btn" id="lily-check">Check again</button>
+            </div>
+            <div id="lily-display" hidden>
+              <div class="row"><label class="row-text" for="lily-bright">Brightness</label><div class="range"><input type="range" id="lily-bright" min="0" max="7" step="1"><output id="lily-brightval">–</output></div></div>
+              <div class="row stack"><label class="row-text" for="lily-font">Clock font</label><select id="lily-font"></select></div>
+            </div>
+            <div class="row actions">
+              <button class="btn primary" id="lily-latest">Update firmware</button>
+              <button class="btn" id="lily-file">Flash a file…</button>
+            </div>
+            <div id="lily-job" class="job" hidden>
+              <progress id="lily-progress" max="100" value="0"></progress>
+              <p id="lily-step" class="help"></p>
+            </div>
+            <p class="help">Only the program is written: the display keeps its settings and start-up picture. It takes about 15 s. Do not unplug the display while it runs.</p>
+            <input type="file" id="lily-input" accept=".bin" hidden>
+          </div>
+        </div>
+
+        <div class="block-head"><h2>Power</h2></div>
+        <div class="group">
+          <div class="row">
+            <span class="row-text">Reboot the MiSTer<small>A running game stops. The page comes back in about a minute.</small></span>
+            <button class="btn danger" id="reboot"><svg><use href="#i-power"/></svg>Reboot</button>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
-  <div class="search" id="searchbar">
-    <input type="search" id="q" placeholder="Search all games" autocomplete="off">
-    <label id="altwrap" hidden><input type="checkbox" id="alt"> other versions</label>
-  </div>
-</header>
-<main id="view-games">
-  <details class="info">
-    <summary>System</summary>
-    <div class="stats" id="stats"></div>
-    <button id="rescan" title="Read the SD card again">Rescan games</button>
-  </details>
-  <div class="systems" id="systems"></div>
-  <section id="recentbox" hidden>
-    <h2>Recent</h2>
-    <div class="grid" id="recent"></div>
-  </section>
-  <h2 id="listtitle">Games</h2>
-  <div class="grid" id="games"></div>
-  <div class="hint" id="hint">Pick a system or type a name.</div>
-</main>
-<main id="view-saves" hidden>
-  <div class="panel">
-    <h3>PlayStation memory cards</h3>
-    <p class="note">One card per game folder (saves/PSX). Download gives a .mcd file that PC tools and emulators read.
-      Upload takes .mcd, .mcr, .sav, .gme or .vmp; the old card is backed up first.
-      In the game, save to the card in slot 1. MiSTer writes the card to the SD when you use "Save Memory Card" in the OSD, or on its own with Autosave.</p>
-    <p class="note" id="cardwarn" hidden><b>The PSX core is running.</b> It reads the card only when a disc loads (a reset is not enough),
-      and with "Save to SDCard: On Open OSD" it writes its own copy when you open the OSD. After uploading, let the page reload the game, and do not open the OSD before that.</p>
-  </div>
-  <div id="cards"></div>
-  <input type="file" id="cardfile" accept=".mcd,.mcr,.sav,.gme,.vmp,.srm" hidden>
-</main>
-<main id="view-cores" hidden>
-  <div class="panel">
-    <div class="field"><label for="core">Core</label><select id="core"></select></div>
-    <p class="note" id="corenote"></p>
-  </div>
-  <div id="coreopts"></div>
-  <div class="row" id="coresave" hidden><button class="primary" id="core-save">Save options</button></div>
-</main>
-<main id="view-settings" hidden>
-  <div class="panel">
-    <h3>Volume</h3>
-    <div class="vol">
-      <input type="range" id="vol" min="0" max="7" step="1">
-      <strong id="volval">–</strong>
-      <button id="mute">Mute</button>
+</div>
+
+<dialog class="sheet" id="sheet">
+  <div class="sheet-body">
+    <div class="sheet-cover" id="sheet-cover"></div>
+    <div class="sheet-text">
+      <h2 id="sheet-name"></h2>
+      <p class="sheet-sub" id="sheet-sub"></p>
     </div>
-    <p class="note">Main output (HDMI and analog). Changes at once.</p>
+    <button class="icon-btn sheet-close" id="sheet-close" aria-label="Close"><svg><use href="#i-close"/></svg></button>
   </div>
-  <div class="panel">
-    <h3>Video</h3>
-    <div class="field"><label for="vscale">Scaling</label><select id="vscale"></select></div>
-    <div class="field"><label for="p-MiSTer">Preset: all cores</label><select id="p-MiSTer" data-section="MiSTer"></select></div>
-    <div class="field"><label for="p-arcade">Preset: arcade</label><select id="p-arcade" data-section="arcade" data-empty="(same as all cores)"></select></div>
-    <div class="field"><label for="p-arcade_vertical">Preset: vertical arcade</label><select id="p-arcade_vertical" data-section="arcade_vertical" data-empty="(same as all cores)"></select></div>
-    <p class="note">Saved in MiSTer.ini (a backup is kept). It applies when the next core loads. Games with their own saved video settings keep them.</p>
+  <div class="sheet-actions">
+    <button class="btn primary big" id="sheet-play"><svg><use href="#i-play"/></svg>Play</button>
   </div>
-  <div class="panel">
-    <h3>HDMI</h3>
-    <div class="field"><label for="vmode">Output</label><select id="vmode"></select></div>
-    <div class="field"><label for="dvi">Signal</label><select id="dvi"></select></div>
-    <p class="note">Try these if the screen goes off and on when a core loads. Both keep 1920x1080 at 60 Hz.
-      If the screen stays black after a change, set it back here from the phone, then reload a core.</p>
-  </div>
-  <div class="panel" id="custombox" hidden>
-    <h3>Edit custom preset</h3>
-    <div class="field"><label for="cp-name">Preset</label><select id="cp-name"></select></div>
-    <div class="field"><label for="cp-hfilter">Sharpness (horizontal)</label><select id="cp-hfilter"></select></div>
-    <div class="field"><label for="cp-vfilter">Scanlines (vertical)</label><select id="cp-vfilter"></select></div>
-    <div class="field"><label for="cp-gamma">Gamma</label><select id="cp-gamma"></select></div>
-    <div class="field"><label for="cp-mask">Shadow mask</label><select id="cp-mask"></select></div>
-    <div class="field"><label for="cp-maskmode">Mask mode</label><select id="cp-maskmode"></select></div>
-    <div class="row"><button class="primary" id="cp-save">Save preset</button></div>
-    <p class="note">Presets/Custom. The " - Vertical" copy is updated too, with the filters swapped and the mask rotated.
-      Scanlines "SLA_Dk_XXX_Br_YYY": Dk = how dark the lines are, Br = how much bright parts fill them.</p>
-  </div>
-  <div class="panel">
-    <h3>Controllers</h3>
-    <div id="pads" class="pads"></div>
-    <label class="check"><input type="checkbox" id="motion"> Ignore motion sensors of PlayStation pads</label>
-    <p class="note">DualShock 4 and DualSense pads also report their tilt like a stick, so the character can move by itself.
-      With this on, MiSTerManager keeps those sensors from MiSTer. Buttons, sticks and touchpad are not affected.</p>
-  </div>
-  <div class="panel" id="lily-panel" hidden>
-    <h3>MiSTerLily display</h3>
-    <p id="lily-state" class="note"></p>
-    <div id="lily-display" hidden>
-      <div class="field"><label for="lily-bright">Brightness</label>
-        <div class="vol"><input type="range" id="lily-bright" min="0" max="7" step="1"><strong id="lily-brightval">–</strong></div></div>
-      <div class="field"><label for="lily-font">Clock font</label><select id="lily-font"></select></div>
-    </div>
-    <div class="row" style="margin-top: 10px">
-      <button id="lily-latest" class="primary">Update firmware</button>
-      <button id="lily-file">Flash a file…</button>
-      <button id="lily-check">Check again</button>
-    </div>
-    <input type="file" id="lily-input" accept=".bin" hidden>
-    <div id="lily-job" hidden>
-      <progress id="lily-progress" max="100" value="0"></progress>
-      <p id="lily-step" class="note"></p>
-    </div>
-    <p class="note">Only the program is written: the display keeps its settings and start-up picture.
-      It takes about 15 s. Do not unplug the display while it runs.</p>
-  </div>
-  <div class="panel">
-    <h3>MiSTer</h3>
-    <div class="row">
-      <button id="menu">Back to menu</button>
-      <button id="reboot">Reboot MiSTer</button>
-    </div>
-  </div>
-</main>
-<div id="toast"></div>
-<script>
-const $ = id => document.getElementById(id);
-let system = '', timer = null, wasScanning = false, names = {};
+</dialog>
 
-const fmtBytes = b => b == null ? '–' : b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : (b / 1e6).toFixed(0) + ' MB';
-const fmtUptime = s => { if (s == null) return '–'; s = Math.floor(s); const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
-  return (d ? d + 'd ' : '') + (h ? h + 'h ' : '') + m + 'm'; };
-const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
-
-function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2500); }
-
-async function api(path, body) {
-  const r = await fetch(path, body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {});
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.error || r.statusText);
-  return data;
-}
-
-async function status() {
-  try {
-    const s = await api('/api/status'), sys = s.system, now = s.now;
-    $('now').innerHTML = !now.core || now.core.toUpperCase() === 'MENU' ? 'In the menu'
-      : '<b>' + esc(now.game || now.core) + '</b>' + (now.game ? ' · ' + esc(now.core) : '');
-    const used = sys.mem.total - sys.mem.available;
-    const items = [
-      ['CPU', sys.cpu == null ? '–' : sys.cpu + ' %'],
-      ['Linux memory', fmtBytes(used) + ' / ' + fmtBytes(sys.mem.total)],
-      ['SD free', sys.disk ? fmtBytes(sys.disk.free) : '–'],
-      ['Uptime', fmtUptime(sys.uptime)],
-      ['IP', sys.ip || '–'],
-      ['Wi-Fi', sys.wifi ? (sys.wifi.ssid || sys.wifi.iface) + ' · ' + sys.wifi.level + ' dBm' : 'cable / off'],
-    ];
-    $('stats').innerHTML = items.map(([k, v]) => '<div class="stat"><span>' + k + '</span><strong>' + esc(v) + '</strong></div>').join('');
-    if (wasScanning && !s.scanning) { systems(); games(); }
-    wasScanning = s.scanning;
-    $('rescan').disabled = s.scanning;
-    $('rescan').textContent = s.scanning ? 'Scanning…' : 'Rescan games';
-  } catch (e) { $('now').textContent = 'MiSTer not answering'; }
-}
-
-function card(g, sub) {
-  const div = document.createElement('div');
-  div.className = 'card';
-  const cover = g.art
-    ? '<img loading="lazy" alt="" src="/art/' + g.art.split('/').map(encodeURIComponent).join('/') + '">'
-    : esc(g.name);
-  div.innerHTML = '<div class="cover">' + cover + '</div><div class="body"><div class="name">' + esc(g.name) + '</div>'
-    + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '<button class="primary">Play</button></div>';
-  const img = div.querySelector('img');
-  if (img) img.onerror = () => { img.remove(); div.querySelector('.cover').textContent = g.name; };
-  div.querySelector('button').onclick = async ev => {
-    ev.target.disabled = true;
-    try { await api('/api/launch', {system: g.system, path: g.path}); toast('Loading ' + g.name); setTimeout(() => { status(); recent(); }, 1500); }
-    catch (e) { toast('Error: ' + e.message); }
-    ev.target.disabled = false;
-  };
-  return div;
-}
-
-async function recent() {
-  const list = await api('/api/recent').catch(() => []);
-  $('recentbox').hidden = !list.length;
-  $('recent').replaceChildren(...list.slice(0, 6).map(g => card(g, names[g.system] || g.system)));
-}
-
-async function systems() {
-  const list = await api('/api/systems');
-  names = Object.fromEntries(list.map(s => [s.id, s.name]));
-  const box = $('systems');
-  const all = {id: '', name: 'All', count: list.reduce((n, s) => n + s.count, 0)};
-  box.replaceChildren(...[all, ...list].map(s => {
-    const b = document.createElement('button');
-    b.innerHTML = esc(s.name) + '<small>' + s.count + '</small>';
-    b.classList.toggle('on', s.id === system);
-    b.onclick = () => { system = s.id; [...box.children].forEach(c => c.classList.toggle('on', c === b));
-                        $('q').placeholder = s.id ? 'Search ' + s.name : 'Search all games'; games(); };
-    return b;
-  }));
-  if (!list.length) $('hint').textContent = 'No games found yet. The first scan can take a minute.';
-}
-
-async function games() {
-  const q = $('q').value.trim();
-  $('altwrap').hidden = false;
-  if (!system && !q) { $('games').replaceChildren(); $('listtitle').textContent = 'Games';
-                       $('hint').textContent = 'Pick a system or type a name.'; $('hint').hidden = false; return; }
-  const params = new URLSearchParams({system, q, alt: $('alt').checked ? '1' : '0'});
-  const list = await api('/api/games?' + params);
-  $('listtitle').textContent = (system ? names[system] : 'All systems') + (q ? ' · “' + q + '”' : '');
-  $('games').replaceChildren(...list.map(g => card(g, [system ? '' : names[g.system], g.alt ? 'other version' : '',
-                                                      g.discs ? g.discs + ' discs' : ''].filter(Boolean).join(' · '))));
-  $('hint').hidden = list.length > 0 && list.length < 500;
-  $('hint').textContent = list.length ? 'Showing the first 500. Type to narrow.' : 'No match.';
-}
-
-let options = null, custom = {};
-
-function fill(sel, values, current, extra) {
-  sel.replaceChildren();
-  const groups = {};
-  for (const v of (extra || []).concat(values)) {
-    const slash = v.lastIndexOf('/');
-    const g = slash < 0 ? '' : v.slice(0, slash);
-    (groups[g] = groups[g] || []).push(v);
-  }
-  for (const [g, list] of Object.entries(groups)) {
-    const parent = g ? Object.assign(document.createElement('optgroup'), {label: g}) : sel;
-    for (const v of list) parent.append(new Option(v === '' ? (sel.dataset.empty || '(none)') : g ? v.slice(g.length + 1).replace(/\.txt$/, '') : v, v));
-    if (g) sel.append(parent);
-  }
-  if (current && ![...sel.options].some(o => o.value === current)) sel.append(new Option(current + ' (missing)', current));
-  sel.value = current || '';
-}
-
-async function settings() {
-  if (!options) options = await api('/api/settings/options');
-  const s = await api('/api/settings');
-  custom = s.custom;
-  $('vol').value = s.volume.level;
-  $('volval').textContent = s.volume.muted ? 'muted' : s.volume.level + ' / 7';
-  $('mute').textContent = s.volume.muted ? 'Unmute' : 'Mute';
-  $('mute').dataset.muted = s.volume.muted ? '1' : '';
-  const vs = $('vscale'); vs.replaceChildren(...Object.entries(options.vscale_modes).map(([k, v]) => new Option(k + ' – ' + v, k)));
-  vs.value = s.ini.vscale_mode;
-  for (const [id, list, cur] of [['vmode', options.video_modes, s.ini.video_mode], ['dvi', options.dvi_modes, s.ini.dvi_mode]]) {
-    const sel = $(id); sel.replaceChildren(...Object.entries(list).map(([k, v]) => new Option(v, k)));
-    if (cur && !(cur in list)) sel.append(new Option(cur + ' (set by hand)', cur));
-    sel.value = cur;
-  }
-  for (const sec of ['MiSTer', 'arcade', 'arcade_vertical'])
-    fill($('p-' + sec), options.presets, s.ini.preset_default[sec], ['']);
-  const names = Object.keys(custom);
-  $('custombox').hidden = !names.length;
-  if (names.length) {
-    const keep = $('cp-name').value;
-    fill($('cp-name'), names, names.includes(keep) ? keep : names[0]);
-    showPreset();
-  }
-}
-
-async function pads() {
-  const c = await api('/api/controllers');
-  $('motion').checked = c.block_motion_sensors;
-  const box = $('pads');
-  box.replaceChildren(...c.devices.map(d => {
-    const div = document.createElement('div'); div.className = 'pad';
-    div.innerHTML = '<b>' + esc(d.name) + '</b>'
-      + (d.battery != null ? ' · ' + d.battery + ' %' + (d.charging ? ' (charging)' : '') : '')
-      + (d.ignored ? ' · <span class="meta">IGNORED' + (d.offline ? ', not connected' : '') + '</span>' : '')
-      + '<div class="meta">' + [d.bus, d.id, d.address].filter(Boolean).map(esc).join(' · ') + '</div>'
-      + (d.parts.length ? '<div class="meta">' + d.parts.map(p => esc(p.kind) + (p.blocked ? ' (held)' : '')).join(', ') + '</div>' : '');
-    if (d.address) {
-      const b = document.createElement('button');
-      b.textContent = d.ignored ? 'Stop ignoring' : 'Ignore'; b.style.marginTop = '6px';
-      b.onclick = async () => {
-        if (!d.ignored && !confirm('Ignore ' + d.name + '? MiSTer will not get its input, and Bluetooth devices are blocked.')) return;
-        try { await api('/api/controllers/ignore', {address: d.address, name: d.name, ignore: !d.ignored}); setTimeout(pads, 3500); }
-        catch (e) { toast('Error: ' + e.message); }
-      };
-      div.append(b);
-    }
-    return div;
-  }));
-  if (!c.devices.length) box.innerHTML = '<p class="note">No controllers connected.</p>';
-}
-
-function showPreset() {
-  const p = custom[$('cp-name').value] || {};
-  fill($('cp-hfilter'), options.filters, p.hfilter);
-  fill($('cp-vfilter'), options.filters, p.vfilter, ['same']);
-  fill($('cp-gamma'), options.gamma, p.gamma, ['off']);
-  fill($('cp-mask'), options.masks, p.mask, ['']);
-  fill($('cp-maskmode'), options.maskmodes, p.maskmode || 'off');
-}
-
-async function setIni(section, key, value) {
-  try { await api('/api/settings/ini', {section, key, value}); toast('Saved. Applies on the next core load.'); }
-  catch (e) { toast('Error: ' + e.message); settings(); }
-}
-
-let coreData = null, uploadTarget = null;
-
-function fmtDate(t) { return new Date(t * 1000).toLocaleString(); }
-
-async function cards() {
-  const c = await api('/api/psx/cards');
-  $('cardwarn').hidden = !c.psx_running;
-  $('cards').replaceChildren(...c.cards.map(card => {
-    const div = document.createElement('div'); div.className = 'panel';
-    const list = card.saves.length
-      ? '<ul style="margin:6px 0 0;padding-left:18px">' + card.saves.map(s => '<li>' + esc(s.title || s.code)
-          + ' <span class="meta">(' + esc(s.code) + ', ' + s.blocks + ' block' + (s.blocks > 1 ? 's' : '') + ')</span></li>').join('') + '</ul>'
-      : '<p class="note">' + (card.exists ? (card.error ? esc(card.error) : 'Card is empty.') : 'No card yet. Upload one, or the core makes it the first time you save.') + '</p>';
-    div.innerHTML = '<h3>' + esc(card.game) + '</h3>'
-      + (card.exists ? '<div class="meta">' + esc(card.file) + ' · ' + fmtDate(card.modified) + '</div>' : '')
-      + list + '<div class="row" style="margin-top:8px"></div>';
-    const row = div.querySelector('.row');
-    if (card.exists) {
-      const a = document.createElement('a');
-      a.href = '/api/psx/cards/download?' + new URLSearchParams({file: card.file});
-      a.innerHTML = '<button>Download</button>';
-      row.append(a);
-    }
-    const up = document.createElement('button');
-    up.textContent = card.exists ? 'Replace…' : 'Upload…';
-    up.onclick = () => { uploadTarget = card; $('cardfile').value = ''; $('cardfile').click(); };
-    row.append(up);
-    return div;
-  }));
-}
-
-$('cardfile').onchange = async () => {
-  const file = $('cardfile').files[0];
-  if (!file || !uploadTarget) return;
-  if (uploadTarget.exists && !confirm('Replace the card of ' + uploadTarget.game + ' with ' + file.name + '? The current card is backed up.')) return;
-  try {
-    const r = await fetch('/api/psx/cards/upload?' + new URLSearchParams({file: uploadTarget.file}),
-                          {method: 'POST', headers: {'Content-Type': 'application/octet-stream'}, body: file});
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || r.statusText);
-    toast('Card saved: ' + data.saves.length + ' save(s)');
-    if (data.psx_running && confirm('The PlayStation core is running. Reload the game now so it reads the new card?')) {
-      const r2 = await api('/api/psx/reload', {});
-      toast('Reloading ' + r2.game);
-    }
-    cards();
-  } catch (e) { toast('Error: ' + e.message); }
-};
-
-async function coreList() {
-  const list = await api('/api/cores');
-  const sel = $('core'), keep = sel.value;
-  sel.replaceChildren(new Option('Pick a core…', ''), ...list.map(c => new Option(c.id, c.id)));
-  sel.value = list.some(c => c.id === keep) ? keep : '';
-  if (sel.value) coreShow(); else { $('coreopts').replaceChildren(); $('coresave').hidden = true;
-    $('corenote').textContent = list.length + ' cores. The options are the ones of the core\'s OSD menu.'; }
-}
-
-async function coreShow() {
-  const id = $('core').value;
-  if (!id) { $('coreopts').replaceChildren(); $('coresave').hidden = true; return; }
-  coreData = await api('/api/cores/options?' + new URLSearchParams({core: id}));
-  $('corenote').textContent = 'Saved in config/' + coreData.cfg + (coreData.saved ? '' : ' (not saved yet: defaults)')
-    + '. Applies the next time the core loads.'
-    + (coreData.running ? ' This core is running now: do not use "Save settings" in its OSD, or it will overwrite these.' : '');
-  const pages = {};
-  for (const o of coreData.options) (pages[o.page || 'Main'] = pages[o.page || 'Main'] || []).push(o);
-  $('coreopts').replaceChildren(...Object.entries(pages).map(([title, opts]) => {
-    const panel = document.createElement('div'); panel.className = 'panel';
-    panel.innerHTML = '<h3>' + esc(title) + '</h3>';
-    for (const o of opts) {
-      const f = document.createElement('div'); f.className = 'field';
-      const sel = document.createElement('select'); sel.dataset.opt = o.id;
-      o.values.forEach((v, i) => sel.append(new Option(v, i)));
-      if (o.value >= o.values.length) sel.append(new Option('(value ' + o.value + ')', o.value));
-      sel.value = o.value;
-      const label = document.createElement('label'); label.textContent = o.label;
-      f.append(label, sel); panel.append(f);
-    }
-    return panel;
-  }));
-  $('coresave').hidden = false;
-}
-
-let lilyTimer = null;
-const FONT_LABELS = {c64: 'Commodore 64', '7seg': 'Seven segments', big: 'Big digits', sans: 'Sans',
-  orbitron: 'Orbitron', serif: 'Serif', mono: 'Typewriter', retro16: 'Retro thin'};
-const fontLabel = n => FONT_LABELS[n] || n;
-async function lily(refresh) {
-  const l = await api('/api/lily' + (refresh ? '?refresh=1' : ''));
-  $('lily-panel').hidden = !l.installed;
-  if (!l.installed) return;
-  const job = l.job, running = !!(job && job.running);
-  $('lily-state').textContent = (l.board ? (l.model || 'Display') + ', firmware v' + l.board : 'Display not connected') + '. '
-    + (l.latest ? 'Latest release: v' + l.latest + (l.latest === l.board ? ' (up to date).' : '.') : (l.error || ''));
-  $('lily-latest').textContent = !l.latest ? 'Update firmware' : l.latest === l.board ? 'Reinstall v' + l.latest : 'Update to v' + l.latest;
-  $('lily-latest').disabled = running || !l.latest || !l.board;
-  $('lily-file').disabled = running || !l.board;
-  $('lily-job').hidden = !job;
-  const d = l.display;
-  $('lily-display').hidden = !d;
-  // Not while the user moves the slider or has the list open: a refresh would undo the choice.
-  if (d && document.activeElement !== $('lily-bright') && document.activeElement !== $('lily-font')) {
-    $('lily-bright').max = d.brightness_max;
-    $('lily-bright').value = d.brightness;
-    $('lily-brightval').textContent = d.brightness + ' / ' + d.brightness_max;
-    const sel = $('lily-font');
-    if (sel.options.length !== d.clockfonts.length)
-      sel.replaceChildren(...d.clockfonts.map((n, i) => new Option(fontLabel(n), i)));
-    sel.value = d.clockfont;
-  }
-  if (job) {
-    $('lily-progress').value = job.progress;
-    $('lily-step').textContent = job.error ? 'Error: ' + job.error
-      : job.done ? 'Done: the display runs v' + job.done + '.' : job.step;
-  }
-  clearTimeout(lilyTimer);
-  if (running) lilyTimer = setTimeout(() => lily().catch(() => {}), 1000);
-  return l;
-}
-
-function showTab(name) {
-  $('view-games').hidden = name !== 'games'; $('searchbar').hidden = name !== 'games';
-  $('view-settings').hidden = name !== 'settings'; $('view-cores').hidden = name !== 'cores';
-  $('view-saves').hidden = name !== 'saves';
-  for (const t of ['games', 'saves', 'cores', 'settings']) $('tab-' + t).classList.toggle('on', name === t);
-  if (name === 'saves') cards().catch(e => toast('Error: ' + e.message));
-  if (name === 'cores') coreList().catch(e => toast('Error: ' + e.message));
-  if (name === 'settings') { settings().catch(e => toast('Error: ' + e.message)); pads().catch(() => {}); lily().catch(() => {}); }
-}
-
-$('tab-games').onclick = () => showTab('games');
-$('tab-settings').onclick = () => showTab('settings');
-$('tab-cores').onclick = () => showTab('cores');
-$('tab-saves').onclick = () => showTab('saves');
-$('core').onchange = () => coreShow().catch(e => toast('Error: ' + e.message));
-$('core-save').onclick = async () => {
-  const values = {};
-  for (const sel of $('coreopts').querySelectorAll('select')) {
-    const o = coreData.options[+sel.dataset.opt];
-    if (+sel.value !== o.value) values[o.id] = +sel.value;
-  }
-  if (!Object.keys(values).length) { toast('Nothing changed'); return; }
-  try { await api('/api/cores/options', {core: coreData.id, values}); toast('Saved. Applies the next time the core loads.'); coreShow(); }
-  catch (e) { toast('Error: ' + e.message); }
-};
-$('vol').oninput = () => { $('volval').textContent = $('vol').value + ' / 7'; };
-$('vol').onchange = async () => { try { await api('/api/settings/volume', {level: +$('vol').value}); } catch (e) { toast('Error: ' + e.message); } };
-$('mute').onclick = async () => {
-  const mute = !$('mute').dataset.muted;
-  try { await api('/api/settings/volume', {mute}); setTimeout(settings, 1500); } catch (e) { toast('Error: ' + e.message); }
-};
-$('vscale').onchange = () => setIni('MiSTer', 'vscale_mode', $('vscale').value);
-$('vmode').onchange = () => setIni('MiSTer', 'video_mode', $('vmode').value);
-$('dvi').onchange = () => setIni('MiSTer', 'dvi_mode', $('dvi').value);
-for (const sec of ['MiSTer', 'arcade', 'arcade_vertical'])
-  $('p-' + sec).onchange = ev => setIni(sec, 'preset_default', ev.target.value);
-$('cp-name').onchange = showPreset;
-$('motion').onchange = async () => {
-  try { await api('/api/controllers/motion', {enabled: $('motion').checked}); setTimeout(pads, 3500); }
-  catch (e) { toast('Error: ' + e.message); }
-};
-$('cp-save').onclick = async () => {
-  const fields = Object.fromEntries(['hfilter', 'vfilter', 'gamma', 'mask', 'maskmode'].map(k => [k, $('cp-' + k).value]));
-  fields.sfilter = (custom[$('cp-name').value] || {}).sfilter || 'same';
-  try { await api('/api/settings/preset', {name: $('cp-name').value, fields}); toast('Preset saved. Applies on the next core load.'); settings(); }
-  catch (e) { toast('Error: ' + e.message); }
-};
-$('lily-latest').onclick = async () => {
-  if (!confirm($('lily-latest').textContent + ' on the MiSTerLily display? Do not unplug it while it runs.')) return;
-  try { await api('/api/lily/flash', {}); lily(); } catch (e) { toast('Error: ' + e.message); }
-};
-async function lilySet(setting, value) {
-  try { await api('/api/lily/display', {setting, value}); } catch (e) { toast('Error: ' + e.message); }
-}
-$('lily-bright').oninput = () => { $('lily-brightval').textContent = $('lily-bright').value + ' / ' + $('lily-bright').max; };
-$('lily-bright').onchange = () => lilySet('brightness', +$('lily-bright').value);
-$('lily-font').onchange = () => lilySet('clockfont', +$('lily-font').value);
-$('lily-file').onclick = () => { $('lily-input').value = ''; $('lily-input').click(); };
-$('lily-input').onchange = async () => {
-  const file = $('lily-input').files[0];
-  if (!file || !confirm('Flash ' + file.name + ' on the MiSTerLily display? The file is checked before the display is touched.')) return;
-  try {
-    const r = await fetch('/api/lily/upload', {method: 'POST', headers: {'Content-Type': 'application/octet-stream'}, body: file});
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(data.error || r.statusText);
-    lily();
-  } catch (e) { toast('Error: ' + e.message); }
-};
-$('lily-check').onclick = async () => {
-  const b = $('lily-check');
-  b.disabled = true; b.textContent = 'Checking…';
-  try {
-    const l = await lily(true);
-    toast(l.error ? l.error : !l.latest ? 'No release found'
-      : l.latest === l.board ? 'Up to date: v' + l.latest : 'v' + l.latest + ' is available');
-  } catch (e) { toast('Error: ' + e.message); }
-  b.disabled = false; b.textContent = 'Check again';
-};
-$('reboot').onclick = async () => {
-  if (!confirm('Reboot the MiSTer now? A running game will stop.')) return;
-  try { await api('/api/reboot', {}); toast('Rebooting…'); } catch (e) { toast('Error: ' + e.message); }
-};
-
-$('q').oninput = () => { clearTimeout(timer); timer = setTimeout(games, 250); };
-$('alt').onchange = games;
-$('menu').onclick = async () => { try { await api('/api/menu', {}); toast('Back to the menu'); setTimeout(status, 1500); } catch (e) { toast('Error: ' + e.message); } };
-$('rescan').onclick = async () => { await api('/api/rescan', {}); wasScanning = true; status(); };
-
-status(); systems().then(games); recent();
-setInterval(status, 5000);
-</script>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="/app.js"></script>
 </body>
 </html>
