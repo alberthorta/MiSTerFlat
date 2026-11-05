@@ -188,6 +188,20 @@ void App::onAsset(const proto::AssetFrame& frame) {
     ack();
     return;
   }
+  if (header.substr(0, 10) == "MDSSYSIMG,") {
+    // MDSSYSIMG,<bytes>,<crc32 hex>,<png|jpg>,<index>. The frame came into the picture buffer.
+    assetValid_ = false;
+    std::string_view f[4];
+    int32_t index = -1;
+    if (frame.result == proto::AssetResult::Ok && proto::splitFields(header.substr(10), f, 4) == 4 &&
+        proto::parseInt(f[3], index) && checkCrc(f[1], frame.data, frame.length)) {
+      uint32_t crc = 0;
+      for (char c : f[1]) crc = crc << 4 | static_cast<uint32_t>(c <= '9' ? c - '0' : (c | 0x20) - 'a' + 10);
+      systems_.onCover(index, crc, f[2] == "png", frame.data, frame.length);
+    }
+    ack();
+    return;
+  }
   ++imagesReceived_;
   noteActivity();
   const char* error = nullptr;
@@ -418,6 +432,12 @@ void App::handle(const proto::Command& cmd, std::string_view line) {
     case CommandId::MdsSta:
       station_.onHost(cmd.args);
       break;
+    case CommandId::MdsSys: {
+      const bool had = systems_.available();
+      systems_.onHost(cmd.args);
+      if (had != systems_.available() && screen_ == Screen::Menu) showMenu(false);
+      break;
+    }
     case CommandId::MdsWifi:
       if (cmd.args.substr(0, 7) == "dongle,") {
         wifiDongle_ = cmd.args.substr(7) == "1";
@@ -513,8 +533,10 @@ void App::showSplash() {
 void App::showMenu(bool dimmed) {
   screen_ = dimmed ? Screen::IdleClock : Screen::Menu;
   shownMinute_ = clock_.minuteStamp(millis());
-  if (wifi_.active()) return;  // the Wi-Fi screen is on top; redrawCurrent() brings the clock back
-  MenuScreen::draw(display_, clock_.local(millis()), ip_, dimmed, settings_.clockFont(), station_.ip());
+  // The Wi-Fi screen or the system picker is on top; redrawCurrent() brings the clock back.
+  if (wifi_.active() || systems_.active()) return;
+  MenuScreen::draw(display_, clock_.local(millis()), ip_, dimmed, settings_.clockFont(), station_.ip(),
+                   !dimmed && systems_.available());
 }
 
 void App::setTime(std::string_view args) {
@@ -576,8 +598,10 @@ void App::pollRestart() {
 void App::noteActivity() {
   endRestartDark();
   restartGrace_ = false;
-  // A new screen from the host (a game was loaded) wins over the Wi-Fi screen.
+  // A new screen from the host (a game was loaded) wins over the Wi-Fi screen and the picker.
   wifi_.close();
+  systems_.close();
+  systems_.close();
   if (presence_.onActivity(millis()) == presence::Event::Wake) {
     LOGF("idle sleep: wake");
     display_.setBacklightOn(true);
@@ -609,8 +633,20 @@ void App::pollTouch() {
     if (w.closed) redrawCurrent();
     return;
   }
+  if (systems_.active()) {
+    const SystemsScreen::Result s = systems_.poll(millis());
+    if (s.activity) presence_.onActivity(millis());
+    if (s.closed) redrawCurrent();
+    return;
+  }
   const std::string_view core(coreName_, coreNameLength_);
   touchButtons_.setWifiSlot(wifiDongle_ && core == "MENU");
+  if (screen_ == Screen::Menu && systems_.available()) {
+    const MenuScreen::Rect b = MenuScreen::systemsButton(display_);
+    touchButtons_.setShortcut(b.x - 8, b.y - 8, b.w + 16, b.h + 14);
+  } else {
+    touchButtons_.setShortcut(0, 0, 0, 0);
+  }
   const TouchButtons::Result t = touchButtons_.poll(millis());
   // A tap counts as activity for idle sleep, but unlike a host command it leaves the start and
   // "Waiting for MiSTer" screens as they are.
@@ -623,6 +659,10 @@ void App::pollTouch() {
   if (t.pressed && strcmp(t.pressed, "wifi") == 0) {
     // Handled here, not by the host: the Wi-Fi screen asks the daemon for what it needs.
     wifi_.open(millis());
+    return;
+  }
+  if (t.pressed && strcmp(t.pressed, "systems") == 0) {
+    systems_.open(millis());
     return;
   }
   if (t.pressed && strcmp(t.pressed, "poweroff") == 0) {
@@ -660,6 +700,7 @@ void App::handlePresence(presence::Event event) {
       LOGF("host lost");
       if (restartGrace_ || startingUp_) break;  // expected while the MiSTer reboots; pollRestart() handles it
       wifi_.close();
+      systems_.close();
       screen_ = Screen::Waiting;
       drawSplash(kWaitingText);
       break;
@@ -868,6 +909,7 @@ void App::powerOn(bool byHost) {
 
 void App::requestPowerOff() {
   wifi_.close();
+  systems_.close();
   endRestartDark();
   restartGrace_ = startingUp_ = false;
   powerState_ = Power::Stopping;
@@ -890,6 +932,7 @@ void App::onHalting() {
   if (!PowerSwitch::available() || powerState_ == Power::Off) return;
   if (powerState_ == Power::On) {
     wifi_.close();
+    systems_.close();
     endRestartDark();
     restartGrace_ = startingUp_ = false;
     powerState_ = Power::Stopping;

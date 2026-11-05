@@ -112,13 +112,20 @@ const char* clockFontName(int index) {
   return (index >= 0 && index < kClockFontCount) ? kClockFonts[index].name : "";
 }
 
+Rect systemsButton(const DisplayManager& display) {
+  constexpr int kW = 112, kH = 26;
+  return {(display.width() - kW) / 2, display.height() - kH - 6, kW, kH};
+}
+
 void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip, bool dimmed, int clockFont,
-          const char* boardIp) {
+          const char* boardIp, bool systems) {
   const ClockFont& cf = kClockFonts[(clockFont >= 0 && clockFont < kClockFontCount) ? clockFont : 0];
   const int timeH = cf.height;
   auto& g = display.canvas();
   const int w = display.width();
-  const int h = display.height();
+  // With the Systems button, the column is centred in the space above it.
+  const Rect button = systemsButton(display);
+  const int h = systems ? button.y - 2 : display.height();
   const uint16_t timeColor = dimmed ? theme::rgb565(90, 90, 90) : theme::kText;
   const uint16_t dim = dimmed ? theme::rgb565(55, 55, 55) : theme::kTextDim;
 
@@ -194,6 +201,17 @@ void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip,
   if (boardIp && boardIp[0]) {
     g.setTextDatum(lgfx::bottom_right);
     g.drawString(boardIp, w - 4, display.height() - 2);
+  }
+  if (systems) {
+    g.drawRoundRect(button.x, button.y, button.w, button.h, button.h / 2, theme::kAccent);
+    g.drawRoundRect(button.x + 1, button.y + 1, button.w - 2, button.h - 2, button.h / 2 - 1, theme::kAccent);
+    // A 2x2 grid of small squares as the icon.
+    const int ix = button.x + 16, iy = button.y + button.h / 2;
+    for (int k = 0; k < 4; ++k) g.fillRoundRect(ix - 6 + (k % 2) * 7, iy - 6 + (k / 2) * 7, 5, 5, 1, theme::kAccent);
+    g.setFont(&fonts::DejaVu12);
+    g.setTextColor(theme::kText);
+    g.setTextDatum(lgfx::middle_left);
+    g.drawString("Systems", ix + 12, iy + 1);
   }
   g.setTextDatum(lgfx::middle_center);
   display.present();

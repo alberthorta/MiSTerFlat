@@ -85,6 +85,9 @@ void test_prefix_commands_and_args() {
   c = parseCommand("MDSSTA,join,6869,");
   TEST_ASSERT_EQUAL(CommandId::MdsSta, c.id);
   TEST_ASSERT_EQUAL_STRING("join,6869,", str(c.args).c_str());
+  c = parseCommand("MDSSYS,item,2,0a1b2c3d,Game Boy Advance");
+  TEST_ASSERT_EQUAL(CommandId::MdsSys, c.id);
+  TEST_ASSERT_EQUAL_STRING("item,2,0a1b2c3d,Game Boy Advance", str(c.args).c_str());
   // MDSSHOT is not taken for MDSSTA, nor the other way round.
   TEST_ASSERT_EQUAL(CommandId::MdsShot, parseCommand("MDSSHOT").id);
 }

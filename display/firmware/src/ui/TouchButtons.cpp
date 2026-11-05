@@ -240,6 +240,11 @@ TouchButtons::Result TouchButtons::release(uint32_t nowMs) {
   // The first tap on a dark (idle) screen only wakes it.
   if (!display_.lightOn() || closeAtMs_) return r;
   if (!shown_) {
+    if (shortcutW_ > 0 && lastX_ >= shortcutX_ && lastX_ < shortcutX_ + shortcutW_ && lastY_ >= shortcutY_ &&
+        lastY_ < shortcutY_ + shortcutH_) {
+      r.pressed = "systems";
+      return r;
+    }
     show(nowMs);
     return r;
   }

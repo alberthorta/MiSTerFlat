@@ -42,6 +42,7 @@ from pictures import asset_frame, decode_picture, find_art, find_picture  # noqa
 import display_settings  # noqa: E402
 import display_wifi  # noqa: E402
 import menu_browse  # noqa: E402
+import menu_systems  # noqa: E402
 import wifi  # noqa: E402
 
 DEFAULTS = {
@@ -81,6 +82,7 @@ TOUCH_BOARDS = {"HWWSTLCD2"}  # boards that send MDSBTN
 WIFI_SINCE = (0, 3, 0)
 VOLUME_SINCE = (0, 4, 0)  # the volume row on the touch buttons (MDSVOL)
 SETTINGS_SINCE = (0, 4, 1)  # MDSCFG,brightness and MDSCFG,clockfont, for display_settings.py
+SYSTEMS_SINCE = (0, 6, 1)  # the system picker of the touch board (MDSSYS), see menu_systems.py
 STATION_SINCE = (0, 6, 0)  # the touch board's own Wi-Fi (MDSSTA), for display_wifi.py
 # The board's Wi-Fi state (signal, address) is asked for this often.
 STATION_CHECK_SECONDS = 30.0
@@ -280,6 +282,7 @@ class Display:
         self.next_station_check = 0.0
         self.next_settings_check = 0.0
         self.wifi_screen = False  # the board has the Wi-Fi screen
+        self.systems = None  # the system picker's list (menu_systems.build), when the board has one
         self.wifi_dongle = None  # last state sent to it
         self.wifi_busy = False
         # Lines from the Wi-Fi worker thread; only the main loop writes to the port.
@@ -457,6 +460,8 @@ class Display:
                 log("display: " + line.decode(errors="replace"))
             elif line.startswith(b"MDSWIFI,") and self.wifi_screen:
                 self.wifi_request(line[len(b"MDSWIFI,"):].strip().decode(errors="replace"))
+            elif line.startswith(b"MDSSYS,") and self.systems is not None:
+                self.systems_request(line[len(b"MDSSYS,"):].strip().decode(errors="replace"))
             elif line.startswith(b"MDSBTN,"):
                 self.press(line[len(b"MDSBTN,"):].strip().decode(errors="replace"))
             elif HWINF_RE.search(line):
@@ -473,6 +478,13 @@ class Display:
                 else:
                     self.station = None
                     display_wifi.write_state(None)
+                if board in TOUCH_BOARDS and version_tuple(version) >= SYSTEMS_SINCE:
+                    self.systems = menu_systems.build(self.cfg["ART_DIR"])
+                    for out in menu_systems.list_lines(self.systems):
+                        self.port.write(out)
+                    debug("system picker: {}".format(", ".join(s["core"] for s in self.systems) or "none"))
+                else:
+                    self.systems = None
                 self.next_settings_check = 0.0
                 self.sent_volume = None
                 self.next_volume_check = 0.0
@@ -506,6 +518,22 @@ class Display:
             return
         self.wifi_busy = True
         threading.Thread(target=target, daemon=True).start()
+
+    def systems_request(self, request):
+        """MDSSYS,img,<i> (send that cover) or MDSSYS,load,<i> (load that core) from the picker."""
+        kind, _, index = request.partition(",")
+        if not index.isdigit():
+            return
+        try:
+            if kind == "img":
+                frame = menu_systems.cover_frame(self.systems, int(index))
+                if frame:
+                    self.port.write(frame)
+            elif kind == "load":
+                rbf = menu_systems.load(self.systems, int(index))
+                log("system picker: loading {}".format(os.path.basename(rbf)))
+        except (OSError, ValueError) as e:
+            log("system picker: {} failed: {}".format(request, e))
 
     def queue(self, line):
         with self.outbox_lock:

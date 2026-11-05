@@ -14,6 +14,7 @@
 #include "net/Station.h"
 #include "transport/SerialTransport.h"
 #include "ui/DisplayManager.h"
+#include "ui/SystemsScreen.h"
 #include "ui/TouchButtons.h"
 #include "ui/WifiScreen.h"
 
@@ -92,6 +93,7 @@ class App : public proto::ParserListener {
   presence::Presence presence_;
   TouchButtons touchButtons_{display_};
   WifiScreen wifi_{display_, transport_};
+  SystemsScreen systems_{display_, transport_};
   Station station_{transport_};
   char shownBoardIp_[16] = {};  // the board's own address as last drawn
   bool wifiDongle_ = false;  // MDSWIFI,dongle,<0|1> from the daemon

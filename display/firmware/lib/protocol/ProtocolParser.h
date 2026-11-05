@@ -9,7 +9,8 @@
 // - A line starting with "CMDCOR" or "CMDAPD" is followed by raw picture bytes with no length
 //   header: 2048 bytes (XBM) or 8192 bytes (GSC). The picture ends at 8192 bytes or after
 //   500 ms without a new byte.
-// - MiSTerLily extension: a line "MDSIMG,<bytes>,..." or "MDSLOGO,<bytes>,..." is followed by
+// - MiSTerLily extension: a line "MDSIMG,<bytes>,...", "MDSLOGO,<bytes>,..." or
+//   "MDSSYSIMG,<bytes>,..." is followed by
 //   exactly <bytes> raw bytes (a PNG or JPEG file). Unlike CMDCOR the length is announced, so
 //   nothing is guessed.
 

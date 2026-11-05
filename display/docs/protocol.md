@@ -212,6 +212,24 @@ it got an address on it. SSIDs and passwords travel in hex.
 
 `MDSINFO` has `sta=<none|off|connecting|ok|fail>`.
 
+## System picker: `MDSSYS` (touch board, firmware 0.6.1 and later)
+
+In the MiSTer menu, the clock screen has a Systems button at the bottom once the host sent a list.
+It opens a cover flow: drag to move, tap a side cover to bring it to the middle, tap the middle one
+to load its core. The back button (top left) or 10 s without a touch goes back to the clock. The
+native daemon does the host side (`mister/menu_systems.py`).
+
+| Line | Direction | Meaning |
+|---|---|---|
+| `MDSSYS,clear` | host → display | Empty the list (no Systems button) |
+| `MDSSYS,item,<i>,<crc32>,<name>` | host → display | System `i` (0, 1, ... in order, at most 12). `crc32` of its cover, `00000000` for none |
+| `MDSSYS,img,<i>` | display → host | Send the cover of system `i`. Asked when the picker opens, only for covers the display does not have with that crc |
+| `MDSSYSIMG,<bytes>,<crc32>,<png\|jpg>,<i>` + file | host → display | The cover, framed like `MDSIMG` (320×240 picture; kept at 200×150 in PSRAM). No reply |
+| `MDSSYS,load,<i>` | display → host | Load the core of system `i` |
+
+The daemon sends the list after `CMDHWINF` shows a touch board with firmware 0.6.1 or later. It
+offers only systems whose `.rbf` is in `_Console`.
+
 ## Device behaviour
 
 - **Settings**: `CMDCON` (brightness) and `CMDROT` (rotation) are stored in flash, written only when

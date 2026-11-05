@@ -55,6 +55,7 @@ enum class CommandId : uint8_t {
   MdsPower, // MDSPOWER,halting|down -> the MiSTer is shutting down / is down (power relay)
   MdsHang,  // MDSHANG (test builds only): stop feeding the watchdog
   MdsSta,   // MDSSTA[,scan|join,<ssid hex>,<password hex>|forget] -> this board's own Wi-Fi
+  MdsSys,   // MDSSYS,clear|item,<i>,<crc32>,<name> -> the systems of the system picker (touch boards)
   MdsShot,  // MDSSHOT -> "MDSSHOT,<w>,<h>,<bytes>\n" + "ttyack;" + framebuffer (RGB565 big-endian)
 };
 

@@ -129,7 +129,7 @@ void ProtocolParser::completeLine() {
     startImage();
     return;
   }
-  if (startsWith(line_, n, "MDSIMG,") || startsWith(line_, n, "MDSLOGO,")) {
+  if (startsWith(line_, n, "MDSIMG,") || startsWith(line_, n, "MDSLOGO,") || startsWith(line_, n, "MDSSYSIMG,")) {
     memcpy(imageCommand_, line_, n + 1);
     startAsset();
     return;

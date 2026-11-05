@@ -3,7 +3,8 @@
 A colour status display for a MiSTer FPGA, built on a LILYGO T-Display-S3 (1.9" 320×170 TFT) or a
 Waveshare ESP32-S3-Touch-LCD-2 (2" 320×240 touch TFT). When MiSTer loads a core, the display shows
 that system's logo and name. On the touch board, a tap gives the MiSTer's RESET, OSD and USER
-buttons, plus Bluetooth pairing, and in the MiSTer menu a Wi-Fi set-up with an on-screen keyboard.
+buttons, plus Bluetooth pairing, and in the MiSTer menu a Wi-Fi set-up with an on-screen keyboard
+and a system picker (swipe through the covers, tap one to load its core).
 
 Website: **https://alberthorta.github.io/MiSTerFlat/** · How all the parts work together:
 **[docs/how-it-works.md](docs/how-it-works.md)**

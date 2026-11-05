@@ -13,7 +13,14 @@ namespace MenuScreen {
 constexpr int kClockFontCount = 8;
 const char* clockFontName(int index);
 
+// systems: the Systems button at the bottom (touch boards, when the host sent a list of systems).
 void draw(DisplayManager& display, const wallclock::DateTime& now, const char* ip, bool dimmed, int clockFont = 0,
-          const char* boardIp = "");
+          const char* boardIp = "", bool systems = false);
+
+// Where the Systems button is, for the tap.
+struct Rect {
+  int x, y, w, h;
+};
+Rect systemsButton(const DisplayManager& display);
 
 }  // namespace MenuScreen
