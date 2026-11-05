@@ -45,6 +45,7 @@ class SystemsScreen {
  private:
   struct Item {
     char name[41];
+    int w, h;          // of the cover sprites (game covers keep the shape of their picture)
     uint32_t crc;      // of the host's picture (0 = none)
     uint32_t haveCrc;  // of the cover we hold (0 = none)
     bool requested;
@@ -53,11 +54,11 @@ class SystemsScreen {
   };
   // Size and spacing of one cover flow.
   struct Geometry {
-    int w, h;       // cover size, drawn 1:1 in the middle
+    int w, h;       // the largest cover, drawn 1:1 in the middle; also the size of a missing one
     int centreY;
     float nearX;    // the first neighbour is this far from the middle
     float farX;     // and each one after it this much more
-    float scale;    // host picture -> cover
+    bool keepShape; // covers keep the shape of their picture inside w x h (games); else exactly w x h
   };
   enum class Level : uint8_t { Systems, Games };
 
@@ -72,7 +73,8 @@ class SystemsScreen {
   void tap(int x, int y);
   void draw();
   void drawCover(const Item& item, float d);
-  bool makeSprites(Item& item, const Geometry& g);
+  void coverSize(const Item& item, int& w, int& h) const;
+  bool makeSprites(Item& item, int w, int h);
   void setCover(Item& item, const Geometry& g, uint32_t crc, bool png, const uint8_t* data, size_t length);
   static bool parseItem(std::string_view crcHex, std::string_view name, Item& item);
 

@@ -5,7 +5,8 @@ user picks, each with a portrait cover. Everything lives in /media/fat/MiSTerLil
 
     games.json                    {"version": 1, "systems": {"SNES": [game, ...], ...}}
     <system>/<game id>.mgl        what the display's daemon loads ("load_core <mgl>")
-    <system>/<game id>.jpg        the cover, 240x320 (the page makes it)
+    <system>/<game id>.jpg        the cover, at most 320 px on its long side, in the shape of the
+                                  picture (the page makes it: SNES boxes are wide, Mega Drive ones tall)
 
 A game is {"id", "name", "path" (relative to /media/fat), "mgl", "cover" (relative to the quick
 folder, or null), "crc" (of the cover, 0 for none)}. The daemon (MiSTerLily mister/menu_systems.py)
@@ -26,7 +27,7 @@ import urllib.request
 from typing import Dict, List, Optional
 from urllib.parse import quote, unquote
 
-from .artwork import DEFAULT_REGIONS, normalize, regions
+from .artwork import DEFAULT_REGIONS, IMAGE_EXTS, KINDS, normalize, regions
 from .control import make_mgl
 from .systems import BY_ID
 
@@ -140,6 +141,26 @@ class QuickLaunch:
                         'cover': bool(g.get('cover')), 'art': game.get('art') if game else None,
                         'missing': game is None})
         return {'id': key, 'system': sid, 'name': BY_ID[sid].name, 'max': MAX_GAMES, 'games': out}
+
+    def sd_pictures(self, key: str, game_id: str) -> List[dict]:
+        """The pictures update_all put on the SD card for this game: box, title screen, screenshot."""
+        key = self._key(key)
+        g = self._find(self._load().get(key, []), game_id)
+        game = self.library.find(BY_KEY[key], g['path'])
+        art = game.get('art') if game else None
+        if not art:
+            return []
+        folder, _, rest = art.partition('/')
+        base = os.path.splitext(rest.partition('/')[2])[0]
+        labels = dict(zip(KINDS, ('Box', 'Title screen', 'Screenshot')))
+        out = []
+        for kind in KINDS:
+            for ext in IMAGE_EXTS:
+                rel = '/'.join((folder, kind, base + ext))
+                if os.path.isfile(os.path.join(self.fat, 'docs', rel)):
+                    out.append({'kind': labels[kind], 'art': rel})
+                    break
+        return out
 
     def cover(self, key: str, game_id: str) -> Optional[str]:
         g = self._find(self._load().get(self._key(key), []), game_id)

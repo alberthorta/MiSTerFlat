@@ -6,7 +6,7 @@ MiSTerManager (its Systems page), which keeps them in QUICK_DIR:
 
     games.json            {"version": 1, "systems": {"SNES": [{"id", "name", "mgl", "cover", "crc"}, ...]}}
     <system>/<id>.mgl     loaded with "load_core <mgl>"
-    <system>/<id>.jpg     the cover, 240x320
+    <system>/<id>.jpg     the cover, at most 320 px on its long side, in the shape of the box
 
 Only systems whose core is on the SD card and that have at least one game are offered; with
 none, the display shows no Systems button. The protocol is in docs/protocol.md (MDSSYS).

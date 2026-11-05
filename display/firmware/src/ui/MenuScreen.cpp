@@ -199,8 +199,8 @@ void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip,
   g.setTextColor(dimmed ? theme::rgb565(35, 35, 35) : theme::kTextFaint);
   g.drawString("v" MDS_FW_VERSION, w - 4, 2);
   if (boardIp && boardIp[0]) {
-    g.setTextDatum(lgfx::bottom_right);
-    g.drawString(boardIp, w - 4, display.height() - 2);
+    g.setTextDatum(lgfx::top_left);
+    g.drawString(boardIp, 4, 2);
   }
   if (systems) {
     g.drawRoundRect(button.x, button.y, button.w, button.h, button.h / 2, theme::kAccent);

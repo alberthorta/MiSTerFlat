@@ -141,7 +141,7 @@
           </div>
           <p class="banner warn" id="quick-nocore" hidden><svg><use href="#i-alert"/></svg><span>This core is not on the SD card, so the display does not show this system.</span></p>
           <div class="stack-list" id="quick-games"></div>
-          <p class="more">The order here is the order on the display. Covers are portrait, like a game box. The display shows the new list within a few seconds.</p>
+          <p class="more">The order here is the order on the display. Tap a cover to change it; it keeps the shape of the picture, so a Super Nintendo box is wide and a Mega Drive box is tall. The display shows the new list within a few seconds.</p>
         </div>
         <input type="file" id="quick-file" accept="image/*" hidden>
       </section>
@@ -304,19 +304,17 @@
     <div class="sheet-cover" id="qcover-now"></div>
     <div class="sheet-text">
       <h2 id="qcover-title"></h2>
-      <p class="sheet-sub">Cover on the display</p>
+      <p class="sheet-sub" id="qcover-sub">Cover on the display</p>
     </div>
     <button class="icon-btn sheet-close" id="qcover-close" aria-label="Close"><svg><use href="#i-close"/></svg></button>
   </div>
   <div class="sheet-actions">
+    <p class="qcover-pick">Tap the picture you want.</p>
+    <div class="qcover-list" id="qcover-list"></div>
     <div class="qcover-acts">
-      <button class="btn" id="qcover-sd" type="button"><svg><use href="#i-image"/></svg>From the SD card</button>
-      <button class="btn" id="qcover-search" type="button"><svg><use href="#i-search"/></svg>Search online</button>
-      <button class="btn" id="qcover-upload" type="button"><svg><use href="#i-upload"/></svg>Upload…</button>
-      <button class="btn danger-quiet" id="qcover-remove" type="button"><svg><use href="#i-close"/></svg>Remove</button>
+      <button class="btn" id="qcover-upload" type="button"><svg><use href="#i-upload"/></svg>Upload my own…</button>
+      <button class="btn danger-quiet" id="qcover-remove" type="button"><svg><use href="#i-close"/></svg>No cover</button>
     </div>
-    <p class="help" id="qcover-note" hidden></p>
-    <div class="qcover-grid" id="qcover-grid"></div>
   </div>
 </dialog>
 

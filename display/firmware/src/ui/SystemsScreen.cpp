@@ -14,9 +14,11 @@ constexpr uint32_t kPollMs = 15;
 constexpr uint32_t kFrameMs = 16;
 constexpr uint32_t kIdleMs = 10000;
 
-// Systems: the host's 320x240 core pictures. Games: MiSTerManager's 240x320 box covers.
-constexpr float kSystemScale = 200.0f / 320;
-constexpr float kGameScale = 126.0f / 240;
+// Game covers keep the shape of the box (wide for the SNES, square for the PlayStation, tall for
+// the Mega Drive) and are scaled to fit this. Without a cover, a game gets a 3:4 placeholder.
+constexpr int kGameMaxW = 180;
+constexpr int kGameMaxH = 168;
+constexpr int kGamePlaceholderW = 126;
 
 // Side covers get smaller and narrower (as if turned away) up to the first neighbour, then only
 // smaller.
@@ -68,6 +70,37 @@ void darken(LGFX_Sprite& from, LGFX_Sprite& to, int pixels) {
   }
 }
 
+// Width and height from a PNG (IHDR) or JPEG (SOFn) header; false when not found.
+bool imageSize(const uint8_t* d, size_t n, bool png, int& w, int& h) {
+  if (png) {
+    if (n < 24) return false;
+    w = d[16] << 24 | d[17] << 16 | d[18] << 8 | d[19];
+    h = d[20] << 24 | d[21] << 16 | d[22] << 8 | d[23];
+    return w > 0 && h > 0;
+  }
+  size_t i = 2;
+  while (i + 9 < n) {
+    if (d[i] != 0xFF) {
+      ++i;
+      continue;
+    }
+    const uint8_t m = d[i + 1];
+    if (m >= 0xC0 && m <= 0xCF && m != 0xC4 && m != 0xC8 && m != 0xCC) {
+      h = d[i + 5] << 8 | d[i + 6];
+      w = d[i + 7] << 8 | d[i + 8];
+      return w > 0 && h > 0;
+    }
+    if (m == 0xFF) {
+      ++i;
+    } else if (m == 0xD8 || m == 0x01 || (m >= 0xD0 && m <= 0xD7)) {
+      i += 2;
+    } else {
+      i += 2 + (d[i + 2] << 8 | d[i + 3]);
+    }
+  }
+  return false;
+}
+
 bool parseHex32(std::string_view hex, uint32_t& out) {
   if (hex.size() != 8) return false;
   out = 0;
@@ -99,9 +132,20 @@ void drawFitted(lgfx::LovyanGFX& g, const char* text, int x, int y, int maxW) {
 
 }  // namespace
 
+void SystemsScreen::coverSize(const Item& item, int& w, int& h) const {
+  const Geometry& geo = geometry();
+  if (item.haveCrc && item.cover) {
+    w = item.w;
+    h = item.h;
+  } else {
+    w = geo.keepShape ? kGamePlaceholderW : geo.w;
+    h = geo.h;
+  }
+}
+
 const SystemsScreen::Geometry& SystemsScreen::geometry() const {
-  static const Geometry kSystems = {200, 150, 106, 118, 62, kSystemScale};
-  static const Geometry kGames = {126, 168, 108, 104, 52, kGameScale};
+  static const Geometry kSystems = {200, 150, 106, 118, 62, false};
+  static const Geometry kGames = {kGameMaxW, kGameMaxH, 108, 104, 52, true};
   return level_ == Level::Systems ? kSystems : kGames;
 }
 
@@ -164,32 +208,42 @@ void SystemsScreen::onHost(std::string_view args) {
   }
 }
 
-bool SystemsScreen::makeSprites(Item& item, const Geometry& g) {
+bool SystemsScreen::makeSprites(Item& item, int w, int h) {
   for (LGFX_Sprite** p : {&item.cover, &item.dim}) {
-    if (*p) continue;
-    auto* sprite = new LGFX_Sprite();
-    sprite->setColorDepth(16);
-    sprite->setPsram(true);
-    if (!sprite->createSprite(g.w, g.h)) {
-      delete sprite;
-      return false;
+    if (*p && ((*p)->width() != w || (*p)->height() != h)) (*p)->deleteSprite();
+    if (!*p) {
+      *p = new LGFX_Sprite();
+      (*p)->setColorDepth(16);
+      (*p)->setPsram(true);
     }
-    *p = sprite;
+    if ((*p)->getBuffer() == nullptr && !(*p)->createSprite(w, h)) return false;
   }
+  item.w = w;
+  item.h = h;
   return true;
 }
 
 void SystemsScreen::setCover(Item& item, const Geometry& geo, uint32_t crc, bool png, const uint8_t* data,
                              size_t length) {
-  if (!makeSprites(item, geo)) return;
+  int w = geo.w, h = geo.h;
+  float scale = 0;
+  int pw = 0, ph = 0;
+  if (!imageSize(data, length, png, pw, ph)) return;
+  if (geo.keepShape) {
+    scale = fminf(static_cast<float>(geo.w) / pw, static_cast<float>(geo.h) / ph);
+    w = lroundf(pw * scale);
+    h = lroundf(ph * scale);
+    if (w < 8 || h < 8) return;
+  } else {
+    scale = fminf(static_cast<float>(geo.w) / pw, static_cast<float>(geo.h) / ph);
+  }
+  item.haveCrc = 0;
+  if (!makeSprites(item, w, h)) return;
   item.cover->fillScreen(TFT_BLACK);
-  // Centred in the cover, whatever the picture's size.
-  const bool ok = png ? item.cover->drawPng(data, length, 0, 0, geo.w, geo.h, 0, 0, geo.scale, geo.scale,
-                                            lgfx::middle_center)
-                      : item.cover->drawJpg(data, length, 0, 0, geo.w, geo.h, 0, 0, geo.scale, geo.scale,
-                                            lgfx::middle_center);
+  const bool ok = png ? item.cover->drawPng(data, length, 0, 0, w, h, 0, 0, scale, scale, lgfx::middle_center)
+                      : item.cover->drawJpg(data, length, 0, 0, w, h, 0, 0, scale, scale, lgfx::middle_center);
   if (!ok) return;
-  darken(*item.cover, *item.dim, geo.w * geo.h);
+  darken(*item.cover, *item.dim, w * h);
   item.haveCrc = crc;
   dirty_ = true;
 }
@@ -353,12 +407,14 @@ void SystemsScreen::tap(int x, int y) {
   int best = -1;
   float bestDistance = 99;
   for (int i = 0; i < count(); ++i) {
+    int cw, ch;
+    coverSize(items()[i], cw, ch);
     const float d = i - pos_, a = fabsf(d);
     if (a > kMaxDistance) continue;
     const float scale = a <= 1 ? 1 + (kNearScale - 1) * a : kNearScale + (kFarScale - kNearScale) * (a - 1 < 1 ? a - 1 : 1);
     const float squeeze = a <= 1 ? 1 + (kSqueeze - 1) * a : kSqueeze;
     const float cx = 160 + (d < 0 ? -1 : 1) * (a <= 1 ? a * geo.nearX : geo.nearX + (a - 1) * geo.farX);
-    if (fabsf(x - cx) <= geo.w * scale * squeeze / 2 && fabsf(y - geo.centreY) <= geo.h * scale / 2 && a < bestDistance) {
+    if (fabsf(x - cx) <= cw * scale * squeeze / 2 && fabsf(y - geo.centreY) <= ch * scale / 2 && a < bestDistance) {
       best = i;
       bestDistance = a;
     }
@@ -396,7 +452,9 @@ void SystemsScreen::drawCover(const Item& item, float d) {
     squeeze = kSqueeze;
   }
   const float zoomX = scale * squeeze, zoomY = scale;
-  const int w = lroundf(geo.w * zoomX), h = lroundf(geo.h * zoomY);
+  int cw, ch;
+  coverSize(item, cw, ch);
+  const int w = lroundf(cw * zoomX), h = lroundf(ch * zoomY);
   const int x0 = lroundf(x) - w / 2, y0 = geo.centreY - h / 2;
   const bool front = a < 0.5f;
   if (item.haveCrc && item.cover) {

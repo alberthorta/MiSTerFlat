@@ -113,6 +113,17 @@ class QuickTest(unittest.TestCase):
         with self.assertRaises(QuickError):
             self.quick.boxart('SNES', '../secret')
 
+    def test_sd_pictures(self):
+        touch(self.fat, 'docs/SNES/Artwork/F-Zero (USA).jpg')
+        touch(self.fat, 'docs/SNES/Screenshots/F-Zero (USA).png')
+        self.library.rescan()
+        g = self.quick.add('SNES', 'games/SNES/F-Zero (USA).sfc')
+        self.assertEqual(self.quick.sd_pictures('SNES', g['id']),
+                         [{'kind': 'Box', 'art': 'SNES/Artwork/F-Zero (USA).jpg'},
+                          {'kind': 'Screenshot', 'art': 'SNES/Screenshots/F-Zero (USA).png'}])
+        m = self.quick.add('SNES', 'games/SNES/Super Mario World (U) [!].smc')
+        self.assertEqual(self.quick.sd_pictures('SNES', m['id']), [])
+
     def test_short_name(self):
         self.assertEqual(short_name('7th Saga, The (U) [!]'), '7th Saga, The')
         self.assertEqual(short_name('(Prototype)'), '(Prototype)')

@@ -291,6 +291,8 @@ def make_handler(app: App):
                     if not full:
                         return self._json({'error': 'no cover'}, 404)
                     self._file(os.path.dirname(full), os.path.basename(full))
+                elif path == '/api/quick/pictures':
+                    self._json({'sd': app.quick.sd_pictures(q.get('system', ''), q.get('game', ''))})
                 elif path == '/api/quick/boxart/search':
                     self._json({'names': app.quick.boxart_search(q.get('system', ''), q.get('game', ''))})
                 elif path == '/api/quick/boxart':

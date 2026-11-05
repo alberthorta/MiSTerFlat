@@ -5,7 +5,7 @@
 
 // Built-in screen for the MiSTer menu (core "MENU") and the idle clock: time, date, and the
 // MiSTer's IP address when the daemon sent one. `dimmed` draws in dark greys for the idle clock.
-// boardIp: this board's own address (its Wi-Fi, for the virtual display), small in the bottom-right
+// boardIp: this board's own address (its Wi-Fi, for the virtual display), small in the top-left
 // corner like the version in the top-right one; empty for none.
 namespace MenuScreen {
 

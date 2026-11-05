@@ -221,7 +221,7 @@ middle. The back button (top left) goes from the games to the systems and from t
 10 s without a touch goes back to the clock.
 
 The games come from the Systems page of MiSTerManager, which keeps them in
-`/media/fat/MiSTerLily/quick` (a `games.json`, one `.mgl` and one 240×320 cover per game). The
+`/media/fat/MiSTerLily/quick` (a `games.json`, one `.mgl` and one cover per game). The
 native daemon reads that folder (`mister/menu_systems.py`). It offers only systems whose `.rbf` is in
 `_Console` and that have at least one game, and sends the list again within 3 s of a change.
 
@@ -234,7 +234,7 @@ native daemon reads that folder (`mister/menu_systems.py`). It offers only syste
 | `MDSSYS,games,<i>,<n>` | host → display | The list of system `i` follows: `n` games (at most 20) |
 | `MDSSYS,game,<i>,<j>,<crc32>,<name>` | host → display | Game `j` of system `i`, in order |
 | `MDSSYS,gimg,<i>,<j>` | display → host | Send the cover of game `j` of system `i` |
-| `MDSSYSIMG,<bytes>,<crc32>,<png\|jpg>,<i>[,<j>]` + file | host → display | A cover, framed like `MDSIMG`: a system's (320×240, kept at 200×150) or, with `j`, a game's (240×320, kept at 126×168). No reply |
+| `MDSSYSIMG,<bytes>,<crc32>,<png\|jpg>,<i>[,<j>]` + file | host → display | A cover, framed like `MDSIMG`: a system's (320×240, kept at 200×150) or, with `j`, a game's (at most 320 px on its long side; it keeps its shape, scaled to fit 180×168). No reply |
 | `MDSSYS,play,<i>,<j>` | display → host | Start game `j` of system `i` |
 
 The daemon sends the systems after `CMDHWINF` shows a touch board with firmware 0.6.1 or later.

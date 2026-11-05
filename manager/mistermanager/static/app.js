@@ -995,31 +995,27 @@ async function quickAdd(g, b) {
   try {
     const entry = await api('/api/quick/add', {system: quickKey, path: g.path});
     $('qadd').close();
-    toast(entry.name + ' added');
-    // The artwork update_all put on the SD card is the first cover, when there is one.
-    if (g.art) await saveCover(entry, artUrl(g.art)).catch(() => {});
-    quickSystem(quickKey);
+    toast(entry.name + ' added. Pick its cover.');
+    await quickSystem(quickKey);
+    openCover(Object.assign({cover: false, crc: 0}, entry));
   } catch (e) { fail(e); b.disabled = false; }
 }
 
-// Covers: 240x320 JPEG made here. A picture close to 3:4 fills the cover; a wide one (a SNES box,
-// a screenshot) fits inside it on black.
+// Covers: made here as a JPEG of at most 320 px on the long side, in the shape of the picture
+// (box art is wide for the SNES and tall for the Mega Drive; the display keeps that shape).
 async function makeCover(src) {
   const img = new Image();
   img.src = src;
   await img.decode();
+  const scale = Math.min(1, 320 / Math.max(img.naturalWidth, img.naturalHeight));
   const c = document.createElement('canvas');
-  c.width = 240; c.height = 320;
+  c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+  c.height = Math.max(1, Math.round(img.naturalHeight * scale));
   const g = c.getContext('2d');
   g.fillStyle = '#000';
-  g.fillRect(0, 0, 240, 320);
-  const r = img.naturalWidth / img.naturalHeight;
-  let w, h;
-  if (Math.abs(r / 0.75 - 1) < 0.18) {
-    if (r > 0.75) { h = 320; w = 320 * r; } else { w = 240; h = 240 / r; }
-  } else if (r > 0.75) { w = 240; h = 240 / r; } else { h = 320; w = 320 * r; }
+  g.fillRect(0, 0, c.width, c.height);
   g.imageSmoothingQuality = 'high';
-  g.drawImage(img, (240 - w) / 2, (320 - h) / 2, w, h);
+  g.drawImage(img, 0, 0, c.width, c.height);
   return new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.88));
 }
 
@@ -1028,18 +1024,52 @@ async function saveCover(g, src) {
   await upload('/api/quick/cover?' + new URLSearchParams({system: quickKey, game: g.id}), blob);
 }
 
-function openCover(g) {
+// The cover picker: every picture we can find for the game, to tap one.
+function coverTile(src, label, g) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.innerHTML = '<img loading="lazy" alt="" src="' + src + '"><span>' + esc(label) + '</span>';
+  b.onclick = () => coverDone(saveCover(g, src), 'Cover saved');
+  return b;
+}
+function coverSection(title) {
+  const h = document.createElement('h3');
+  h.textContent = title;
+  const grid = document.createElement('div');
+  grid.className = 'qcover-grid';
+  return [h, grid];
+}
+
+async function openCover(g) {
   coverGame = g;
   $('qcover-title').textContent = g.name;
+  $('qcover-sub').textContent = g.cover ? 'Cover on the display' : 'No cover yet';
   $('qcover-now').innerHTML = g.cover ? '<img alt="" src="' + quickCover(g) + '">' : '';
-  $('qcover-sd').hidden = !g.art;
   $('qcover-remove').hidden = !g.cover;
-  $('qcover-note').hidden = true;
-  $('qcover-grid').replaceChildren();
-  $('qcover').showModal();
+  const list = $('qcover-list');
+  const [sdHead, sdGrid] = coverSection('On the SD card');
+  const [webHead, webGrid] = coverSection('Online (libretro thumbnails)');
+  const webNote = document.createElement('p');
+  webNote.className = 'help';
+  webNote.textContent = 'Searching… The first search of a system takes a few seconds.';
+  list.replaceChildren(sdHead, sdGrid, webHead, webNote, webGrid);
+  if (!$('qcover').open) $('qcover').showModal();
+  const params = new URLSearchParams({system: quickKey, game: g.id});
+  api('/api/quick/pictures?' + params).then(({sd}) => {
+    if (coverGame !== g) return;
+    if (!sd.length) { sdGrid.replaceWith(Object.assign(document.createElement('p'), {className: 'help', textContent: 'No pictures for this game on the SD card.'})); return; }
+    sdGrid.replaceChildren(...sd.map(p => coverTile(artUrl(p.art), p.kind, g)));
+  }).catch(e => { sdGrid.textContent = e.message; });
+  api('/api/quick/boxart/search?' + params).then(({names}) => {
+    if (coverGame !== g) return;
+    webNote.textContent = names.length ? '' : 'Nothing found online for this name.';
+    webNote.hidden = !!names.length;
+    webGrid.replaceChildren(...names.map(name => coverTile('/api/quick/boxart?' + new URLSearchParams({system: quickKey, name}), name, g)));
+  }).catch(e => { webNote.textContent = e.message; });
 }
 $('qcover-close').onclick = () => $('qcover').close();
 $('qcover').onclick = ev => { if (ev.target === $('qcover')) $('qcover').close(); };
+$('qcover').addEventListener('close', () => { coverGame = null; });
 
 async function coverDone(promise, what) {
   try {
@@ -1049,7 +1079,6 @@ async function coverDone(promise, what) {
     quickSystem(quickKey);
   } catch (e) { fail(e); }
 }
-$('qcover-sd').onclick = () => coverDone(saveCover(coverGame, artUrl(coverGame.art)), 'Cover saved');
 $('qcover-upload').onclick = () => { $('quick-file').value = ''; $('quick-file').click(); };
 $('quick-file').onchange = () => {
   const file = $('quick-file').files[0];
@@ -1058,22 +1087,3 @@ $('quick-file').onchange = () => {
   coverDone(saveCover(coverGame, url).finally(() => URL.revokeObjectURL(url)), 'Cover saved');
 };
 $('qcover-remove').onclick = () => coverDone(api('/api/quick/cover/delete', {system: quickKey, game: coverGame.id}), 'Cover removed');
-$('qcover-search').onclick = async () => {
-  const b = $('qcover-search'), note = $('qcover-note');
-  b.disabled = true;
-  note.hidden = false;
-  note.textContent = 'Searching the libretro thumbnails… The first search of a system takes a few seconds.';
-  try {
-    const {names} = await api('/api/quick/boxart/search?' + new URLSearchParams({system: quickKey, game: coverGame.id}));
-    if (!names.length) { note.textContent = 'No box art found for this name. Upload a picture instead.'; return; }
-    note.textContent = 'Pick one:';
-    $('qcover-grid').replaceChildren(...names.map(name => {
-      const src = '/api/quick/boxart?' + new URLSearchParams({system: quickKey, name});
-      const pick = document.createElement('button');
-      pick.type = 'button';
-      pick.innerHTML = '<img loading="lazy" alt="" src="' + src + '"><span>' + esc(name) + '</span>';
-      pick.onclick = () => coverDone(saveCover(coverGame, src), 'Cover saved');
-      return pick;
-    }));
-  } catch (e) { note.textContent = e.message; } finally { b.disabled = false; }
-};
