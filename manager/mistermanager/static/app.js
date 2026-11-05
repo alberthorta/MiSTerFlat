@@ -880,6 +880,7 @@ setInterval(status, 5000);
 
 /* ---------- Systems: the quick launch games of the touch display ---------- */
 let quickKey = '', quickData = null, coverGame = null;
+const sysCoverUrl = d => '/api/quick/syscover?' + new URLSearchParams({system: d.id, v: d.cover_crc || 'art'});
 const quickCover = g => '/api/quick/cover?' + new URLSearchParams({system: quickKey, game: g.id, v: g.crc});
 
 async function quickHome() {
@@ -893,7 +894,9 @@ async function quickHome() {
     a.className = 'row qsys';
     a.href = '#quick/' + encodeURIComponent(s.id);
     const count = s.count ? s.count + (s.count === 1 ? ' game' : ' games') : 'No games';
-    a.innerHTML = '<span class="row-text">' + esc(s.name) + (s.installed ? '' : '<small>Core not on the SD card</small>') + '</span>'
+    const note = !s.installed ? '<small>Core not on the SD card</small>'
+      : s.label !== s.name ? '<small class="renamed">“' + esc(s.label) + '” on the display</small>' : '';
+    a.innerHTML = '<span class="row-text">' + esc(s.name) + note + '</span>'
       + '<span class="count' + (s.count ? ' has' : '') + '">' + count + '</span>' + icon('down').replace('<svg>', '<svg style="transform:rotate(-90deg)">');
     return a;
   }));
@@ -912,6 +915,8 @@ async function quickSystem(key) {
   $('quick-count').textContent = data.games.length + ' / ' + data.max;
   $('quick-add').disabled = data.games.length >= data.max;
   $('quick-nocore').hidden = info.installed !== false;
+  $('quick-label').textContent = data.label;
+  $('quick-syscover').innerHTML = data.has_cover ? '<img alt="" src="' + sysCoverUrl(data) + '">' : '';
   const box = $('quick-games');
   if (!data.games.length) {
     box.innerHTML = '<p class="help">No games yet. Add a few with “Add game”: they show on the display in this order.</p>';
@@ -1043,6 +1048,7 @@ function coverSection(title) {
 async function openCover(g) {
   coverGame = g;
   $('qcover-title').textContent = g.name;
+  $('qname').value = g.name;
   $('qcover-sub').textContent = g.cover ? 'Cover on the display' : 'No cover yet';
   $('qcover-now').innerHTML = g.cover ? '<img alt="" src="' + quickCover(g) + '">' : '';
   $('qcover-remove').hidden = !g.cover;
@@ -1087,3 +1093,74 @@ $('quick-file').onchange = () => {
   coverDone(saveCover(coverGame, url).finally(() => URL.revokeObjectURL(url)), 'Cover saved');
 };
 $('qcover-remove').onclick = () => coverDone(api('/api/quick/cover/delete', {system: quickKey, game: coverGame.id}), 'Cover removed');
+
+$('qname-form').onsubmit = async ev => {
+  ev.preventDefault();
+  const g = coverGame;
+  if (!g) return;
+  try {
+    const {name} = await api('/api/quick/rename', {system: quickKey, game: g.id, name: $('qname').value});
+    g.name = name;
+    $('qcover-title').textContent = name;
+    toast('Name saved');
+    quickSystem(quickKey);
+  } catch (e) { fail(e); }
+};
+
+// The system itself on the display: its name and its picture (a 4:3 screen, like the core
+// pictures of MiSTerLily: the picture fits inside it on black).
+async function makeSystemCover(src) {
+  const img = new Image();
+  img.src = src;
+  await img.decode();
+  const c = document.createElement('canvas');
+  c.width = 320; c.height = 240;
+  const g = c.getContext('2d');
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, 320, 240);
+  const s = Math.min(320 / img.naturalWidth, 240 / img.naturalHeight);
+  const w = img.naturalWidth * s, h = img.naturalHeight * s;
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(img, (320 - w) / 2, (240 - h) / 2, w, h);
+  return new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.9));
+}
+function paintSysSheet() {
+  const d = quickData;
+  $('qsys-sub').textContent = d.name;
+  $('qsys-name').value = d.label;
+  $('qsys-name').placeholder = d.default_label;
+  $('qsys-cover').innerHTML = d.has_cover ? '<img alt="" src="' + sysCoverUrl(d) + '">' : '';
+  $('qsys-default').hidden = !d.custom_cover;
+}
+async function sysChanged(what) {
+  toast(what);
+  await quickSystem(quickKey);
+  if ($('qsys').open) paintSysSheet();
+}
+$('quick-syscard').onclick = () => { if (!quickData) return; paintSysSheet(); $('qsys').showModal(); };
+$('qsys-close').onclick = () => $('qsys').close();
+$('qsys').onclick = ev => { if (ev.target === $('qsys')) $('qsys').close(); };
+$('qsys-form').onsubmit = async ev => {
+  ev.preventDefault();
+  try {
+    await api('/api/quick/system', {system: quickKey, name: $('qsys-name').value});
+    await sysChanged('Name saved');
+  } catch (e) { fail(e); }
+};
+$('qsys-upload').onclick = () => { $('quick-sysfile').value = ''; $('quick-sysfile').click(); };
+$('quick-sysfile').onchange = async () => {
+  const file = $('quick-sysfile').files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  try {
+    const blob = await makeSystemCover(url);
+    await upload('/api/quick/syscover?' + new URLSearchParams({system: quickKey}), blob);
+    await sysChanged('Picture saved');
+  } catch (e) { fail(e); } finally { URL.revokeObjectURL(url); }
+};
+$('qsys-default').onclick = async () => {
+  try {
+    await api('/api/quick/syscover/delete', {system: quickKey});
+    await sysChanged('Back to the default picture');
+  } catch (e) { fail(e); }
+};

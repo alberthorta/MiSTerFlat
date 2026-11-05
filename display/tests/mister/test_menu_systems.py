@@ -61,6 +61,21 @@ check("only systems with a core and games, in order", [i["core"] for i in items]
 check("missing .mgl dropped", [g["name"] for g in items[0]["games"]] == ["Super Mario World"])
 check("crc of the system cover", items[0]["crc"] == binascii.crc32(b"\x89PNG snes") & 0xFFFFFFFF)
 
+# The user's own name and cover of a system, from MiSTerManager.
+with open(os.path.join(quick, "games.json")) as f:
+    data = json.load(f)
+write(os.path.join(quick, "SNES", "system.jpg"), b"\xff\xd8 mine")
+data["custom"] = {"SNES": {"name": "SNES", "cover": "SNES/system.jpg", "crc": 1}}
+write(os.path.join(quick, "games.json"), json.dumps(data).encode())
+mine = m.build(art, cores, quick)
+check("custom name and cover", mine[0]["name"] == "SNES" and mine[0]["art"].endswith("system.jpg")
+      and mine[0]["crc"] == binascii.crc32(b"\xff\xd8 mine") & 0xFFFFFFFF, str(mine[0]))
+data["custom"] = {"SNES": {"cover": "SNES/gone.jpg"}}
+write(os.path.join(quick, "games.json"), json.dumps(data).encode())
+check("missing custom cover: the art one", m.build(art, cores, quick)[0]["art"].endswith("SNES.png"))
+del data["custom"]
+write(os.path.join(quick, "games.json"), json.dumps(data).encode())
+
 lines = m.list_lines(items)
 check("list lines", lines[0] == "MDSSYS,clear\n" and lines[1] == "MDSSYS,item,0,{:08x},Super Nintendo\n".format(items[0]["crc"]),
       str(lines))

@@ -3,7 +3,8 @@
 For each system of the display's picker, a short list of games from the SD card, in the order the
 user picks, each with a portrait cover. Everything lives in /media/fat/MiSTerLily/quick:
 
-    games.json                    {"version": 1, "systems": {"SNES": [game, ...], ...}}
+    games.json                    {"version": 1, "systems": {"SNES": [game, ...], ...},
+                                   "custom": {"SNES": {"name", "cover", "crc"}, ...}}
     <system>/<game id>.mgl        what the display's daemon loads ("load_core <mgl>")
     <system>/<game id>.jpg        the cover, at most 320 px on its long side, in the shape of the
                                   picture (the page makes it: SNES boxes are wide, Mega Drive ones tall)
@@ -11,6 +12,8 @@ user picks, each with a portrait cover. Everything lives in /media/fat/MiSTerLil
 A game is {"id", "name", "path" (relative to /media/fat), "mgl", "cover" (relative to the quick
 folder, or null), "crc" (of the cover, 0 for none)}. The daemon (MiSTerLily mister/menu_systems.py)
 only reads this folder. The system keys are the display's: its picture names, not our system ids.
+"custom" holds what the user changed for a system on the display: its name, and its cover (a
+320x240 picture, <system>/system.jpg) instead of the one in the MiSTerLily art folder.
 
 Covers can also come from the libretro thumbnail server: the page asks for names that match the
 game, then for the picture, and makes the cover from it like from an upload.
@@ -33,8 +36,8 @@ from .systems import BY_ID
 
 # (key on the display, our system id), in the display's order. Keep in step with SYSTEMS in
 # MiSTerLily's mister/menu_systems.py.
-PICKER = (('GAMEBOY', 'Gameboy'), ('GBA', 'GBA'), ('NES', 'NES'), ('SMS', 'SMS'), ('SNES', 'SNES'),
-          ('MegaDrive', 'MegaDrive'), ('PSX', 'PSX'))
+PICKER = (('GAMEBOY', 'Gameboy'), ('GBC', 'GameboyColor'), ('GBA', 'GBA'), ('NES', 'NES'), ('SMS', 'SMS'),
+          ('SNES', 'SNES'), ('MegaDrive', 'MegaDrive'), ('PSX', 'PSX'))
 BY_KEY = dict(PICKER)
 MAX_GAMES = 20
 MAX_COVER = 300 * 1024
@@ -42,6 +45,7 @@ MAX_COVER = 300 * 1024
 LIBRETRO = 'https://thumbnails.libretro.com'
 LIBRETRO_SYSTEMS = {
     'Gameboy': 'Nintendo - Game Boy',
+    'GameboyColor': 'Nintendo - Game Boy Color',
     'GBA': 'Nintendo - Game Boy Advance',
     'NES': 'Nintendo - Nintendo Entertainment System',
     'SMS': 'Sega - Master System - Mark III',
@@ -56,6 +60,14 @@ HREF = re.compile(r'href="([^"?/]+\.png)"')
 
 class QuickError(Exception):
     pass
+
+
+def clean_name(name: str) -> str:
+    """A name for the display: one line, at most 40 characters."""
+    name = re.sub(r'[\x00-\x1f\x7f]+', ' ', str(name)).strip()[:40].strip()
+    if not name:
+        raise QuickError('the name is empty')
+    return name
 
 
 def short_name(name: str) -> str:
@@ -98,12 +110,29 @@ class QuickLaunch:
         systems = data.get('systems') if isinstance(data, dict) else None
         return systems if isinstance(systems, dict) else {}
 
-    def _save(self, systems: Dict[str, List[dict]]) -> None:
+    def _load_custom(self) -> Dict[str, dict]:
+        try:
+            with open(self.file, encoding='utf-8') as f:
+                custom = json.load(f).get('custom')
+        except (OSError, ValueError, AttributeError):
+            return {}
+        return custom if isinstance(custom, dict) else {}
+
+    def _save(self, systems: Dict[str, List[dict]], custom: Optional[Dict[str, dict]] = None) -> None:
+        if custom is None:
+            custom = self._load_custom()
         os.makedirs(self.root, exist_ok=True)
         tmp = self.file + '.tmp'
         with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump({'version': 1, 'systems': systems}, f, indent=1)
+            json.dump({'version': 1, 'systems': systems, 'custom': custom}, f, indent=1)
         os.replace(tmp, self.file)
+
+    def _label(self, key: str, custom: Dict[str, dict]) -> dict:
+        """How a system shows on the display: name, and whether its cover is the user's."""
+        c = custom.get(key) or {}
+        default = BY_ID[BY_KEY[key]].name
+        return {'label': c.get('name') or default, 'default_label': default,
+                'custom_cover': bool(c.get('cover')), 'cover_crc': c.get('crc', 0)}
 
     def _key(self, key: str) -> str:
         if key not in BY_KEY:
@@ -127,9 +156,10 @@ class QuickLaunch:
 
     # ---- reading
     def summary(self) -> List[dict]:
-        systems = self._load()
-        return [{'id': key, 'system': sid, 'name': BY_ID[sid].name, 'installed': self.installed(key),
-                 'count': len(systems.get(key, [])), 'max': MAX_GAMES} for key, sid in PICKER]
+        systems, custom = self._load(), self._load_custom()
+        return [dict({'id': key, 'system': sid, 'name': BY_ID[sid].name, 'installed': self.installed(key),
+                      'count': len(systems.get(key, [])), 'max': MAX_GAMES}, **self._label(key, custom))
+                for key, sid in PICKER]
 
     def games(self, key: str) -> dict:
         key = self._key(key)
@@ -140,7 +170,8 @@ class QuickLaunch:
             out.append({'id': g['id'], 'name': g['name'], 'path': g['path'], 'crc': g.get('crc', 0),
                         'cover': bool(g.get('cover')), 'art': game.get('art') if game else None,
                         'missing': game is None})
-        return {'id': key, 'system': sid, 'name': BY_ID[sid].name, 'max': MAX_GAMES, 'games': out}
+        return dict({'id': key, 'system': sid, 'name': BY_ID[sid].name, 'max': MAX_GAMES, 'games': out,
+                     'has_cover': bool(self.system_cover(key))}, **self._label(key, self._load_custom()))
 
     def sd_pictures(self, key: str, game_id: str) -> List[dict]:
         """The pictures update_all put on the SD card for this game: box, title screen, screenshot."""
@@ -161,6 +192,83 @@ class QuickLaunch:
                     out.append({'kind': labels[kind], 'art': rel})
                     break
         return out
+
+    def system_cover(self, key: str) -> Optional[str]:
+        """The user's cover of the system, else the one MiSTerLily shows for the core."""
+        c = self._load_custom().get(self._key(key)) or {}
+        if c.get('cover') and os.path.isfile(os.path.join(self.root, c['cover'])):
+            return os.path.join(self.root, c['cover'])
+        for ext in ('.png', '.jpg'):
+            path = os.path.join(self.fat, 'MiSTerLily', 'art', key + ext)
+            if os.path.isfile(path):
+                return path
+        return None
+
+    def rename(self, key: str, game_id: str, name: str) -> str:
+        key = self._key(key)
+        name = clean_name(name)
+        with self.lock:
+            systems = self._load()
+            self._find(systems.get(key, []), game_id)['name'] = name
+            self._save(systems)
+        return name
+
+    def set_system_name(self, key: str, name: str) -> None:
+        """An empty name goes back to the default one."""
+        key = self._key(key)
+        name = clean_name(name) if str(name).strip() else ''
+        with self.lock:
+            custom = self._load_custom()
+            c = custom.setdefault(key, {})
+            if name and name != BY_ID[BY_KEY[key]].name:
+                c['name'] = name
+            else:
+                c.pop('name', None)
+            self._save(self._load(), {k: v for k, v in custom.items() if v})
+
+    def set_system_cover(self, key: str, data: bytes) -> int:
+        key = self._key(key)
+        ext = self._image_ext(data)
+        with self.lock:
+            custom = self._load_custom()
+            folder = os.path.join(self.root, key)
+            os.makedirs(folder, exist_ok=True)
+            for old in ('system.jpg', 'system.png'):
+                try:
+                    os.remove(os.path.join(folder, old))
+                except OSError:
+                    pass
+            with open(os.path.join(folder, 'system' + ext), 'wb') as f:
+                f.write(data)
+            c = custom.setdefault(key, {})
+            c['cover'] = key + '/system' + ext
+            c['crc'] = binascii.crc32(data) & 0xFFFFFFFF
+            self._save(self._load(), custom)
+            return c['crc']
+
+    def clear_system_cover(self, key: str) -> None:
+        key = self._key(key)
+        with self.lock:
+            custom = self._load_custom()
+            c = custom.get(key) or {}
+            if c.get('cover'):
+                try:
+                    os.remove(os.path.join(self.root, c['cover']))
+                except OSError:
+                    pass
+            c.pop('cover', None)
+            c.pop('crc', None)
+            self._save(self._load(), {k: v for k, v in custom.items() if v})
+
+    @staticmethod
+    def _image_ext(data: bytes) -> str:
+        if not 0 < len(data) <= MAX_COVER:
+            raise QuickError('picture is empty or too large')
+        if data[:2] == b'\xff\xd8':
+            return '.jpg'
+        if data[:4] == b'\x89PNG':
+            return '.png'
+        raise QuickError('send a JPEG or PNG picture')
 
     def cover(self, key: str, game_id: str) -> Optional[str]:
         g = self._find(self._load().get(self._key(key), []), game_id)
@@ -219,14 +327,7 @@ class QuickLaunch:
 
     def set_cover(self, key: str, game_id: str, data: bytes) -> int:
         key = self._key(key)
-        if not 0 < len(data) <= MAX_COVER:
-            raise QuickError('picture is empty or too large')
-        if data[:2] == b'\xff\xd8':
-            ext = '.jpg'
-        elif data[:4] == b'\x89PNG':
-            ext = '.png'
-        else:
-            raise QuickError('send a JPEG or PNG picture')
+        ext = self._image_ext(data)
         with self.lock:
             systems = self._load()
             g = self._find(systems.get(key, []), game_id)

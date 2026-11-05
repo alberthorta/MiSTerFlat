@@ -4,7 +4,8 @@ In the MiSTer menu, the Systems button of the display's clock opens a cover flow
 on one opens a cover flow of its games, and a tap on a game starts it. The games come from
 MiSTerManager (its Systems page), which keeps them in QUICK_DIR:
 
-    games.json            {"version": 1, "systems": {"SNES": [{"id", "name", "mgl", "cover", "crc"}, ...]}}
+    games.json            {"version": 1, "systems": {"SNES": [{"id", "name", "mgl", "cover", "crc"}, ...]},
+                           "custom": {"SNES": {"name", "cover"}}}  (the user's name and cover of a system)
     <system>/<id>.mgl     loaded with "load_core <mgl>"
     <system>/<id>.jpg     the cover, at most 320 px on its long side, in the shape of the box
 
@@ -22,6 +23,7 @@ from pictures import find_art
 # the date). Keep in step with PICKER in MiSTerManager's mistermanager/quick.py.
 SYSTEMS = [
     ("GAMEBOY", "Game Boy", "Gameboy"),
+    ("GBC", "Game Boy Color", "Gameboy"),
     ("GBA", "Game Boy Advance", "GBA"),
     ("NES", "NES", "NES"),
     ("SMS", "Master System", "SMS"),
@@ -60,18 +62,20 @@ def quick_stamp(quick_dir=QUICK_DIR):
         return None
 
 
-def load_games(quick_dir=QUICK_DIR):
+def load_games(quick_dir=QUICK_DIR, part="systems"):
+    """games.json's "systems" (the games) or "custom" (the user's name and cover of a system)."""
     try:
         with open(os.path.join(quick_dir, "games.json"), encoding="utf-8") as f:
-            systems = json.load(f).get("systems")
+            data = json.load(f).get(part)
     except (OSError, ValueError, AttributeError):
         return {}
-    return systems if isinstance(systems, dict) else {}
+    return data if isinstance(data, dict) else {}
 
 
 def build(art_dir, cores_dir=CORES_DIR, quick_dir=QUICK_DIR):
     """The systems to offer, in order: [{"core", "name", "art", "crc", "games": [...]}]."""
     stored = load_games(quick_dir)
+    custom = load_games(quick_dir, "custom")
     items = []
     for core, name, prefix in SYSTEMS:
         if not find_rbf(cores_dir, prefix):
@@ -86,12 +90,16 @@ def build(art_dir, cores_dir=CORES_DIR, quick_dir=QUICK_DIR):
                           "crc": int(g.get("crc") or 0) if cover else 0})
         if not games:
             continue
-        art = find_art(art_dir, core)
+        c = custom.get(core) if isinstance(custom.get(core), dict) else {}
+        art = os.path.join(quick_dir, c["cover"]) if c.get("cover") else None
+        if not art or not os.path.isfile(art):
+            art = find_art(art_dir, core)
         try:
             crc = file_crc(art) if art else 0
         except OSError:
             art, crc = None, 0
-        items.append({"core": core, "name": name, "art": art, "crc": crc, "games": games[:MAX_GAMES]})
+        label = str(c.get("name") or name).replace("\n", " ")[:40]
+        items.append({"core": core, "name": label, "art": art, "crc": crc, "games": games[:MAX_GAMES]})
     return items
 
 

@@ -50,7 +50,7 @@ class QuickTest(unittest.TestCase):
     def test_summary(self):
         s = {x['id']: x for x in self.quick.summary()}
         self.assertEqual([x['id'] for x in self.quick.summary()],
-                         ['GAMEBOY', 'GBA', 'NES', 'SMS', 'SNES', 'MegaDrive', 'PSX'])
+                         ['GAMEBOY', 'GBC', 'GBA', 'NES', 'SMS', 'SNES', 'MegaDrive', 'PSX'])
         self.assertTrue(s['SNES']['installed'])
         self.assertFalse(s['NES']['installed'])
         self.assertEqual(s['SNES']['count'], 0)
@@ -123,6 +123,31 @@ class QuickTest(unittest.TestCase):
                           {'kind': 'Screenshot', 'art': 'SNES/Screenshots/F-Zero (USA).png'}])
         m = self.quick.add('SNES', 'games/SNES/Super Mario World (U) [!].smc')
         self.assertEqual(self.quick.sd_pictures('SNES', m['id']), [])
+
+    def test_rename_and_system(self):
+        g = self.quick.add('SNES', 'games/SNES/F-Zero (USA).sfc')
+        self.assertEqual(self.quick.rename('SNES', g['id'], '  F-Zero\nGP  '), 'F-Zero GP')
+        self.assertEqual(self.quick.games('SNES')['games'][0]['name'], 'F-Zero GP')
+        with self.assertRaises(QuickError):
+            self.quick.rename('SNES', g['id'], '   ')
+        self.assertEqual(self.quick.games('SNES')['label'], 'Super Nintendo')
+        self.quick.set_system_name('SNES', 'SNES')
+        self.assertEqual(self.quick.games('SNES')['label'], 'SNES')
+        # Default art of the display, then the user's own cover.
+        art = touch(self.fat, 'MiSTerLily/art/SNES.png', b'\x89PNG art')
+        self.assertEqual(self.quick.system_cover('SNES'), art)
+        crc = self.quick.set_system_cover('SNES', b'\xff\xd8 mine')
+        self.assertTrue(self.quick.system_cover('SNES').endswith('quick/SNES/system.jpg'))
+        with open(os.path.join(self.fat, 'MiSTerLily/quick/games.json')) as f:
+            data = json.load(f)
+        self.assertEqual(data['custom']['SNES'], {'name': 'SNES', 'cover': 'SNES/system.jpg', 'crc': crc})
+        self.assertEqual(len(data['systems']['SNES']), 1)  # the games are kept
+        self.quick.clear_system_cover('SNES')
+        self.quick.set_system_name('SNES', '')
+        self.assertEqual(self.quick.system_cover('SNES'), art)
+        self.assertEqual(self.quick.games('SNES')['label'], 'Super Nintendo')
+        with open(os.path.join(self.fat, 'MiSTerLily/quick/games.json')) as f:
+            self.assertEqual(json.load(f)['custom'], {})
 
     def test_short_name(self):
         self.assertEqual(short_name('7th Saga, The (U) [!]'), '7th Saga, The')

@@ -139,11 +139,17 @@
             <span class="list-count" id="quick-count"></span>
             <button class="btn primary small" id="quick-add" type="button"><svg><use href="#i-plus"/></svg>Add game</button>
           </div>
+          <button class="qsys-card" id="quick-syscard" type="button">
+            <span class="qsys-cover" id="quick-syscover"></span>
+            <span class="row-text"><span id="quick-label"></span><small>How this system shows on the display. Tap to change its name or picture.</small></span>
+            <svg><use href="#i-image"/></svg>
+          </button>
           <p class="banner warn" id="quick-nocore" hidden><svg><use href="#i-alert"/></svg><span>This core is not on the SD card, so the display does not show this system.</span></p>
           <div class="stack-list" id="quick-games"></div>
           <p class="more">The order here is the order on the display. Tap a cover to change it; it keeps the shape of the picture, so a Super Nintendo box is wide and a Mega Drive box is tall. The display shows the new list within a few seconds.</p>
         </div>
         <input type="file" id="quick-file" accept="image/*" hidden>
+        <input type="file" id="quick-sysfile" accept="image/*" hidden>
       </section>
 
       <section class="view" id="view-cores" hidden>
@@ -299,6 +305,28 @@
   </div>
 </dialog>
 
+<dialog class="sheet" id="qsys" aria-labelledby="qsys-title">
+  <div class="sheet-body">
+    <div class="sheet-text">
+      <h2 id="qsys-title">On the display</h2>
+      <p class="sheet-sub" id="qsys-sub"></p>
+    </div>
+    <button class="icon-btn sheet-close" id="qsys-close" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+  </div>
+  <div class="sheet-actions">
+    <form class="qname" id="qsys-form">
+      <label for="qsys-name">Name</label>
+      <div><input id="qsys-name" maxlength="40" autocomplete="off"><button class="btn primary" type="submit">Save</button></div>
+    </form>
+    <div class="qsys-big" id="qsys-cover"></div>
+    <div class="qcover-acts">
+      <button class="btn" id="qsys-upload" type="button"><svg><use href="#i-upload"/></svg>Upload my own…</button>
+      <button class="btn danger-quiet" id="qsys-default" type="button"><svg><use href="#i-refresh"/></svg>Use the default</button>
+    </div>
+    <p class="help">The picture fills a 4:3 screen; other shapes get black bands.</p>
+  </div>
+</dialog>
+
 <dialog class="sheet" id="qcover" aria-labelledby="qcover-title">
   <div class="sheet-body">
     <div class="sheet-cover" id="qcover-now"></div>
@@ -309,7 +337,11 @@
     <button class="icon-btn sheet-close" id="qcover-close" aria-label="Close"><svg><use href="#i-close"/></svg></button>
   </div>
   <div class="sheet-actions">
-    <p class="qcover-pick">Tap the picture you want.</p>
+    <form class="qname" id="qname-form">
+      <label for="qname">Name on the display</label>
+      <div><input id="qname" maxlength="40" autocomplete="off"><button class="btn primary" type="submit">Save</button></div>
+    </form>
+    <p class="qcover-pick">Cover: tap the picture you want.</p>
     <div class="qcover-list" id="qcover-list"></div>
     <div class="qcover-acts">
       <button class="btn" id="qcover-upload" type="button"><svg><use href="#i-upload"/></svg>Upload my own…</button>

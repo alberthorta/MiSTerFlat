@@ -154,7 +154,7 @@ def make_handler(app: App):
                 return self._upload_save(url, length)
             if url.path == '/api/lily/upload':
                 return self._upload_firmware(length)
-            if url.path == '/api/quick/cover':
+            if url.path in ('/api/quick/cover', '/api/quick/syscover'):
                 return self._upload_cover(url, length)
             if length > MAX_BODY:
                 return self._json({'error': 'body too large'}, 413)
@@ -217,6 +217,15 @@ def make_handler(app: App):
                     self._json({'ok': True})
                 elif url.path == '/api/quick/move':
                     app.quick.move(str(body.get('system', '')), str(body.get('game', '')), int(body.get('delta', 0)))
+                    self._json({'ok': True})
+                elif url.path == '/api/quick/rename':
+                    self._json({'name': app.quick.rename(str(body.get('system', '')), str(body.get('game', '')),
+                                                         str(body.get('name', '')))})
+                elif url.path == '/api/quick/system':
+                    app.quick.set_system_name(str(body.get('system', '')), str(body.get('name', '')))
+                    self._json({'ok': True})
+                elif url.path == '/api/quick/syscover/delete':
+                    app.quick.clear_system_cover(str(body.get('system', '')))
                     self._json({'ok': True})
                 elif url.path == '/api/quick/cover/delete':
                     app.quick.clear_cover(str(body.get('system', '')), str(body.get('game', '')))
@@ -291,6 +300,11 @@ def make_handler(app: App):
                     if not full:
                         return self._json({'error': 'no cover'}, 404)
                     self._file(os.path.dirname(full), os.path.basename(full))
+                elif path == '/api/quick/syscover':
+                    full = app.quick.system_cover(q.get('system', ''))
+                    if not full:
+                        return self._json({'error': 'no cover'}, 404)
+                    self._file(os.path.dirname(full), os.path.basename(full))
                 elif path == '/api/quick/pictures':
                     self._json({'sd': app.quick.sd_pictures(q.get('system', ''), q.get('game', ''))})
                 elif path == '/api/quick/boxart/search':
@@ -308,7 +322,10 @@ def make_handler(app: App):
             q = {k: v[-1] for k, v in parse_qs(url.query).items()}
             data = self.rfile.read(length)
             try:
-                crc = app.quick.set_cover(q.get('system', ''), q.get('game', ''), data)
+                if url.path == '/api/quick/syscover':
+                    crc = app.quick.set_system_cover(q.get('system', ''), data)
+                else:
+                    crc = app.quick.set_cover(q.get('system', ''), q.get('game', ''), data)
             except (QuickError, OSError) as e:
                 return self._json({'error': str(e)}, 409)
             self._json({'ok': True, 'crc': crc})
