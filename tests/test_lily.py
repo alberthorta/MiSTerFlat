@@ -123,6 +123,27 @@ class LilyTest(unittest.TestCase):
             with self.assertRaises(LilyError):
                 self.lily.set_display(setting, value)
 
+    def set_fw(self, version):
+        with open(self.fw, 'w') as f:
+            f.write(version + '\n')
+
+    def test_power_off_needs_relay_firmware(self):
+        self.assertFalse(self.lily.can_power_off())  # 0.1.0
+        self.set_fw('0.5.0')
+        self.assertTrue(self.lily.can_power_off())
+        with open(self.board_file, 'w') as f:
+            f.write('HWTDISPS3\n')
+        self.assertFalse(self.lily.can_power_off())
+
+    def test_power_off_writes_flag(self):
+        flag = os.path.join(self.tmp.name, 'poweroff')
+        with self.assertRaises(LilyError):
+            self.lily.power_off(flag)
+        self.assertFalse(os.path.exists(flag))
+        self.set_fw('0.10.1')
+        self.lily.power_off(flag)
+        self.assertTrue(os.path.exists(flag))
+
 
 if __name__ == '__main__':
     unittest.main()

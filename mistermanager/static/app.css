@@ -382,3 +382,36 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); border: 0; }
 /* Display view: the panel wraps the blocks, and the help line can be the only thing in its group. */
 #lily-panel > .block-head:first-child { margin-top: 0; }
 .group > #lily-nodisplay { border-top: 0; }
+
+/* Power: an icon in the phone header, a button at the foot of the desktop rail; both open #power. */
+.nav-power { display: none; }
+.top-power { flex: none; margin-right: -8px; }
+.top-power svg { width: 20px; height: 20px; }
+@media (min-width: 900px) {
+  .top-power { display: none; }
+  .nav-power {
+    display: flex; align-items: center; gap: 12px; margin-top: auto;
+    min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--r-s);
+    background: transparent; color: var(--text-2); font: inherit; font-size: 15px; text-align: left; cursor: pointer;
+  }
+  .nav-power svg { width: 22px; height: 22px; }
+  .nav-power:hover { background: var(--danger-soft); color: var(--danger); }
+  .nav-power + .nav-foot { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 14px; }
+}
+.power-opts { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 4px; }
+.power-opt {
+  display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px; text-align: left;
+  background: var(--raised); color: var(--text); border: 1px solid var(--line); border-radius: var(--r-m);
+  font: inherit; cursor: pointer; transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.power-opt > svg { width: 24px; height: 24px; flex: none; color: var(--text-2); }
+.power-opt .row-text { font-weight: 600; }
+.power-opt .row-text small { font-weight: 400; }
+.power-opt:hover { border-color: var(--text-2); }
+.power-opt.danger > svg { color: var(--danger); }
+.power-opt.armed { border-color: var(--accent); background: var(--accent-soft); }
+.power-opt.danger.armed { border-color: var(--danger); background: var(--danger-soft); }
+.power-confirm { padding: 8px 16px 0; font-size: 13px; color: var(--text-2); }
+#power { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+@media (min-width: 600px) { #power { padding-bottom: 16px; } }
+#power-title:focus { outline: none; }

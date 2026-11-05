@@ -42,6 +42,7 @@
     <a data-nav="saves" href="#saves"><svg><use href="#i-card"/></svg><span>Saves</span></a>
     <a data-nav="display" href="#display"><svg><use href="#i-lcd"/></svg><span>Display</span></a>
     <a data-nav="settings" href="#settings"><svg><use href="#i-sliders"/></svg><span>Settings</span></a>
+    <button class="nav-power" id="nav-power" type="button"><svg><use href="#i-power"/></svg><span>Power</span></button>
     <div class="nav-foot" id="nav-foot"></div>
   </nav>
 
@@ -50,6 +51,7 @@
       <a class="brand" href="#now"><svg class="mark"><use href="#i-mark"/></svg><span>MiSTer</span></a>
       <h1 id="title">Now</h1>
       <a class="now-strip" id="now-strip" href="#now"><span class="dot" id="dot"></span><span id="now-text">…</span></a>
+      <button class="icon-btn top-power" id="top-power" type="button" aria-label="Power"><svg><use href="#i-power"/></svg></button>
     </header>
 
     <main>
@@ -202,14 +204,6 @@
           <div class="row stack"><label class="row-text" for="dvi">Signal</label><select id="dvi"></select></div>
           <p class="help">Try these if the screen goes off and on when a core loads. Both keep 1920x1080 at 60 Hz. If the screen stays black after a change, set it back here from the phone, then reload a core.</p>
         </div>
-
-        <div class="block-head"><h2>Power</h2></div>
-        <div class="group">
-          <div class="row">
-            <span class="row-text">Reboot the MiSTer<small>A running game stops. The page comes back in about a minute.</small></span>
-            <button class="btn danger" id="reboot"><svg><use href="#i-power"/></svg>Reboot</button>
-          </div>
-        </div>
       </section>
     </main>
   </div>
@@ -227,6 +221,27 @@
   <div class="sheet-actions">
     <button class="btn primary big" id="sheet-play"><svg><use href="#i-play"/></svg>Play</button>
   </div>
+</dialog>
+
+<dialog class="sheet" id="power" aria-labelledby="power-title">
+  <div class="sheet-body">
+    <div class="sheet-text">
+      <h2 id="power-title" tabindex="-1">Power</h2>
+      <p class="sheet-sub">A running game stops.</p>
+    </div>
+    <button class="icon-btn sheet-close" id="power-close" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+  </div>
+  <div class="power-opts">
+    <button class="power-opt" id="reboot" type="button">
+      <svg><use href="#i-refresh"/></svg>
+      <span class="row-text">Reboot<small>The page comes back in about a minute.</small></span>
+    </button>
+    <button class="power-opt danger" id="poweroff" type="button" hidden>
+      <svg><use href="#i-power"/></svg>
+      <span class="row-text">Power off<small>Linux shuts down, then the display cuts the power. Tap the display to switch on again.</small></span>
+    </button>
+  </div>
+  <p class="power-confirm" id="power-confirm" hidden></p>
 </dialog>
 
 <div id="toast" role="status" aria-live="polite"></div>

@@ -391,10 +391,44 @@ $('cp-save').onclick = async () => {
   try { await api('/api/settings/preset', {name: $('cp-name').value, fields}); toast('Preset saved. Applies on the next core load.'); settings(); }
   catch (e) { fail(e); }
 };
-$('reboot').onclick = async () => {
-  if (!confirm('Reboot the MiSTer now? A running game will stop.')) return;
-  try { await api('/api/reboot', {}); toast('Rebooting…'); } catch (e) { fail(e); }
-};
+/* ---------- Power sheet: rail button (desktop) and header icon (phone) ---------- */
+// The sheet is the first step; the chosen action asks for a second tap, so a stray tap does nothing.
+let powerArmed = null, powerArmTimer = null;
+function powerDisarm() {
+  powerArmed = null; clearTimeout(powerArmTimer);
+  for (const id of ['reboot', 'poweroff']) $(id).classList.remove('armed');
+  $('power-confirm').hidden = true;
+}
+async function openPower() {
+  powerDisarm();
+  $('power').showModal();
+  $('power-title').focus({preventScroll: true});
+  try { $('poweroff').hidden = !(await api('/api/lily')).power_off; } catch (e) { $('poweroff').hidden = true; }
+}
+async function powerAction(id) {
+  if (powerArmed !== id) {
+    powerDisarm();
+    powerArmed = id;
+    $(id).classList.add('armed');
+    $('power-confirm').textContent = id === 'reboot' ? 'Tap Reboot again to reboot now.' : 'Tap Power off again to switch the MiSTer off.';
+    $('power-confirm').hidden = false;
+    powerArmTimer = setTimeout(powerDisarm, 4000);
+    return;
+  }
+  powerDisarm();
+  try {
+    await api(id === 'reboot' ? '/api/reboot' : '/api/poweroff', {});
+    $('power').close();
+    toast(id === 'reboot' ? 'Rebooting…' : 'Shutting down…');
+  } catch (e) { fail(e); }
+}
+$('nav-power').onclick = openPower;
+$('top-power').onclick = openPower;
+$('power-close').onclick = () => $('power').close();
+$('power').onclose = powerDisarm;
+$('power').onclick = e => { if (e.target === $('power')) $('power').close(); };
+$('reboot').onclick = () => powerAction('reboot');
+$('poweroff').onclick = () => powerAction('poweroff');
 
 /* ---------- Display: MiSTerLily ---------- */
 let lilyTimer = null;

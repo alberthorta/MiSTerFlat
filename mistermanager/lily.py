@@ -11,6 +11,11 @@ CMDHWINF id to /tmp/misterlily_board. misterlily_flash.py picks the firmware for
 Display settings (firmware 0.4.1 and later) also go through the daemon, which holds the port: it
 writes the display's settings as JSON to /tmp/misterlily_cfg every few seconds, and sends the lines
 of /tmp/misterlily_cmd ("brightness 5", "clockfont 4") to the display.
+
+Power off (Waveshare board, firmware 0.5.0 and later, with the power relay): the same path as the
+hold on the display's RESET button. With /run/misterlily_poweroff in place the daemon is not
+stopped by the shutdown scripts; on the last SIGTERM it tells the display (MDSPOWER,down), and the
+display opens the relay when Linux has finished.
 """
 from __future__ import annotations
 
@@ -26,6 +31,9 @@ FW_FILE = '/tmp/misterlily_fw'
 BOARD_FILE = '/tmp/misterlily_board'
 CFG_FILE = '/tmp/misterlily_cfg'
 CMD_FILE = '/tmp/misterlily_cmd'
+POWEROFF_FLAG = '/run/misterlily_poweroff'
+RELAY_BOARDS = {'HWWSTLCD2'}
+RELAY_SINCE = (0, 5, 0)
 MODELS = {'HWTDISPS3': 'LILYGO T-Display-S3', 'HWWSTLCD2': 'Waveshare ESP32-S3-Touch-LCD-2'}
 # app0 in the board's partition table; misterlily_flash.py refuses larger files too.
 MAX_FIRMWARE = 0x640000
@@ -68,6 +76,22 @@ class Lily:
     def model(self) -> Optional[str]:
         board_id = self._read(self.board_file)
         return MODELS.get(board_id, board_id)
+
+    def can_power_off(self) -> bool:
+        """The connected board has the power relay. Whether a relay is wired cannot be seen from here."""
+        if not self.installed() or self._read(self.board_file) not in RELAY_BOARDS:
+            return False
+        try:
+            return tuple(int(n) for n in (self.board() or '').split('.')[:3]) >= RELAY_SINCE
+        except ValueError:
+            return False
+
+    def power_off(self, flag: str = POWEROFF_FLAG) -> None:
+        if not self.can_power_off():
+            raise LilyError('power off needs the Waveshare display with firmware 0.5.0 or later')
+        with open(flag, 'w'):
+            pass
+        os.sync()
 
     def latest(self, refresh: bool = False) -> dict:
         """{'latest': version or None, 'error': text or None}; asks GitHub at most every 10 min."""
@@ -120,7 +144,7 @@ class Lily:
         if not self.installed():
             return {'installed': False}
         out = {'installed': True, 'board': self.board(), 'model': self.model(), 'job': self.job(),
-               'display': self.display()}
+               'display': self.display(), 'power_off': self.can_power_off()}
         out.update(self.latest(refresh))
         return out
 

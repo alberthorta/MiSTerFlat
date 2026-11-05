@@ -187,6 +187,10 @@ def make_handler(app: App):
                 elif url.path == '/api/lily/flash':
                     app.lily.flash_latest()
                     self._json({'ok': True})
+                elif url.path == '/api/poweroff':
+                    app.lily.power_off()
+                    self._json({'ok': True})
+                    threading.Timer(1.0, lambda: subprocess.run(['poweroff'])).start()
                 elif url.path == '/api/reboot':
                     self._json({'ok': True})
                     # Answer first; the reboot takes the server down with it.
