@@ -80,6 +80,7 @@ async function status() {
   try { s = await api('/api/status'); }
   catch (e) {
     $('dot').className = 'dot off';
+    document.body.classList.add('offline');
     $('now-text').textContent = 'Not answering';
     paintHero(null);
     return;
@@ -87,6 +88,7 @@ async function status() {
   scanning = s.scanning;
   const now = s.now, inMenu = !now.core || now.core.toUpperCase() === 'MENU';
   $('dot').className = 'dot' + (scanning ? ' busy' : '');
+  document.body.classList.remove('offline');
   $('now-text').textContent = inMenu ? 'In the menu' : (now.game || now.core);
   paintHero(now);
   paintVitals(s.system);

@@ -415,3 +415,7 @@ progress { width: 100%; height: 6px; accent-color: var(--accent); border: 0; }
 #power { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 @media (min-width: 600px) { #power { padding-bottom: 16px; } }
 #power-title:focus { outline: none; }
+/* Green while the MiSTer answers: it is running. */
+.top-power, .nav-power svg { color: var(--ok); }
+body.offline .top-power, body.offline .nav-power svg { color: var(--muted); }
+@media (min-width: 900px) { .nav-power:hover svg { color: var(--danger); } }
