@@ -221,6 +221,8 @@ def current(fat: str, last_launch: Optional[dict]) -> dict:
             picked = 0
         if last_launch and last_launch['time'] >= picked - 15:
             info['game'] = last_launch['name']
+            info['system'] = last_launch['system']
+            info['art'] = last_launch.get('art')
         elif picked:
             info['game'] = os.path.splitext(os.path.basename(_read('/tmp/FULLPATH')))[0]
     return info
