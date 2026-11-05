@@ -17,6 +17,11 @@ constexpr uint32_t kHoldShowMs = 300;
 constexpr uint32_t kHoldDrawMs = 80;
 constexpr int kRingGap = 4;
 constexpr int kRingWidth = 4;
+// The large power button: the icon at this scale, and the ring a little thicker.
+constexpr int kBigRadius = 58;
+constexpr float kBigIconScale = 2.2f;
+constexpr int kBigRingGap = 6;
+constexpr int kBigRingWidth = 7;
 // The chosen button stays lit this long, so the tap visibly did something.
 constexpr uint32_t kChosenMs = 180;
 // Fade in and out: 4 blended frames. Each frame is a full push (about 30 ms on the SPI panel), so
@@ -68,10 +73,12 @@ constexpr uint16_t kFace = theme::rgb565(28, 28, 32);
 int centreX(int w, int i) { return w / 2 + (2 * i - 3) * kSpacing / 2; }
 
 // Icons, drawn with primitives, about 30 px across. fillArc angles: 0 = 3 o'clock, clockwise.
-void drawPower(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
-  g.fillArc(cx, cy + 2, 13, 10, 300, 360, c);
-  g.fillArc(cx, cy + 2, 13, 10, 0, 240, c);
-  g.fillRoundRect(cx - 2, cy - 14, 4, 15, 2, c);
+void drawPower(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c, float s = 1) {
+  const int dy = lroundf(2 * s), outer = lroundf(13 * s), inner = lroundf(10 * s);
+  g.fillArc(cx, cy + dy, outer, inner, 300, 360, c);
+  g.fillArc(cx, cy + dy, outer, inner, 0, 240, c);
+  const int barW = lroundf(4 * s);
+  g.fillRoundRect(cx - barW / 2, cy - lroundf(14 * s), barW, lroundf(15 * s), barW / 2, c);
 }
 
 void drawMenu(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
@@ -127,9 +134,9 @@ void drawSun(lgfx::LovyanGFX& g, int cx, int cy, uint16_t c) {
 }
 
 // Progress ring from 12 o'clock, clockwise. Split at 3 o'clock, where fillArc's angles wrap.
-void drawRing(lgfx::LovyanGFX& g, int cx, int cy, int inner, float fraction, uint16_t c) {
+void drawRing(lgfx::LovyanGFX& g, int cx, int cy, int inner, float fraction, uint16_t c, int width = kRingWidth) {
   const float end = 270 + 360 * fraction;
-  const int outer = inner + kRingWidth;
+  const int outer = inner + width;
   if (end <= 360) {
     g.fillArc(cx, cy, outer, inner, 270, end, c);
   } else {
@@ -156,6 +163,7 @@ TouchButtons::Result TouchButtons::poll(uint32_t nowMs) {
   if (shown_ && display_.frameCount() != frameCount_) {
     shown_ = false;
     resetArmed_ = false;
+    powerMode_ = false;
     closeAtMs_ = 0;
     fade_ = Fade::None;
   }
@@ -225,6 +233,7 @@ TouchButtons::Result TouchButtons::release(uint32_t nowMs) {
     return r;
   }
   if (holdCancelled) {
+    shownAtMs_ = nowMs;
     draw();  // let go before the ring was full: nothing happens
     return r;
   }
@@ -267,6 +276,12 @@ TouchButtons::Result TouchButtons::release(uint32_t nowMs) {
     draw();
     return r;
   }
+  if (b == kReset && powerOff_ && !powerMode_) {
+    powerMode_ = true;
+    draw();
+    return r;
+  }
+  if (powerMode_) return r;  // a short tap on the large button: it needs a hold
   if (b == kReset && !resetArmed_) {
     resetArmed_ = true;
     armedAtMs_ = nowMs;
@@ -296,6 +311,7 @@ void TouchButtons::show(uint32_t nowMs) {
   if (!display_.saveFrame(DisplayManager::kUnder)) return;
   shown_ = true;
   resetArmed_ = false;
+  powerMode_ = false;
   held_ = chosen_ = kNone;
   closeAtMs_ = unlightAtMs_ = 0;
   shownAtMs_ = nowMs;
@@ -347,6 +363,7 @@ void TouchButtons::hide() {
 void TouchButtons::finishHide() {
   shown_ = false;
   resetArmed_ = false;
+  powerMode_ = false;
   unlightAtMs_ = 0;
   held_ = chosen_ = kNone;
   display_.restoreFrame(DisplayManager::kUnder);
@@ -366,6 +383,20 @@ void TouchButtons::compose() {
   auto& g = display_.canvas();
   const int w = display_.width();
   const int cy = rowY();
+
+  if (powerMode_) {
+    g.fillScreen(TFT_BLACK);
+    const Style& s = kStyles[kReset];
+    const int bx = w / 2, by = display_.height() / 2;
+    const bool lit = held_ == kReset || chosen_ == kReset;
+    const int r = kBigRadius + (lit ? kHeldGrow : 0);
+    g.fillCircle(bx, by, r, s.colour);
+    if (!lit) g.fillCircle(bx, by, r - kRing - 1, kFace);
+    drawPower(g, bx, by, lit ? theme::kText : s.colour, kBigIconScale);
+    const float hold = powerHold(millis());
+    if (hold > 0) drawRing(g, bx, by, kBigRadius + kHeldGrow + kBigRingGap, hold, s.colour, kBigRingWidth);
+    return;
+  }
 
   g.setTextDatum(lgfx::middle_center);
   g.setTextSize(1);
@@ -388,11 +419,6 @@ void TouchButtons::compose() {
       const float hold = powerHold(millis());
       if (hold > 0) {
         drawRing(g, cx, cy, r + kRingGap, hold, s.colour);
-        g.setTextColor(s.colour);
-        g.drawString("Keep holding to power off", w / 2, cy + kRadius + kCaptionGap);
-      } else if (armed && powerOff_) {
-        g.setTextColor(s.colour);
-        g.drawString("Tap again to restart, hold to power off", w / 2, cy + kRadius + kCaptionGap);
       } else if (armed) {
         g.setTextColor(s.colour);
         g.drawString("Tap again", cx, cy + kRadius + kCaptionGap);
@@ -496,6 +522,10 @@ int TouchButtons::brightnessY() const { return rowY() + kMainToLevel + (volumeRo
 TouchButtons::Button TouchButtons::hit(int x, int y) const {
   const int w = display_.width();
   const int cy = rowY();
+  if (powerMode_) {
+    const int dx = x - w / 2, dy = y - display_.height() / 2, reach = kBigRadius + 16;
+    return dx * dx + dy * dy <= reach * reach ? kReset : kNone;
+  }
   // A little larger than the circle: half the spacing across, a margin above and below.
   for (int i = 0; i < kCount; ++i) {
     const int dx = x - centreX(w, i);

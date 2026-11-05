@@ -13,8 +13,10 @@
 // Below them, two level rows: the MiSTer's global volume (once the host has sent it with MDSVOL)
 // and the brightness of this display. Each is an icon, -, a bar of kLevelMax + 1 steps and +; a tap
 // on the bar picks that step. These keep the buttons open, so a level can be changed several times.
-// With a MiSTer power relay (setPowerOff), holding RESET for 2 s reports "poweroff"; a ring
-// around the button fills while it is held. Letting go early does nothing.
+// With a MiSTer power relay (setPowerOff), a tap on the power button leaves only a large power
+// button in the middle of the screen. Holding it for 2 s reports "poweroff"; a ring around it fills
+// while it is held, and letting go early does nothing. A tap elsewhere, or 5 s without a touch,
+// closes it.
 class TouchButtons {
  public:
   explicit TouchButtons(DisplayManager& display) : display_(display) {}
@@ -87,6 +89,7 @@ class TouchButtons {
   bool resetArmed_ = false;
   bool wifiSlot_ = false;
   bool powerOff_ = false;
+  bool powerMode_ = false;     // only the large power button shows
   bool powerFired_ = false;    // "poweroff" sent for the finger still on the glass
   uint32_t heldSinceMs_ = 0;   // when held_ last changed
   uint32_t nextHoldDrawMs_ = 0;
