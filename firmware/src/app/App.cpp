@@ -11,6 +11,7 @@
 #include "ui/LegacyCanvas.h"
 #include "ui/MenuScreen.h"
 #include "ui/SplashScreen.h"
+#include "ui/Logos.h"
 #include "ui/StandbyScreen.h"
 #include "ui/Theme.h"
 #include "util/Log.h"
@@ -41,6 +42,8 @@ constexpr uint32_t kHaltReplyMs = 8000;
 constexpr uint32_t kNoHostCutMs = 1000;
 constexpr uint32_t kStartGraceMs = 60000;
 constexpr uint32_t kStandbyPollMs = 20;
+// After a tap on the standby screen, the power prompt waits this long for the second tap.
+constexpr uint32_t kPromptMs = 5000;
 constexpr const char* kStartingText = "Starting MiSTer";
 constexpr const char* kStoppingText = "Shutting down";
 
@@ -304,6 +307,15 @@ void App::sendLogoStatus() {
 
 void App::drawSplash(const char* hint) {
   SplashScreen::Logo logo;
+  // Switching the MiSTer on or off shows the MiSTer logo, as the standby screen does; the board's
+  // own start screen keeps the start-up picture.
+  if (hint == kStartingText || hint == kStoppingText) {
+    logo.data = kLogoPng;
+    logo.size = sizeof(kLogoPng);
+    logo.png = true;
+    SplashScreen::draw(display_, "v" MDS_FW_VERSION, hint, &logo);
+    return;
+  }
   logo.data = logo_.data();
   logo.size = logo_.size();
   logo.png = logo_.isPng();
@@ -840,7 +852,7 @@ void App::powerOn(bool byHost) {
   power_.set(true);
   settings_.setPowerOn(true);
   powerState_ = Power::On;
-  standbyDown_ = false;
+  standbyDown_ = standbyPrompt_ = false;
   display_.setBrightness(Settings::backlightFor(settings_.contrast()));
   if (byHost) {
     LOGF("power: data from the MiSTer while off, relay on");
@@ -898,6 +910,7 @@ void App::onDown() {
 }
 
 void App::cutPower() {
+  standbyPrompt_ = false;
   power_.set(false);
   settings_.setPowerOn(false);
   powerState_ = Power::Off;
@@ -913,23 +926,35 @@ void App::cutPower() {
 
 void App::showStandby() {
   screen_ = Screen::Standby;
-  if (clock_.valid()) {
+  if (standbyPrompt_) {
+    StandbyScreen::drawPrompt(display_, station_.ip());
+  } else if (clock_.valid()) {
     shownMinute_ = clock_.minuteStamp(millis());
     const wallclock::DateTime now = clock_.local(millis());
-    StandbyScreen::draw(display_, &now, station_.ip());
+    StandbyScreen::drawIdle(display_, &now, station_.ip());
   } else {
     shownMinute_ = -1;
-    StandbyScreen::draw(display_, nullptr, station_.ip());
+    StandbyScreen::drawIdle(display_, nullptr, station_.ip());
   }
+}
+
+void App::setStandbyPrompt(bool on) {
+  standbyPrompt_ = on;
+  promptUntilMs_ = millis() + kPromptMs;
+  display_.setBrightness(Settings::backlightFor(on ? settings_.contrast() : 0));
+  showStandby();
 }
 
 void App::pollPower() {
   if (!PowerSwitch::available()) return;
   const uint32_t now = millis();
   if (powerState_ == Power::Stopping && static_cast<int32_t>(now - cutAtMs_) >= 0) cutPower();
-  if (powerState_ == Power::Off && screen_ == Screen::Standby && clock_.valid() &&
-      clock_.minuteStamp(now) != shownMinute_) {
-    showStandby();
+  if (powerState_ == Power::Off && screen_ == Screen::Standby) {
+    if (standbyPrompt_ && !standbyDown_ && static_cast<int32_t>(now - promptUntilMs_) >= 0) {
+      setStandbyPrompt(false);
+    } else if (!standbyPrompt_ && clock_.valid() && clock_.minuteStamp(now) != shownMinute_) {
+      showStandby();
+    }
   }
   if (startingUp_ && now - powerOnMs_ >= kStartGraceMs) {
     startingUp_ = false;
@@ -949,6 +974,14 @@ void App::pollStandbyTouch() {
     standbyDown_ = true;
     return;
   }
-  // The finger left the glass: that is the tap.
-  if (standbyDown_) powerOn(false);
+  // The finger left the glass: that is the tap. The first one shows the prompt, the second one
+  // (while it shows) switches the MiSTer on.
+  if (!standbyDown_) return;
+  standbyDown_ = false;
+  if (standbyPrompt_) {
+    standbyPrompt_ = false;
+    powerOn(false);
+  } else {
+    setStandbyPrompt(true);
+  }
 }

@@ -6,6 +6,7 @@
 #include <string_view>
 
 #include "config.h"
+#include "ui/Logos.h"
 #include "ui/Theme.h"
 
 namespace MenuScreen {
@@ -19,9 +20,8 @@ const char* const kMonths[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
 // The screen is a column, centred vertically: title, time, date, then one line per network.
 // Heights are those of the fonts; the gaps shrink when the column does not fit (two networks on
 // the 170-pixel T-Display-S3).
-constexpr int kTitleScale = 2;  // retro 8x8 font
 constexpr int kNetScale = 2;
-constexpr int kTitleH = 8 * kTitleScale;
+constexpr int kTitleH = kLogoSmallHeight;  // the MiSTer logo
 
 // Each font with the scale that makes "HH:MM" about 280 px wide at most, and the digit height used
 // for the layout (the fonts' own line heights add space above and below).
@@ -120,7 +120,6 @@ void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip,
   const int w = display.width();
   const int h = display.height();
   const uint16_t timeColor = dimmed ? theme::rgb565(90, 90, 90) : theme::kText;
-  const uint16_t accent = dimmed ? theme::rgb565(90, 50, 10) : theme::kAccent;
   const uint16_t dim = dimmed ? theme::rgb565(55, 55, 55) : theme::kTextDim;
 
   NetEntry nets[kMaxEntries];
@@ -140,10 +139,12 @@ void draw(DisplayManager& display, const wallclock::DateTime& t, const char* ip,
   g.fillScreen(theme::kBackground);
   g.setTextDatum(lgfx::middle_center);
 
-  g.setFont(&fonts::Font8x8C64);
-  g.setTextSize(kTitleScale);
-  g.setTextColor(accent);
-  g.drawString("MiSTer", w / 2, y + kTitleH / 2);
+  // The idle clock has its own darker copy of the logo, as its text is darker too.
+  if (dimmed) {
+    g.drawPng(kLogoSmallDimPng, sizeof(kLogoSmallDimPng), (w - kLogoSmallWidth) / 2, y);
+  } else {
+    g.drawPng(kLogoSmallPng, sizeof(kLogoSmallPng), (w - kLogoSmallWidth) / 2, y);
+  }
   y += kTitleH + gaps[0];
 
   char buf[32];

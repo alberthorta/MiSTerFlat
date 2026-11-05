@@ -11,8 +11,8 @@ static const char kRemotePage[] = R"HTML(<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d11">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="MiSTerLily">
-<title>MiSTerLily</title>
+<meta name="apple-mobile-web-app-title" content="MiSTer Manager Display">
+<title>MiSTer Manager Display</title>
 <style>
 :root { color-scheme: dark; --bg: #0b0d11; --bezel: #1a1d24; --edge: #2a2f3a; --text: #d9dde4; --muted: #7d8594; --ok: #3ccf8e; --warn: #f5a623; }
 * { box-sizing: border-box; }

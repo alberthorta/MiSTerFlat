@@ -137,6 +137,9 @@ class App : public proto::ParserListener {
   bool startingUp_ = false;
   uint32_t powerOnMs_ = 0;
   bool standbyDown_ = false;  // a finger is on the standby screen
+  bool standbyPrompt_ = false;  // the power prompt shows, waiting for the second tap
+  uint32_t promptUntilMs_ = 0;
+  void setStandbyPrompt(bool on);
   uint32_t standbyPollMs_ = 0;
 
   bool sendTtyAck_ = true;
