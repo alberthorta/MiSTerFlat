@@ -256,6 +256,23 @@ class Lily:
         except (OSError, ValueError, KeyError, TypeError):
             return None
 
+    def restart_display(self) -> None:
+        if not self.board():
+            raise LilyError('the display is not connected')
+        self._write_cmd('restart')
+
+    def _write_cmd(self, line: str) -> None:
+        # Lines not taken by the daemon yet are kept, so two quick changes are both sent. Written to a
+        # temporary file and renamed: the daemon never reads half a line.
+        try:
+            with open(self.cmd_file) as f:
+                pending = f.read()
+        except OSError:
+            pending = ''
+        with open(self.cmd_file + '.tmp', 'w') as f:
+            f.write(pending + line + '\n')
+        os.replace(self.cmd_file + '.tmp', self.cmd_file)
+
     def set_display(self, setting: str, value) -> None:
         cfg = self.display()
         if cfg is None:
@@ -265,16 +282,7 @@ class Lily:
             raise LilyError('unknown setting')
         if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= limits[setting]:
             raise LilyError('value out of range')
-        # Lines not taken by the daemon yet are kept, so two quick changes are both sent. Written to a
-        # temporary file and renamed: the daemon never reads half a line.
-        try:
-            with open(self.cmd_file) as f:
-                pending = f.read()
-        except OSError:
-            pending = ''
-        with open(self.cmd_file + '.tmp', 'w') as f:
-            f.write(pending + '{} {}\n'.format(setting, value))
-        os.replace(self.cmd_file + '.tmp', self.cmd_file)
+        self._write_cmd('{} {}'.format(setting, value))
 
     def info(self, refresh: bool = False) -> dict:
         if not self.installed():

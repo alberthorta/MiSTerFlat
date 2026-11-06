@@ -22,6 +22,10 @@ constexpr const char* kHostname = "misterlily";
 constexpr uint32_t kCheckMs = 500;
 // A new network that gives no address in this time counts as failed (wrong password, too far).
 constexpr uint32_t kJoinTimeoutMs = 20000;
+// The stored network is tried again this often while there is no address. The driver's own
+// reconnect gives up for good after some errors (an auth failure at start-up, seen in Nov 2026),
+// and the board then stayed "connecting" until it was restarted.
+constexpr uint32_t kRetryMs = 30000;
 constexpr int kMaxNetworks = 20;
 constexpr int kScanRetries = 3;
 constexpr uint32_t kScanRetryGapMs = 700;
@@ -35,6 +39,12 @@ struct Network {
   bool secure;
 };
 Network networks[kMaxNetworks];
+
+// Why the last try failed, for the status line: the driver's disconnect reason, or kNoAddress when
+// the board joined the network but got no address. Written from the Wi-Fi event task.
+constexpr int kNoAddress = 1000;
+volatile int lastReason = 0;
+volatile bool associated = false;
 
 
 void toHex(const char* text, char* out, size_t outSize) {
@@ -82,6 +92,16 @@ void Station::begin() {
   }
   // Our own NVS keys hold the network; the Wi-Fi driver must not keep a second copy.
   WiFi.persistent(false);
+  WiFi.onEvent([](arduino_event_id_t event, arduino_event_info_t info) {
+    if (event == ARDUINO_EVENT_WIFI_STA_CONNECTED) {
+      associated = true;
+    } else if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+      associated = false;
+      lastReason = info.wifi_sta_disconnected.reason;
+    } else if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
+      lastReason = 0;
+    }
+  });
   if (savedSsid_[0]) connect(savedSsid_, savedPassword_, millis());
 }
 
@@ -96,6 +116,8 @@ void Station::connect(const char* ssid, const char* password, uint32_t nowMs) {
   WiFi.setTxPower(kTxPower);
   connectStartMs_ = nowMs;
   ip_[0] = '\0';
+  lastReason = 0;
+  associated = false;
   LOGF("sta: joining %s", ssid_);
   setState(State::Connecting);
 }
@@ -117,9 +139,10 @@ const char* Station::stateName() const {
 void Station::sendStatus() {
   char ssidHex[sizeof(ssid_) * 2 + 1];
   toHex(ssid_, ssidHex, sizeof(ssidHex));
-  char line[160];
-  const int n = snprintf(line, sizeof(line), "MDSSTA,status,%s,%s,%d,%s\n", stateName(), ip_,
-                         state_ == State::Ok ? rssi_ : 0, ssidHex);
+  char line[170];
+  const int n = snprintf(line, sizeof(line), "MDSSTA,status,%s,%s,%d,%s,%d\n", stateName(), ip_,
+                         state_ == State::Ok ? rssi_ : 0, ssidHex,
+                         state_ == State::Fail ? failReason_ : state_ == State::Connecting ? lastReason : 0);
   if (n > 0 && transport_.write(line, n)) statusDirty_ = false;
 }
 
@@ -277,8 +300,20 @@ void Station::poll(uint32_t nowMs) {
     setState(State::Connecting);
     return;
   }
+  if (lastReason != sentReason_) {
+    sentReason_ = lastReason;
+    statusDirty_ = true;
+  }
+  if (!trying_ && nowMs - connectStartMs_ > kRetryMs) {
+    LOGF("sta: no address on %s (%d), trying again", ssid_, lastReason);
+    const int reason = lastReason;
+    connect(ssid_, password_, nowMs);
+    lastReason = reason;  // keep showing why until the next try says otherwise
+    return;
+  }
   if (trying_ && nowMs - connectStartMs_ > kJoinTimeoutMs) {
-    LOGF("sta: could not join %s", ssid_);
+    failReason_ = associated ? kNoAddress : lastReason;
+    LOGF("sta: could not join %s (%d)", ssid_, failReason_);
     setState(State::Fail);
     sendStatus();
     trying_ = false;

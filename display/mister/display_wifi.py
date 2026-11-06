@@ -36,6 +36,25 @@ def _unhex(text):
         return ""
 
 
+# The ESP32 Wi-Fi disconnect reasons (wifi_err_reason_t) that tell the user what to do.
+WRONG_PASSWORD = (2, 14, 15, 202, 204)
+NOT_FOUND = (201, 210, 211, 212)
+NO_ADDRESS = 1000  # the board's own code: joined, but no address from DHCP
+
+
+def fail_text(name, reason):
+    """reason: the board's code (firmware 0.6.2+); -1 from older firmware, which sends none."""
+    if reason in WRONG_PASSWORD:
+        return "Could not join {}: the password is wrong.".format(name)
+    if reason in NOT_FOUND:
+        return "Could not join {}: the display does not see it (it has 2.4 GHz only).".format(name)
+    if reason == NO_ADDRESS:
+        return "Joined {}, but got no address from the router (DHCP).".format(name)
+    if reason < 0:
+        return "Could not join {}. Check the password.".format(name)
+    return "Could not join {} (Wi-Fi reason {}).".format(name, reason)
+
+
 def handle_line(line, state):
     """Updates state from one MDSSTA line of the board. True if it was one."""
     text = line.decode("utf-8", "replace").strip() if isinstance(line, bytes) else line.strip()
@@ -45,10 +64,13 @@ def handle_line(line, state):
     kind = parts[0]
     if kind == "status" and len(parts) >= 5:
         if parts[1] == "fail":
-            name = _unhex(parts[4]) or state.get("joining", "")
-            state["error"] = "Could not join {}. Check the password.".format(name) if name else "Could not join the network."
+            name = _unhex(parts[4]) or state.get("joining", "") or "the network"
+            reason = int(parts[5]) if len(parts) >= 6 and parts[5].isdigit() else -1
+            state["error"] = fail_text(name, reason)
         elif parts[1] == "ok":
             state["error"] = ""
+        elif parts[1] == "connecting" and len(parts) >= 6 and parts[5].isdigit() and int(parts[5]):
+            state["error"] = "Still trying. " + fail_text(_unhex(parts[4]) or "the network", int(parts[5]))
         state.update(state=parts[1], ip=parts[2], rssi=int(parts[3]) if parts[3].lstrip("-").isdigit() else 0,
                      ssid=_unhex(parts[4]))
     elif kind == "scanning":

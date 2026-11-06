@@ -44,6 +44,8 @@ class Station {
   uint32_t connectStartMs_ = 0;
   char ip_[16] = {};
   int rssi_ = 0;
+  int failReason_ = 0;
+  int sentReason_ = 0;  // sent with fail: see the status line in docs/protocol.md
   uint32_t lastCheckMs_ = 0;
   bool statusDirty_ = false;
   bool serverStarted_ = false;

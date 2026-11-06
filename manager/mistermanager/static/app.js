@@ -462,6 +462,8 @@ async function lily(refresh) {
     : cmp > 0 ? 'Install v' + l.latest : 'Update to v' + l.latest;
   $('lily-latest').disabled = running || !l.latest || !l.board;
   $('lily-file').disabled = running || !l.board;
+  $('lily-restart').hidden = !l.board;
+  $('lily-restart').disabled = running;
   $('lily-job').hidden = !job;
   const d = l.display;
   $('lily-display').hidden = !d;
@@ -580,6 +582,15 @@ $('lily-latest').onclick = async () => {
   if (!confirm($('lily-latest').textContent + ' on the MiSTerLily display? Do not unplug it while it runs.')) return;
   try { await api('/api/lily/flash', {}); lily(); } catch (e) { fail(e); }
 };
+// The board starts again in a few seconds, its Wi-Fi too; the MiSTer keeps running.
+armed($('lily-restart'), 'Tap again to restart', async () => {
+  await api('/api/lily/restart', {});
+  toast('Restarting the display');
+  $('lily-restart').classList.remove('armed');
+  $('lily-restart').disabled = false;
+  $('lily-restart').textContent = 'Restart';
+  setTimeout(() => lily().catch(() => {}), 8000);
+});
 $('lily-file').onclick = () => { $('lily-input').value = ''; $('lily-input').click(); };
 $('lily-input').onchange = async () => {
   const file = $('lily-input').files[0];

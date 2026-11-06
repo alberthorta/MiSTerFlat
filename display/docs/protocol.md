@@ -209,7 +209,7 @@ it got an address on it. SSIDs and passwords travel in hex.
 | `MDSSTA,scan` | host → display | Scan for networks (the board scans itself) |
 | `MDSSTA,join,<ssid hex>,<password hex>` | host → display | Join; empty password for an open network. A password has 8 to 63 bytes |
 | `MDSSTA,forget` | host → display | Leave the network, erase it, Wi-Fi off |
-| `MDSSTA,status,<off\|connecting\|ok\|fail>,<ip>,<dBm>,<ssid hex>` | display → host | On every change and after `MDSSTA`. `fail`: a new network gave no address in 20 s; the board then goes back to the stored one |
+| `MDSSTA,status,<off\|connecting\|ok\|fail>,<ip>,<dBm>,<ssid hex>,<reason>` | display → host | On every change and after `MDSSTA`. `fail`: a new network gave no address in 20 s; the board then goes back to the stored one. `reason` (0.6.2+; with `fail`, and with `connecting` while the stored network is tried again every 30 s; else 0): the ESP32 disconnect reason (`wifi_err_reason_t`, e.g. 15 or 202 wrong password, 201 network not found), or 1000 when the board joined but got no address |
 | `MDSSTA,scanning` | display → host | Scan started |
 | `MDSSTA,net,<dBm>,<secure 0\|1>,<ssid hex>` | display → host | One network, strongest first, one line per name; at most 20 |
 | `MDSSTA,end,<n>` | display → host | End of the list; n is the raw scan result (access points seen, -2 = scan failed). The board tries a failed scan 3 more times first |

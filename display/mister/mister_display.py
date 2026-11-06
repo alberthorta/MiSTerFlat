@@ -408,6 +408,12 @@ class Display:
         if self.settings_file and now >= self.next_settings_check:
             self.next_settings_check = now + SETTINGS_CHECK_SECONDS
             for setting, value in display_settings.take_commands():
+                if setting == "restart":
+                    # Every firmware takes CMDRESET (tty2oled); the board keeps the MiSTer's relay as
+                    # it is. It leaves USB for a moment and the daemon finds it again.
+                    self.port.write("CMDRESET\n")
+                    log("display restart")
+                    continue
                 self.port.write("MDSCFG,{},{}\n".format(setting, value))
                 log("display {} set to {}".format(setting, value))
             self.port.write("MDSCFG\n")  # the reply goes to /tmp/misterlily_cfg (drain)

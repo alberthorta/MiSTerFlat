@@ -58,6 +58,9 @@ def take_commands(path=COMMAND_FILE):
     out = []
     for line in text.splitlines():
         parts = line.split()
+        if parts == ["restart"]:
+            out.append(("restart", None))
+            continue
         if len(parts) != 2 or parts[0] not in LIMITS or not parts[1].isdigit():
             continue
         value = int(parts[1])
